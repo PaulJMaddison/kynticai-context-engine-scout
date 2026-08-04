@@ -75,8 +75,8 @@ slipped. No functional or contract changes.
      managed offering (Scout Cloud), Discovery MCP, Score API, connector
      catalogue, pilot wizard.
    - Naming maturity rules: what public names are approved, what private
-     codenames must never appear in public (Fortress, engine internals, vector
-     pipeline terms), and the "always KynticAI, never bare Kyntic" rule for
+     codenames, engine internals, and vector-pipeline terms must never appear
+     in public, and the "always KynticAI, never bare Kyntic" rule for
      user-facing copy.
    - Cross-reference the other files that link to this map so the map becomes
      a genuine single source of truth.

@@ -27,8 +27,8 @@ grounded in approved source data.
 | Admin console | Local React admin/demo console for schemas, selectors, sources, and context. |
 
 Private enterprise connector implementations, customer-specific mappings,
-managed deployment code, the proprietary Enterprise Rust engine/vector
-DB, relationship-set analysis, attribution-path analysis, private engine internals, and proprietary roadmap
+managed deployment code, proprietary analysis modules, relationship-set
+analysis, attribution-path analysis, private engine internals, and proprietary roadmap
 material are intentionally outside the Scout repository.
 
 ## Runtime Shape
@@ -102,7 +102,7 @@ Important controls include:
 
 Scout defines the public extension contracts. Private commercial enterprise
 modules live outside this repository. The public docs describe only the
-category boundary: proprietary Enterprise Rust engine/vector DB,
+category boundary: proprietary analysis modules,
 canonical relationship-set analysis, vendor-specific connectors, enterprise
 identity, managed deployment support, and advanced governance belong outside
 Scout. Clarity and Importance are separate products and are not required for

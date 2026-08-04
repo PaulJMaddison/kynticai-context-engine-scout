@@ -85,11 +85,12 @@ with the pilot-readiness gate so the gate and CI do not contradict each other.
 
 2. **Add the public-safety scan to CI.** Add a job (or step) that runs the
    same forbidden-code scan used by `scripts/pilot-readiness.ps1:88-90`
-   (patterns: `using KynticAIScout.Enterprise`, `Scout.Cloud.Api`,
-   `StripeSecret`, `OAuthRefreshToken`, `BEGIN PRIVATE KEY`,
-   `service_account`) extended per WP-001 with `Fortress|pgvector|Rust engine|
-   vector DB|private LLM` across `src apps packages docs docs-site deploy
-   tools`. This prevents the WP-001 boundary regressions from reaching main.
+   (the existing private-extension, cloud-api, secret-marker, key, and
+   service-account patterns) extended per WP-001 with the private-codename,
+   vector-database-image, and private-runtime terms across `src apps packages
+   docs docs-site deploy tools`. This prevents the WP-001 boundary regressions
+   from reaching main. Note: the planning docs under `docs/work-packages/**`
+   are written without the literal banned tokens so the scan stays strict.
 
 3. **Rework the pilot-readiness gate.** Replace the "No GitHub Actions
    workflows" step (`pilot-readiness.ps1:20-24` and the `.sh` twin) with a

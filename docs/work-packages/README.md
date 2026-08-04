@@ -47,8 +47,9 @@ These packages remove proprietary material, fix broken public references,
 and reconcile contradictory public instructions. Nothing should be published,
 tagged, or presented as deliverable until Phase A is clean.
 
-- **WP-001** removes the `Fortress` codename, "Rust engine/vector DB",
-  "private LLM runtime", and `pgvector` from public docs and code.
+- **WP-001** removes the private engine codename, private analysis-module
+  descriptions, and the vector-capable database image from public docs and
+  code.
 - **WP-002** creates the missing `source-of-truth-naming-map.md`, fixes every
   broken reference to it, strips machine paths from public files, and fixes
   US/British English slips.

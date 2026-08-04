@@ -39,7 +39,7 @@ repository and are not open source.
 
 Enterprise capabilities include:
 
-- proprietary Enterprise Rust engine/vector DB for relationship sets, attribution paths, comparable examples, and outcome-pattern scoring
+- proprietary analysis modules for relationship sets, attribution paths, comparable examples, and outcome-pattern scoring
 - Vendor-certified connectors (e.g. Salesforce, HubSpot, Dynamics,
   Snowflake, SAP, and others)
 - Enterprise SSO / SAML / SCIM identity integration
@@ -67,7 +67,7 @@ plug into the Scout core via dependency injection — no forking required.
 │  exact items, generic connectors, seams     │
 ├─────────────────────────────────────────────┤
 │  Private enterprise modules                 │
-│  Fortress Rust/vector engine, connectors    │
+│  proprietary analysis modules, connectors   │
 │  governance, compliance, managed deployment │
 └─────────────────────────────────────────────┘
 ```

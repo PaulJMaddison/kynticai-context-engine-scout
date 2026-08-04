@@ -14,8 +14,8 @@ as CRM contact/account, email engagement, web conversion, opportunities,
 support, usage, billing, and won/lost outcome signals into relationship JSON
 with relationships, attribution-path evidence, Scout basic fallback-only signals,
 provenance, governance decisions, and a recommended next action. Canonical
-relationship-set analysis belongs to the Enterprise Rust engine/vector
-DB. Raw records stay in
+relationship-set analysis belongs to proprietary analysis modules outside the
+open-core deliverable. Raw records stay in
 the data plane; optional
 Cloud/control-plane payloads are aggregate usage metadata only and exclude
 relationship types, weighted signals, recommendations, confidence, caveats,

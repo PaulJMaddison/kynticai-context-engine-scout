@@ -55,9 +55,9 @@ For the demo sales workflow, exact authorised data includes normalised email
 address, CRM contact/account, account registration/profile, sales activity,
 opportunities, email replies, meetings booked, web conversion and pricing-page
 events, support tickets, product usage summaries, billing health, and won/lost
-outcome signals. Enterprise uses the proprietary Rust engine/vector
-DB to compare relationship sets and return governed JSON for the customer's
-LLM or KynticAI open-source/private LLM runtime.
+outcome signals. Enterprise capabilities outside the open-core deliverable
+compare relationship sets and return governed JSON for the customer's
+LLM or KynticAI open-source LLM runtime.
 
 An optional hosted Cloud/control plane manages only commercial metadata —
 accounts, licences, downloads, support access, update channels, and optional

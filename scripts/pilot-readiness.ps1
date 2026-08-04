@@ -86,7 +86,7 @@ Step "Support bundle command safety" {
 }
 
 Step "Public forbidden-code scan" {
-    $forbidden = rg -n "using KynticAIScout\.Enterprise|namespace KynticAIScout\.Enterprise|Scout\.Cloud\.Api|StripeSecret|OAuthRefreshToken|BEGIN PRIVATE KEY|service_account" src apps packages
+    $forbidden = rg -n "using KynticAIScout\.Enterprise|namespace KynticAIScout\.Enterprise|Scout\.Cloud\.Api|StripeSecret|OAuthRefreshToken|BEGIN PRIVATE KEY|service_account|Fortress|pgvector|Rust engine|vector DB|private LLM" src apps packages docs docs-site/src deploy tools
     if ($forbidden) { $forbidden; Fail "public forbidden-code scan found private implementation or secret markers." }
 }
 

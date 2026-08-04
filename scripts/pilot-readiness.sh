@@ -35,7 +35,7 @@ else
 fi
 
 step "Public forbidden-code scan"
-if rg -n "using KynticAIScout\.Enterprise|namespace KynticAIScout\.Enterprise|Scout\.Cloud\.Api|StripeSecret|OAuthRefreshToken|BEGIN PRIVATE KEY|service_account" src apps packages; then
+if rg -n "using KynticAIScout\.Enterprise|namespace KynticAIScout\.Enterprise|Scout\.Cloud\.Api|StripeSecret|OAuthRefreshToken|BEGIN PRIVATE KEY|service_account|Fortress|pgvector|Rust engine|vector DB|private LLM" src apps packages docs docs-site/src deploy tools; then
   fail "public forbidden-code scan found private implementation or secret markers."
 fi
 

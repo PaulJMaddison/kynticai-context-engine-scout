@@ -3,7 +3,7 @@
 # Quick demo (SQLite, no external dependencies):
 #   docker compose -f deploy/docker-compose.yml up scout-api
 #
-# Production-like setup (PostgreSQL + pgvector):
+# Production-like setup (PostgreSQL):
 #   docker compose -f deploy/docker-compose.yml --profile postgres up
 #
 # Copy deploy/.env.example to deploy/.env and customise as needed.
@@ -90,9 +90,9 @@ services:
       start_period: 30s
       retries: 3
 
-  # ─── PostgreSQL 16 with pgvector (optional profile) ───────────────────────────
+  # ─── PostgreSQL 16 (optional profile) ─────────────────────────────────────────
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16
     container_name: scout-postgres
     restart: unless-stopped
     profiles:

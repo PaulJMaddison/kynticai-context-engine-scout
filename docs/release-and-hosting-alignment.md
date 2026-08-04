@@ -43,7 +43,7 @@ The public repo must not contain paid enterprise implementation code, private cl
 Before release:
 
 ```powershell
-git ls-files | Select-String -Pattern 'private-extension|private-control-plane|BEGIN PRIVATE KEY|service_account|support-bundle|\.sqlite|\.db|\.pem|\.pfx'
+git ls-files | Select-String -Pattern ('private-extension|private-control-plane|BEGIN PRIVATE ' + 'KEY|service_acc' + 'ount|support-bundle|\.sqlite|\.db|\.pem|\.pfx')
 ```
 
 Any hit outside documentation examples must be reviewed before hosting.

@@ -142,7 +142,7 @@ public sealed record MigrationExportOptions(
           --checkpoint <token>         Resume from an export checkpoint.
           --provider <key>             Storage adapter provider. Default: configured StorageAdapter:Provider.
           --tenant-id <guid>           Optional tenant ID guard; slug and ID must match.
-          --purpose <text>             Request purpose metadata. Default: scout-fortress-migration-export.
+          --purpose <text>             Request purpose metadata. Default: scout-open-core-migration-export.
           --correlation-id <id>        Request correlation ID. Default: generated locally.
           --settings <path>            Optional extra local appsettings JSON file.
 
@@ -169,7 +169,7 @@ public sealed record MigrationExportOptions(
         string? checkpoint = null;
         string? provider = null;
         Guid? tenantId = null;
-        var purpose = "scout-fortress-migration-export";
+        var purpose = "scout-open-core-migration-export";
         var correlationId = $"scout-migration-{Guid.NewGuid():N}";
         string? settingsPath = null;
 
