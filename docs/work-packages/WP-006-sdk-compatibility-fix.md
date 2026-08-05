@@ -2,11 +2,33 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** B — Product hardening
 - **Depends on:** —
 - **Review gate:** xhigh (public SDK contract change)
+
+## Completion notes
+
+- `ContextFactResult.ValueType` (and `GroundedContextFactResult`) in the .NET
+  SDK is now the `KynticAI.Scout.Sdk.FactValueType` enum; a tolerant
+  `FactValueTypeJsonConverter` is registered on the shared serializer options.
+- The SDK's NuGet package remains self-contained: the enum is defined inside
+  the SDK and the package ships a single assembly with no package dependency
+  (verified in the generated nuspec after removing the temporary project
+  reference to Domain).
+- `tests/KynticAI.Scout.Sdk.Tests/FactValueTypeContractTests.cs` pins the
+  integer wire encoding (String=1, Number=2, Boolean=3, Json=4, Enum=5,
+  EnumSet=6) with tolerant reader/writer coverage.
+- `tests/KynticAI.Scout.EndToEndTests/SdkIntegrationE2ETests.cs` now uses the
+  typed SDK instead of raw HTTP + `JsonNode`.
+- TypeScript SDK: `valueType` is now the `FactValueType` string-literal union
+  in `packages/typescript/scout-sdk/src/types.ts`; `npm run build` and
+  `npm test` (17 tests) pass.
+- Compatibility note added to `docs/sdk-development.md`; `[Unreleased]`
+  CHANGELOG entry added.
+- Verification: Sdk.Tests 40, EndToEnd 54, Unit 112, Integration 42 all
+  green; slnx build 0 warnings / 0 errors.
 
 ## Context
 

@@ -11,6 +11,7 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 - Migration export tool: default purpose metadata renamed from scout-fortress-migration-export to scout-open-core-migration-export (exported artefacts now carry the new value).
 - Legacy `/api/rest/*` endpoints now expose operation IDs in the exported OpenAPI document.
 - Saas architecture overview (`/api/ops/summary`, GraphQL `SaasArchitectureOverview`) now reports the platform mode and enabled feature flags from real configuration instead of placeholder literals.
+- The .NET and TypeScript SDKs now type `ContextFactResult.valueType` (and the .NET `GroundedContextFactResult`) as the `FactValueType` enum instead of a free-form string. The .NET SDK registers a tolerant JSON converter so it still accepts the API's integer encoding, and its NuGet package remains self-contained (single assembly, no new package dependency). TypeScript consumers now get a `FactValueType` string-literal union (`'string' | 'number' | 'boolean' | 'json' | 'enum' | 'enumSet'`).
 
 ### Security
 

@@ -10,7 +10,8 @@ internal sealed class ScoutHttpPipeline(HttpClient httpClient, ScoutClientOption
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new FactValueTypeJsonConverter() }
     };
 
     public async Task<T> SendAsync<T>(

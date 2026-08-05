@@ -100,6 +100,15 @@ export interface RunScheduledRecomputeInput {
   tenantSlug?: string | null
 }
 
+/** Semantic value types emitted by the API for context facts. */
+export type FactValueType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'json'
+  | 'enum'
+  | 'enumSet'
+
 /** A single semantic fact derived by the selector engine. */
 export interface ContextFactResult {
   /** Unique fact identifier. */
@@ -109,7 +118,7 @@ export interface ContextFactResult {
   /** Fact value serialised as JSON. */
   valueJson: string
   /** Value type descriptor (e.g. `"string"`, `"number"`, `"object"`). */
-  valueType: string
+  valueType: FactValueType
   /** Confidence score between 0 and 1. */
   confidence: number
   /** When the fact was observed (ISO 8601 UTC). */
@@ -458,7 +467,7 @@ export interface GroundedContextFactResult {
   attributeKey: string
   displayName: string
   valueJson: string
-  valueType: string
+  valueType: FactValueType
   confidence: number
   observedAtUtc: string
   freshUntilUtc?: string | null

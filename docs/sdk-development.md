@@ -74,3 +74,12 @@ Recommended coverage for both SDKs:
 - problem-details REST error propagation
 - tenant-scoped client delegation
 - representative REST v1 user, account, and snapshot context queries
+
+## Compatibility Notes
+
+### Fact value types (2.8.0)
+
+- The API serialises `ContextFactResult.valueType` as an integer (1 = String, 2 = Number, 3 = Boolean, 4 = Json, 5 = Enum, 6 = EnumSet).
+- .NET SDK: `valueType` is now the `KynticAI.Scout.Sdk.FactValueType` enum. The SDK registers a tolerant JSON converter that accepts the API's integer encoding (and a string alias for interoperability), so existing consumers do not need to change how they deserialise. Consumers that previously compared `valueType` against a free-form string must switch to the enum; the wire values are pinned by contract tests in `tests/KynticAI.Scout.Sdk.Tests`.
+- TypeScript SDK: `valueType` is now the `FactValueType` string-literal union (`'string' | 'number' | 'boolean' | 'json' | 'enum' | 'enumSet'`), matching the API's JSON representation.
+- The .NET SDK package remains self-contained: it has no dependency on other KynticAI.Scout assemblies.

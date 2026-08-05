@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using KynticAI.Scout.Api.Rest;
 using KynticAI.Scout.Sdk;
 
 namespace KynticAI.Scout.EndToEndTests;
@@ -10,11 +9,8 @@ namespace KynticAI.Scout.EndToEndTests;
 /// Verifies the .NET SDK (KynticAI.Scout.Sdk) can call the API hosted
 /// in-memory: create resources, query resources, and handle errors.
 ///
-/// Several endpoints return <see cref="ContextFactResult"/> whose
-/// <c>ValueType</c> property is typed as <c>string</c> in the SDK, but the API
-/// serialises the <c>FactValueType</c> enum as an integer.  Tests that would hit
-/// this deserialisation mismatch fall back to raw HTTP + JsonNode assertions so
-/// we still validate the full API response without papering over the SDK bug.
+/// <see cref="ContextFactResult.ValueType"/> round-trips as the typed
+/// <see cref="FactValueType"/> enum against the API's integer wire encoding.
 /// </summary>
 public sealed class SdkIntegrationE2ETests : IAsyncLifetime
 {
@@ -53,29 +49,26 @@ public sealed class SdkIntegrationE2ETests : IAsyncLifetime
         await factory.DisposeAsync();
     }
 
-    /// <remarks>
-    /// Uses raw HTTP because the SDK cannot deserialise ContextFactResult.ValueType
-    /// (string in SDK vs int enum from API).
-    /// </remarks>
     [Fact]
     public async Task Sdk_GetUserContext_ReturnsProfile()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/user-e2e-001?tenantSlug=e2e-tenant");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var context = await sdkClient.Users.GetContextAsync("e2e-tenant", "user-e2e-001");
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        Assert.Equal("user-e2e-001", payload["externalUserId"]!.GetValue<string>());
-        Assert.Equal("Jordan Rivera", payload["fullName"]!.GetValue<string>());
-        Assert.True(payload["overallConfidence"]!.GetValue<decimal>() > 0, "Context should have positive confidence.");
-        Assert.Equal(2, payload["facts"]!.AsArray().Count);
+        Assert.NotNull(context);
+        Assert.Equal("user-e2e-001", context!.ExternalUserId);
+        Assert.Equal("Jordan Rivera", context.FullName);
+        Assert.True(context.OverallConfidence > 0, "Context should have positive confidence.");
+        Assert.Equal(2, context.Facts.Count);
     }
 
     [Fact]
     public async Task Sdk_GetUserContext_ReturnsNullForMissingUser()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/non-existent-user?tenantSlug=e2e-tenant");
+        var exception = await Assert.ThrowsAsync<ScoutException>(() =>
+            sdkClient.Users.GetContextAsync("e2e-tenant", "non-existent-user"));
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
+        Assert.Equal("context.user_not_found", exception.Code);
     }
 
     [Fact]
@@ -89,63 +82,49 @@ public sealed class SdkIntegrationE2ETests : IAsyncLifetime
         Assert.Single(context.Users);
     }
 
-    /// <remarks>
-    /// Uses raw HTTP because ContextSnapshotResult contains ContextFactResult.
-    /// </remarks>
     [Fact]
     public async Task Sdk_GetSnapshotById_ReturnsSnapshot()
     {
         var snapshotId = ScoutWebApplicationFactory.SeedIds.SnapshotId;
-        var response = await AuthenticatedGetAsync($"/api/v1/context/snapshots/{snapshotId}?tenantSlug=e2e-tenant");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var snapshot = await sdkClient.Snapshots.GetByIdAsync("e2e-tenant", snapshotId);
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        Assert.Equal(snapshotId, payload["snapshotId"]!.GetValue<Guid>());
-        Assert.Equal(2, payload["facts"]!.AsArray().Count);
-        Assert.True(payload["overallConfidence"]!.GetValue<decimal>() > 0, "Snapshot should have positive confidence.");
+        Assert.NotNull(snapshot);
+        Assert.Equal(snapshotId, snapshot!.SnapshotId);
+        Assert.Equal(2, snapshot.Facts.Count);
+        Assert.True(snapshot.OverallConfidence > 0, "Snapshot should have positive confidence.");
     }
 
-    /// <remarks>
-    /// Uses raw HTTP because the endpoint returns ContextFactResult[].
-    /// </remarks>
     [Fact]
     public async Task Sdk_GetUserFacts_ReturnsFacts()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/user-e2e-001/facts?tenantSlug=e2e-tenant");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var facts = await sdkClient.Facts.GetForUserAsync("e2e-tenant", "user-e2e-001");
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        var facts = payload["items"]!.AsArray();
         Assert.Equal(2, facts.Count);
-        Assert.Contains(facts, f => f!["attributeKey"]!.GetValue<string>() == "conversionProbability");
-        Assert.Contains(facts, f => f!["attributeKey"]!.GetValue<string>() == "churnRisk");
+        var conversionFact = Assert.Single(facts, f => f.AttributeKey == "conversionProbability");
+        var churnFact = Assert.Single(facts, f => f.AttributeKey == "churnRisk");
+        Assert.Equal(FactValueType.Number, conversionFact.ValueType);
+        Assert.Equal(FactValueType.Enum, churnFact.ValueType);
     }
 
-    /// <remarks>
-    /// Uses raw HTTP because the endpoint returns ContextFactResult[].
-    /// </remarks>
     [Fact]
     public async Task Sdk_GetUserFacts_SupportsAttributeKeyFilter()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/user-e2e-001/facts?tenantSlug=e2e-tenant&attributeKey=churnRisk");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var facts = await sdkClient.Facts.GetForUserAsync(
+            "e2e-tenant",
+            "user-e2e-001",
+            new ContextFactLookupOptions(AttributeKey: "churnRisk"));
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        var facts = payload["items"]!.AsArray();
-        Assert.Single(facts);
-        Assert.Equal("churnRisk", facts[0]!["attributeKey"]!.GetValue<string>());
+        var churnFact = Assert.Single(facts);
+        Assert.Equal("churnRisk", churnFact.AttributeKey);
+        Assert.Equal(FactValueType.Enum, churnFact.ValueType);
     }
 
-    /// <remarks>
-    /// Uses raw HTTP for user context (facts) and SDK for account context (no facts in response).
-    /// </remarks>
     [Fact]
     public async Task Sdk_ForTenant_ScopesAllCalls()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/user-e2e-001?tenantSlug=e2e-tenant");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var userPayload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        Assert.Equal("user-e2e-001", userPayload["externalUserId"]!.GetValue<string>());
+        var context = await sdkClient.Users.GetContextAsync("e2e-tenant", "user-e2e-001");
+        Assert.NotNull(context);
+        Assert.Equal("user-e2e-001", context!.ExternalUserId);
 
         var tenantClient = sdkClient.ForTenant("e2e-tenant");
         var accountContext = await tenantClient.Accounts.GetContextAsync("acct-e2e-001");
@@ -190,27 +169,13 @@ public sealed class SdkIntegrationE2ETests : IAsyncLifetime
         Assert.False(result.IsDuplicate, "First event should not be a duplicate.");
     }
 
-    /// <remarks>
-    /// The SDK's GetLatestForUserAsync internally calls GetContextAsync, which
-    /// also hits the ContextFactResult deserialisation mismatch.  We use raw HTTP
-    /// to the user-context endpoint and derive the same summary fields the SDK would.
-    /// </remarks>
     [Fact]
     public async Task Sdk_GetLatestSnapshotForUser_ReturnsSummary()
     {
-        var response = await AuthenticatedGetAsync("/api/v1/context/users/user-e2e-001?tenantSlug=e2e-tenant");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var summary = await sdkClient.Snapshots.GetLatestForUserAsync("e2e-tenant", "user-e2e-001");
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        var factCount = payload["facts"]!.AsArray().Count;
-        Assert.True(factCount >= 2, "Snapshot summary should contain at least 2 facts.");
-        Assert.True(payload["overallConfidence"]!.GetValue<decimal>() > 0, "Snapshot summary should have positive confidence.");
-    }
-
-    private async Task<HttpResponseMessage> AuthenticatedGetAsync(string url)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-        return await httpClient.SendAsync(request);
+        Assert.NotNull(summary);
+        Assert.True(summary!.FactCount >= 2, "Snapshot summary should contain at least 2 facts.");
+        Assert.True(summary.OverallConfidence > 0, "Snapshot summary should have positive confidence.");
     }
 }
