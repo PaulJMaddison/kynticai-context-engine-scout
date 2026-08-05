@@ -336,7 +336,7 @@ export function DemoModePage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Commercial contact" title="Talk to KynticAI about pilots, deployment, or licensing support">
+        <Panel eyebrow="Commercial contact" title="Talk to KynticAI about pilots, deployment, or licence support">
           <Card className="bg-[linear-gradient(180deg,rgba(255,248,240,0.96),rgba(252,246,239,0.96))]">
             <p className="text-sm leading-7 text-ink-700">
               The MIT-licensed core stays open source. Paid engagement is available now for discovery workshops, starter pilots, production pilots, private connector scoping, and commercially supported implementation.

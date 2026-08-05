@@ -67,7 +67,7 @@ For local development from this checkout:
   "mcpServers": {
     "kyntic-discovery-agent": {
       "command": "node",
-      "args": ["C:/Kyntic/UCL/apps/discovery-agent/dist/index.js", "--mcp"]
+      "args": ["C:/path/to/scout/apps/discovery-agent/dist/index.js", "--mcp"]
     }
   }
 }
@@ -227,7 +227,7 @@ Direct local build path:
   "mcpServers": {
     "kynticai-discovery-mcp": {
       "command": "node",
-      "args": ["C:/Kyntic/UCL/apps/discovery-agent/dist/kyntic-discovery-mcp.js", "--mcp"]
+      "args": ["C:/path/to/scout/apps/discovery-agent/dist/kyntic-discovery-mcp.js", "--mcp"]
     }
   }
 }
@@ -241,14 +241,14 @@ Enable optional handoff only with explicit endpoint and config:
     "kynticai-discovery-mcp": {
       "command": "node",
       "args": [
-        "C:/Kyntic/UCL/apps/discovery-agent/dist/kyntic-discovery-mcp.js",
+        "C:/path/to/scout/apps/discovery-agent/dist/kyntic-discovery-mcp.js",
         "--mcp",
         "--allow-handoff",
         "--consent-handoff",
         "--handoff-endpoint",
         "https://example.invalid/discovery",
         "--handoff-config",
-        "C:/approved/handoff-approved.json"
+        "C:/path/to/handoff-approved.json"
       ]
     }
   }

@@ -28,11 +28,11 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - Local demo (Windows): `.\scripts\setup-demo.ps1`, then `.\scripts\start-demo.ps1`.
 - Browser proof: `cd apps\web`, set `KYNTIC_RUN_BROWSER_TESTS=1`, then `npm run test:e2e`.
 - Docker/PostgreSQL and enterprise connector proof paths require `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`; see `LOCAL_VALIDATION.md`.
-- Laptop local-folder rule: before running tests on this machine, check `C:\Kyntic\UCL-local-aidocs\LOCAL_LAPTOP_TEST_COMMANDS.md` and use the nearest safe command for the folder touched; docs-only changes can use `git diff --check`.
+- Laptop local-folder rule: before running tests on this machine, check the local laptop test-command notes kept outside this repo and use the nearest safe command for the folder touched; docs-only changes can use `git diff --check`.
 
 ## Do-Not-Do List
 
-- Do not add enterprise internals, private connector code, proprietary Fortress logic, LanceDB, embedded LLMs, vector pipelines, or obfuscation logic to Scout.
+- Do not add enterprise internals, private connector code, private-engine or private vector/embedding pipeline logic, embedded model runtime code, or obfuscation logic to Scout.
 - Do not add stubs, placeholder implementations, fake integrations, TODO-only paths, or demo shortcuts and present them as finished work.
 - Do not leak private planning docs, customer material, credentials, tokens, service-account files, or paid-customer details.
 - Do not change package names, public API contracts, or SDK shapes without compatibility notes and tests.
@@ -43,13 +43,13 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 ## Commercial Quality Bar
 
 - Every implementation must be commercial-standard code: real behaviour, typed errors, compatibility-aware public contracts, safe defaults, and focused tests for the changed behaviour.
-- If a live dependency, dataset, credential, or external service is unavailable, implement the public boundary cleanly, mark the task partial, document the blocker in `C:\Kyntic\UCL-local-aidocs\SESSION_LOG.md`, and do not hide the gap behind a stub.
+- If a live dependency, dataset, credential, or external service is unavailable, implement the public boundary cleanly, mark the task partial, document the blocker in the session log kept outside this repo, and do not hide the gap behind a stub.
 - Prefer small complete public-safe slices over broad incomplete scaffolding.
 
 ## Review/Test Gates
 
 - Use xhigh review gates for public API, SDK, connector-contract, data-model, or security-sensitive changes before marking them complete.
-- When Scout work depends on Fortress Rust engine contracts, do not treat the integration as complete until the relevant engine change has passed the review policy in `C:\Kyntic\UCL-local-aidocs\RUST_ENGINE_REVIEW_POLICY.md`.
+- When Scout work depends on private engine contracts, do not treat the integration as complete until the relevant engine change has passed the review policy in the private engine review notes kept outside this repo.
 - Prefer slower, meaningful verification over quick unchecked completion. Log tests run, skipped tests, and residual risk.
 - Routine .NET integration/E2E tests must stay local and deterministic: use EF InMemory or in-memory SQLite, not Docker, Postgres, Redis, MongoDB, or vendor services. Any future live dependency proof must be explicit opt-in and logged.
 

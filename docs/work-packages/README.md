@@ -27,8 +27,8 @@ tasks, acceptance criteria, and verification commands, and respects the
 
 | ID | Package | Phase | Priority | Depends on | Status |
 |---|---|---|---|---|---|
-| WP-001 | Public boundary remediation (remove proprietary leaks) | A | High | — | Backlog |
-| WP-002 | Docs reference integrity and naming source of truth | A | High | — | Backlog |
+| WP-001 | Public boundary remediation (remove proprietary leaks) | A | High | — | Complete |
+| WP-002 | Docs reference integrity and naming source of truth | A | High | — | Complete |
 | WP-003 | Docs-site reconciliation and publishing alignment | A | High | — | Backlog |
 | WP-004 | Cross-tenant authorisation hardening | B | High | — | Backlog |
 | WP-005 | API surface hardening | B | Medium | — | Backlog |

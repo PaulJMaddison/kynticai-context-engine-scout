@@ -24,7 +24,7 @@
 
 ---
 
-> **Naming and maturity note:** Workspace naming is defined in [source-of-truth-naming-map.md](../docs/source-of-truth-naming-map.md). This README describes the open-core Scout/UCL data plane and local demo; it does not claim complete self-serve SaaS maturity, vendor-certified connectors, live customer deployments, customer traction, or private-extension production capabilities.
+> **Naming and maturity note:** Workspace naming is defined in [source-of-truth-naming-map.md](docs/source-of-truth-naming-map.md). This README describes the open-core Scout/UCL data plane and local demo; it does not claim complete self-serve SaaS maturity, vendor-certified connectors, live customer deployments, customer traction, or private-extension production capabilities.
 
 ## Docker Quick Start
 

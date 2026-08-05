@@ -9,7 +9,7 @@ Accepted
 Intelligent Sales Support needs to turn fragmented operational data into grounded context that AI systems can safely consume. Raw source systems expose inconsistent shapes and identifiers:
 
 - CRM records know contacts, stages, and plan interest
-- product usage streams know engagement and activation behavior
+- product usage streams know engagement and activation behaviour
 - SQL or warehouse tables know scored metrics and historical KPIs
 - operators need explainable, tenant-safe, role-aware access across all of it
 
@@ -75,7 +75,7 @@ For the current product stage, the hardest problems are semantic correctness, li
 
 - GraphQL schema discipline becomes important as the domain grows
 - N+1 and resolver performance need active monitoring
-- field-level authorization and masking must be tested continuously
+- field-level authorisation and masking must be tested continuously
 
 ## Follow-up
 

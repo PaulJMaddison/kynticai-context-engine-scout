@@ -1,6 +1,6 @@
 # Commercial Readiness Summary
 
-Workspace naming source of truth: [`../../docs/source-of-truth-naming-map.md`](../../docs/source-of-truth-naming-map.md).
+Workspace naming source of truth: [`source-of-truth-naming-map.md`](source-of-truth-naming-map.md).
 
 KynticAI Scout is ready to show publicly and ready for paid pilot conversations. It is nearly ready for paid pilot delivery after live hosting configuration, legal review, and first-customer operational setup. It is not ready for complete self-serve SaaS and must not be sold that way.
 

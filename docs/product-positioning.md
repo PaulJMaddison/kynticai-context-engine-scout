@@ -1,6 +1,6 @@
 # Product Positioning
 
-Workspace naming source of truth: [`../../docs/source-of-truth-naming-map.md`](../../docs/source-of-truth-naming-map.md).
+Workspace naming source of truth: [`source-of-truth-naming-map.md`](source-of-truth-naming-map.md).
 
 UCL turns authorised company data items into relationship sets, attribution paths, comparable examples, outcomes, and governed JSON for approved customer-owned consumers.
 

@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** A — Public safety and boundary
 - **Depends on:** —
@@ -23,10 +23,10 @@ Additional reference and hygiene defects found during the audit:
 - `docs-site/src/content/docs/operations/n8n-node.md:16` links to
   `docs/connector-marketplace-investor-story.md`, which does not exist.
 - `docs/releases/v2.7.0.md:22,26,27` leak a machine-specific path
-  (`C:\Scout\.dotnet\dotnet.exe`) and contain a garbled command
+  (a local `dotnet.exe` path outside the repo) and contain a garbled command
   (`npm run build:web app --prefix apps/web`).
-- `AGENTS.md:31,46,52` embed private local paths
-  (`C:\Kyntic\UCL-local-aidocs\...`) in the committed public repo file.
+- `AGENTS.md:31,46,52` embed private local paths (a private
+  `local-aidocs` folder outside this repo) in the committed public repo file.
 - British English slips (US "behavior"):
   - `docs/adr/0001-graphql-semantic-scout.md:12` — "engagement and activation
     behavior"
@@ -95,13 +95,13 @@ slipped. No functional or contract changes.
    WP-003, but if you are already editing these lines, remove that wording
    too so the page is finished.
 
-4. **Clean `docs/releases/v2.7.0.md`.** Replace the `C:\Scout\...` commands
-   with the portable commands from `LOCAL_VALIDATION.md` (`.\scripts\...`,
-   `dotnet test .\tests\...`), and repair the garbled `npm run build:web app`
-   command to the correct invocation used by `apps\web`.
+4. **Clean `docs/releases/v2.7.0.md`.** Replace the machine-specific
+   `dotnet.exe` commands with the portable commands from `LOCAL_VALIDATION.md`
+   (`.\scripts\...`, `dotnet test .\tests\...`), and repair the garbled
+   `npm run build:web app` command to the correct invocation used by `apps\web`.
 
 5. **Remove private paths from `AGENTS.md:31,46,52`.** Replace
-   `C:\Kyntic\UCL-local-aidocs\...` references with generic wording, e.g.
+   the private `local-aidocs` path references with generic wording, e.g.
    "the local session log / laptop test-command notes outside this repo". The
    public repo must not reference private machine paths.
 
@@ -114,16 +114,16 @@ slipped. No functional or contract changes.
 
 ## Acceptance criteria
 
-- [ ] `docs/source-of-truth-naming-map.md` exists and is the referenced
+- [x] `docs/source-of-truth-naming-map.md` exists and is the referenced
       source of truth; all four linking files resolve their link.
-- [ ] `git grep -rn "source-of-truth-naming-map"` shows the map file exists
+- [x] `git grep -rn "source-of-truth-naming-map"` shows the map file exists
       and every reference resolves.
-- [ ] No `C:\` or `/home/` or private absolute path remains in any public
+- [x] No `C:`/`D:` drive or `/home/` absolute path remains in any public
       `.md` file (check `README.md`, `docs/`, `docs-site/`, `AGENTS.md`).
-- [ ] `docs/releases/v2.7.0.md` commands are portable and correct.
-- [ ] `grep -rn "behavior"` in user-facing markdown returns zero hits
+- [x] `docs/releases/v2.7.0.md` commands are portable and correct.
+- [x] `grep -rn "behavior"` in user-facing markdown returns zero hits
       (all `behaviour`).
-- [ ] `git diff --check` passes on the touched files.
+- [x] `git diff --check` passes on the touched files.
 
 ## Verification
 

@@ -2,7 +2,7 @@
 
 Public documentation site for [KynticAI Scout](https://github.com/PaulJMaddison/scout), built with [Astro Starlight](https://starlight.astro.build/).
 
-Workspace naming source of truth: [`../../docs/source-of-truth-naming-map.md`](../../docs/source-of-truth-naming-map.md).
+Workspace naming source of truth: [`../docs/source-of-truth-naming-map.md`](../docs/source-of-truth-naming-map.md).
 
 ## Prerequisites
 

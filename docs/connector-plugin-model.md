@@ -157,7 +157,7 @@ Coverage added in:
 - `tests/KynticAI.Scout.UnitTests/SelectorExecutionEngineTests.cs`
 - `tests/KynticAI.Scout.IntegrationTests/GraphQlAuthorizationIntegrationTests.cs`
 
-These tests cover alias resolution, secret persistence, preview-compatible REST behavior, selector execution through the plugin registry, and GraphQL connector registration.
+These tests cover alias resolution, secret persistence, preview-compatible REST behaviour, selector execution through the plugin registry, and GraphQL connector registration.
 
 The public repository intentionally ships only generic connector contracts and safe example implementations. Premium commercial connector implementations are expected to live in a separate private enterprise repository.
 
