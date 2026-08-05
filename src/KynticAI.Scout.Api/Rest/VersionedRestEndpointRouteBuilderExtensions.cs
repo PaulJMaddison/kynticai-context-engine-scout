@@ -429,7 +429,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug);
                 var export = await service.ExportAuditEventsAsync(resolvedTenantSlug, format ?? "json", cancellationToken);
                 return Results.File(
                     Encoding.UTF8.GetBytes(export.Content),
@@ -445,7 +445,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug);
                 return Results.Ok(await service.GetOrganisationSettingsAsync(resolvedTenantSlug, cancellationToken));
             }))
             .WithName("V1GetOrganisationSettings");
@@ -459,7 +459,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug);
                 var users = await service.GetOperatorAccountsAsync(resolvedTenantSlug, cancellationToken);
                 return Results.Ok(Page(users, page, pageSize));
             }))
@@ -474,7 +474,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug ?? request.TenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug ?? request.TenantSlug);
                 return Results.Ok(await service.UpdateOperatorAccountAsync(
                     new UpdateOperatorAccountInput(
                         resolvedTenantSlug,
@@ -496,7 +496,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug);
                 var imports = await service.GetBlueprintImportsAsync(resolvedTenantSlug, status, cancellationToken);
                 return Results.Ok(Page(imports, page, pageSize));
             }))
@@ -511,7 +511,7 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                 CancellationToken cancellationToken) =>
             await ExecuteAsync(async _ =>
             {
-                var resolvedTenantSlug = ResolveRequestedTenantSlug(actorService, tenantSlug);
+                var resolvedTenantSlug = ResolveTenantSlug(actorService, tenantSlug);
                 var policies = await service.GetGovernancePoliciesAsync(resolvedTenantSlug, cancellationToken);
                 return Results.Ok(Page(policies, page, pageSize));
             }))
@@ -772,16 +772,6 @@ public static class VersionedRestEndpointRouteBuilderExtensions
         }
 
         throw new UnauthorizedAccessException("Cross-tenant access is not permitted.");
-    }
-
-    private static string ResolveRequestedTenantSlug(ICurrentActorService actorService, string? requestedTenantSlug)
-    {
-        if (!string.IsNullOrWhiteSpace(requestedTenantSlug))
-        {
-            return requestedTenantSlug.Trim().ToLowerInvariant();
-        }
-
-        return actorService.GetCurrentActor().TenantSlug;
     }
 
     private static V1PagedResponse<T> Page<T>(IReadOnlyList<T> items, int? page, int? pageSize)

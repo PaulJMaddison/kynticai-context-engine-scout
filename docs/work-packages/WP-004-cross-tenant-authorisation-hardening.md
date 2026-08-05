@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** B — Product hardening
 - **Depends on:** —
@@ -98,14 +98,14 @@ tenant).
 
 ## Acceptance criteria
 
-- [ ] No call site uses an unresolved/foreign tenant slug without an
+- [x] No call site uses an unresolved/foreign tenant slug without an
       ownership check.
-- [ ] New tests assert cross-tenant admin requests are rejected with 403 and
+- [x] New tests assert cross-tenant admin requests are rejected with 403 and
       same-tenant requests still work.
-- [ ] `ResolveRequestedTenantSlug` is either deleted or explicitly justified
+- [x] `ResolveRequestedTenantSlug` is either deleted or explicitly justified
       and covered by a platform-owner test.
-- [ ] Public API docs match the final role matrix.
-- [ ] Full backend suite passes (Unit + Integration + SDK + EndToEnd).
+- [x] Public API docs match the final role matrix.
+- [x] Full backend suite passes (Unit + Integration + SDK + EndToEnd).
 
 ## Verification
 
@@ -118,7 +118,16 @@ dotnet test .\tests\KynticAI.Scout.Sdk.Tests\KynticAI.Scout.Sdk.Tests.csproj
 
 ## Notes
 
+- **Decision (recorded):** option (b) was adopted. The affected admin
+  endpoints are tenant-scoped; `ResolveRequestedTenantSlug` was deleted and
+  all six call sites now use `ResolveTenantSlug`. Platform owners and system
+  actors keep explicit cross-tenant access (covered by a platform-owner test);
+  tenant admins and integration admins are rejected with `403
+  authorization.denied`.
 - This is the single highest-value code finding from the audit. Treat it as
   a security fix, not a refactor.
 - The `.env` in the repo contains only dev credentials; do not introduce any
   production secrets while testing.
+- Verification: `dotnet build KynticAI.Scout.slnx` 0 warnings/0 errors; Unit
+  107, SDK 13, Integration 42 (incl. 4 new cross-tenant tests), EndToEnd 54 —
+  all passing.

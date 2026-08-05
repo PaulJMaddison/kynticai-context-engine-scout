@@ -10,6 +10,10 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 
 - Migration export tool: default purpose metadata renamed from scout-fortress-migration-export to scout-open-core-migration-export (exported artefacts now carry the new value).
 
+### Security
+
+- Hardened cross-tenant authorisation on the admin REST endpoints (`/audit-events/export`, `/admin/organisation`, `/admin/users`, `/admin/users/{id}`, `/blueprints`, `/governance/policies`): a tenant-scoped request that names another tenant's slug is now rejected with `403 authorization.denied` instead of being resolved without an ownership check. Platform owners and system actors keep explicit cross-tenant access.
+
 ## [2.8.0] - 2026-05-21
 
 ### Added
