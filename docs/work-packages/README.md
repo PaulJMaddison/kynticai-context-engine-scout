@@ -33,7 +33,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 | WP-004 | Cross-tenant authorisation hardening | B | High | — | Complete |
 | WP-005 | API surface hardening | B | Medium | — | Complete |
 | WP-006 | SDK compatibility fix (Fact value type) | B | Medium | — | Complete |
-| WP-007 | CI/CD re-enablement (OSS-013) | C | High | WP-001 | Backlog |
+| WP-007 | CI/CD re-enablement (OSS-013) | C | High | WP-001 | Complete |
 | WP-008 | Browser proof and frontend polish | C | Medium | — | Backlog |
 | WP-009 | Roadmap and changelog reconciliation | D | Medium | WP-007 | Backlog |
 | WP-010 | Missing user documentation | D | Medium | — | Backlog |

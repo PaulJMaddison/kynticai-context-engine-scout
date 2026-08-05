@@ -18,6 +18,10 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 - Hardened cross-tenant authorisation on the admin REST endpoints (`/audit-events/export`, `/admin/organisation`, `/admin/users`, `/admin/users/{id}`, `/blueprints`, `/governance/policies`): a tenant-scoped request that names another tenant's slug is now rejected with `403 authorization.denied` instead of being resolved without an ownership check. Platform owners and system actors keep explicit cross-tenant access.
 - Audit CSV exports now guard against formula injection: cells beginning with `=`, `+`, `-`, `@`, a tab, or a carriage return are prefixed with a single quote so spreadsheet applications treat them as text.
 
+### Chores
+
+- Re-enabled and hardened CI/CD (OSS-013): `.github/workflows/ci.yml` now runs independent backend, frontend, and public-safety jobs on the safe default, and `.github/workflows/release.yml` creates a GitHub Release on `v*` tags with npm/NuGet publishing intentionally not configured. Integration test classes now carry `[Trait("Category", "Integration")]` so `--filter "Category!=Integration"` is meaningful, and the pilot-readiness gate now requires safe active workflows instead of forbidding their existence.
+
 ## [2.8.0] - 2026-05-21
 
 ### Added

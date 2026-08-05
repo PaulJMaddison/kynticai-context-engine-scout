@@ -18,6 +18,7 @@ using System.Text;
 
 namespace KynticAI.Scout.IntegrationTests;
 
+[Trait("Category", "Integration")]
 public sealed class BackendOnlyModeIntegrationTests
 {
     [Fact]

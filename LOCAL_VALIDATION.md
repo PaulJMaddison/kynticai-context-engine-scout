@@ -21,6 +21,33 @@ npm install
 npm run test
 ```
 
+## CI (Continuous Integration)
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs the safe
+default only. It never runs browser, container, or enterprise proof paths:
+
+- `backend` job: `.NET` restore, Release build with warnings as errors, then
+  the unit, SDK, integration, and end-to-end test projects (all
+  local/deterministic) with TRX results uploaded as an artefact.
+- `frontend` job: `apps\web` lint/test/build, TypeScript SDK build/test, and
+  the docs-site build.
+- `public-safety` job: the forbidden-code/secret-marker scan over
+  `src apps packages docs docs-site/src deploy tools`, failing on any match.
+
+Browser proof requires `KYNTIC_RUN_BROWSER_TESTS=1`, and Docker/PostgreSQL or
+enterprise connector proof requires `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`.
+These opt-in paths are never part of default CI.
+
+A quick non-integration test run (used by the cloud setup script) is:
+
+```powershell
+dotnet test .\KynticAI.Scout.slnx --no-restore --filter "Category!=Integration"
+```
+
+The integration test classes carry `[Trait("Category", "Integration")]`, so
+this filter meaningfully excludes them while leaving the other projects'
+tests in the run.
+
 ## Optional External/Container/Live Commands
 
 | Proof path | Class | Command | Required opt-in |

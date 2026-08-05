@@ -23,6 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace KynticAI.Scout.IntegrationTests;
 
+[Trait("Category", "Integration")]
 public sealed class RelationshipIntelligenceProofIntegrationTests
 {
     private static readonly DateTime ProofNow = new(2026, 06, 16, 12, 00, 00, DateTimeKind.Utc);

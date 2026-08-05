@@ -19,6 +19,7 @@ using Microsoft.Extensions.Options;
 
 namespace KynticAI.Scout.IntegrationTests;
 
+[Trait("Category", "Integration")]
 public sealed class SelectorPipelineIntegrationTests
 {
     [Fact]

@@ -17,9 +17,37 @@ function Fail($message) {
     throw "Pilot readiness failed: $message"
 }
 
-Step "No GitHub Actions workflows" {
-    if ((Test-Path ".github/workflows") -and (Get-ChildItem ".github/workflows\*" -File -Force -Include "*.yml","*.yaml" | Select-Object -First 1)) {
-        Fail ".github/workflows must not contain active workflow files in the public repo."
+Step "GitHub Actions workflow safety" {
+    if (-not (Test-Path ".github/workflows")) {
+        Fail ".github/workflows must contain active workflow files for CI."
+    }
+    $workflows = Get-ChildItem ".github/workflows\*" -File -Force -Include "*.yml","*.yaml"
+    if (-not $workflows) {
+        Fail ".github/workflows must contain active workflow files for CI."
+    }
+    $forbiddenPatterns = @(
+        '\$\{\{\s*secrets\.',
+        '-----BEGIN',
+        'AKIA[0-9A-Z]{16}',
+        'ghp_[A-Za-z0-9]{20,}',
+        'github_pat_[A-Za-z0-9_]{20,}',
+        'xox[baprs]-',
+        'git@github\.com',
+        'repository_dispatch'
+    )
+    foreach ($workflow in $workflows) {
+        $content = Get-Content $workflow.FullName -Raw
+        foreach ($pattern in $forbiddenPatterns) {
+            if ($content -match $pattern) {
+                Fail "workflow $($workflow.Name) contains forbidden content matching: $pattern"
+            }
+        }
+        if ($content -match '\b(playwright|test:e2e)\b' -and $content -notmatch 'KYNTIC_RUN_BROWSER_TESTS') {
+            Fail "workflow $($workflow.Name) has browser steps without the KYNTIC_RUN_BROWSER_TESTS opt-in."
+        }
+        if ($content -match '\bdocker\b' -and $content -notmatch 'KYNTIC_RUN_EXTERNAL_DOTNET_TESTS') {
+            Fail "workflow $($workflow.Name) has container steps without the KYNTIC_RUN_EXTERNAL_DOTNET_TESTS opt-in."
+        }
     }
 }
 
@@ -86,8 +114,10 @@ Step "Support bundle command safety" {
 }
 
 Step "Public forbidden-code scan" {
-    $forbidden = rg -n "using KynticAIScout\.Enterprise|namespace KynticAIScout\.Enterprise|Scout\.Cloud\.Api|StripeSecret|OAuthRefreshToken|BEGIN PRIVATE KEY|service_account|Fortress|pgvector|Rust engine|vector DB|private LLM" src apps packages docs docs-site/src deploy tools
-    if ($forbidden) { $forbidden; Fail "public forbidden-code scan found private implementation or secret markers." }
+    & .\scripts\public-safety-scan.ps1
+    if ($LASTEXITCODE -ne 0) {
+        Fail "public forbidden-code scan found private implementation or secret markers."
+    }
 }
 
 Write-Host "Pilot readiness checks completed."

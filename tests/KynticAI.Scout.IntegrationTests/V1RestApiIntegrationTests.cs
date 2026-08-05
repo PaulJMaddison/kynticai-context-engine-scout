@@ -24,6 +24,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace KynticAI.Scout.IntegrationTests;
 
+[Trait("Category", "Integration")]
 public sealed class V1RestApiIntegrationTests
 {
     [Fact]

@@ -2,12 +2,39 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** C — Delivery engineering
 - **Depends on:** WP-001 (CI must not accidentally re-introduce forbidden
   content paths), WP-006 (SDK tests should be green before CI gates them)
 - **Review gate:** standard
+
+## Completion notes
+
+- `.github/workflows/ci.yml` re-enabled with three independent jobs
+  (`backend`, `frontend`, `public-safety`) on `ubuntu-latest`; Release build
+  with `-warnaserror`, all four local/deterministic .NET test projects with
+  TRX upload, `npm ci`/lint/test/build for `apps\web`, TypeScript SDK
+  build/test, and `docs-site` build.
+- `.github/workflows/release.yml` re-enabled on the `v*` tag trigger with
+  build/test + public-safety scan + GitHub Release; npm/NuGet publishing
+  intentionally not configured (documented in the workflow).
+- `scripts/public-safety-scan.ps1` / `.sh` added as the single source of
+  truth for the forbidden-code scan, shared by the pilot-readiness gate and
+  CI.
+- `scripts/pilot-readiness.ps1` / `.sh`: the "No GitHub Actions workflows"
+  step is reworked to require active workflows and assert they contain no
+  secrets/private references, external-service triggers, or un-gated
+  browser/container steps.
+- 8 integration test classes now carry `[Trait("Category", "Integration")]`,
+  making `--filter "Category!=Integration"` meaningful (verified: integration
+  project reports "No test matches" while Unit 112 / Sdk 40 / EndToEnd 54
+  pass).
+- `LOCAL_VALIDATION.md` documents the CI scope and opt-in proofs;
+  `README.md` has a live CI status badge and CI Status section.
+- Local verification: slnx Release build `-warnaserror` 0W/0E; full
+  pilot-readiness.ps1 pass; apps\web lint/test/build, TS SDK build + 17 tests,
+  docs-site build all green. Live GitHub Actions run pending first push.
 
 ## Context
 

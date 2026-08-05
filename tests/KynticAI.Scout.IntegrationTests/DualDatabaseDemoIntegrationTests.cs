@@ -25,6 +25,7 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace KynticAI.Scout.IntegrationTests;
 
+[Trait("Category", "Integration")]
 public sealed class DualDatabaseDemoIntegrationTests
 {
     [Fact]

@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.8.0-brightgreen.svg" alt="Release: v2.8.0" /></a>
   <img src="https://img.shields.io/badge/.NET-10.0-purple.svg" alt=".NET 10" />
-  <img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status" />
+  <a href="https://github.com/PaulJMaddison/scout/actions/workflows/ci.yml"><img src="https://github.com/PaulJMaddison/scout/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
 </p>
 
 <p align="center">
@@ -458,6 +458,10 @@ npm test
 ```
 
 Safe validation should produce successful .NET restore/build output, passing backend unit and SDK tests, clean frontend lint/test/build output, and passing TypeScript SDK tests. Browser proof and production-style rehearsal paths are opt-in. Use `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` for Playwright, and set `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1` before Docker/PostgreSQL or enterprise connector smoke rehearsals. See [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md) for the full local-safe command set, required variables, and known partial proofs.
+
+### CI Status
+
+CI runs the safe default on `ubuntu-latest`: the backend builds with warnings as errors and runs all local/deterministic .NET tests; the frontend runs the web app's lint, tests, and build, the TypeScript SDK build and tests, and the docs-site build; and a public-safety scan fails on any forbidden private-code or secret marker. The badge above reflects the latest `main` run of [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Browser proof (`KYNTIC_RUN_BROWSER_TESTS=1`) and container/enterprise proofs (`KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`) remain opt-in and are never part of default CI. Release workflow: `.github/workflows/release.yml` creates a GitHub Release with auto-generated notes when a `v*` tag is pushed; npm/NuGet publishing is intentionally not configured.
 
 ---
 
