@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** A — Public safety and boundary
 - **Depends on:** —
@@ -136,14 +136,14 @@ internal wording, and cross-links between the two doc trees.
 
 ## Acceptance criteria
 
-- [ ] One install recommendation across `README.md`, `docs/getting-started.md`,
+- [x] One install recommendation across `README.md`, `docs/getting-started.md`,
       and `docs-site` — no "Option 1 Local" vs "Docker-first" contradiction.
-- [ ] One SDK availability statement across both trees.
-- [ ] Every port reference in docs-site is correct for the path it documents,
+- [x] One SDK availability statement across both trees.
+- [x] Every port reference in docs-site is correct for the path it documents,
       and the 5198↔8080 mapping is explained in exactly one canonical place.
-- [ ] `n8n-node.md` contains no internal/investor wording.
-- [ ] `README.md` links the docs site; docs-site links back to the repo docs.
-- [ ] `docs-site` builds cleanly.
+- [x] `n8n-node.md` contains no internal/investor wording.
+- [x] `README.md` links the docs site; docs-site links back to the repo docs.
+- [x] `docs-site` builds cleanly.
 
 ## Verification
 

@@ -75,6 +75,10 @@ Docker services:
 | Prometheus | [http://127.0.0.1:9090](http://127.0.0.1:9090) |
 | Tempo | [http://127.0.0.1:3200](http://127.0.0.1:3200) |
 
+### Ports
+
+The full demo stack — Docker via `scripts/start-scout-docker.sh` / `.\scripts\start-scout-docker.ps1`, or the local demo scripts — exposes the API at `http://127.0.0.1:5198` and the web console at `http://127.0.0.1:5173`. The API-only Docker quickstart (`docker compose -f deploy/docker-compose.yml up scout-api`, or a manual `docker run -p 8080:8080`) exposes the API at `http://127.0.0.1:8080`. When following the API-only Docker path, use port `8080`; everywhere else, use port `5198`.
+
 ### Local / LAN Webhooks Without DNS
 
 The Docker compose file publishes the API on `0.0.0.0:5198`. If another system is on the same trusted LAN/VPN, DNS is optional; use the host IP address:
@@ -252,10 +256,12 @@ See [API Documentation](api/README.md) for details on exporting the spec and aut
 
 ## SDK Usage
 
+Public npm and NuGet publishing are not yet configured, so the commands below use the in-repository package paths.
+
 ### TypeScript
 
 ```bash
-npm install @kynticai/scout-sdk
+npm install ../packages/typescript/scout-sdk
 ```
 
 ```typescript
@@ -276,7 +282,7 @@ console.log(facts)
 ### .NET
 
 ```bash
-dotnet add package KynticAI.Scout.Sdk
+dotnet add reference src/KynticAI.Scout.Sdk/KynticAI.Scout.Sdk.csproj
 ```
 
 ```csharp

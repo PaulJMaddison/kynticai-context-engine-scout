@@ -5,14 +5,40 @@ description: Get a working KynticAI Scout demo running locally.
 
 ## Pick a Run Mode
 
-Scout supports two local paths:
-
 | Path | Use it when |
 |---|---|
-| Docker API | You want the fastest API-only smoke test with no local .NET setup. |
-| Local demo scripts | You want the API plus the React admin console and seeded demo data. |
+| Docker demo stack (recommended) | You want the full evaluation environment: PostgreSQL, API, web console, and observability, with seeded demo data. |
+| Docker API-only | You want the fastest API-only smoke test with no local .NET setup. |
+| Local demo scripts | You are contributing from the repository and want the API plus the React admin console without Docker. |
 
-## Docker API
+## Docker Demo Stack (Recommended)
+
+The full demo stack starts PostgreSQL, the API, the web console, and
+observability with seeded demo data.
+
+### Linux / macOS
+
+```bash
+sh ./scripts/start-scout-docker.sh --reset
+```
+
+### Windows (PowerShell)
+
+```powershell
+.\scripts\start-scout-docker.ps1 -Reset
+```
+
+This starts the admin console at [http://127.0.0.1:5173](http://127.0.0.1:5173)
+and the API at [http://127.0.0.1:5198](http://127.0.0.1:5198).
+
+| Service | URL |
+|---|---|
+| API | [http://127.0.0.1:5198](http://127.0.0.1:5198) |
+| GraphQL IDE | [http://127.0.0.1:5198/graphql](http://127.0.0.1:5198/graphql) |
+| REST API docs | [http://127.0.0.1:5198/api-docs](http://127.0.0.1:5198/api-docs) |
+| Health check | [http://127.0.0.1:5198/health/ready](http://127.0.0.1:5198/health/ready) |
+
+## Docker API-Only (Fast Smoke Test)
 
 From the repository root:
 
@@ -35,10 +61,10 @@ The Docker API exposes:
 | REST API docs | [http://127.0.0.1:8080/api-docs](http://127.0.0.1:8080/api-docs) |
 | Health check | [http://127.0.0.1:8080/health/ready](http://127.0.0.1:8080/health/ready) |
 
-## Full Local Demo
+## Local Demo Scripts (Contributor Path)
 
-After [installing](/getting-started/installation/) Scout, start the API and
-admin console:
+After [installing](/getting-started/installation/) Scout from the repository
+without Docker, start the API and admin console:
 
 ### Linux / macOS
 
@@ -49,14 +75,13 @@ sh ./scripts/start-demo.sh
 ### Windows (PowerShell)
 
 ```powershell
-./scripts/start-demo.ps1
+.\scripts\start-demo.ps1
 ```
 
 This starts the admin console at [http://127.0.0.1:5173](http://127.0.0.1:5173)
-and the API at [http://127.0.0.1:5198](http://127.0.0.1:5198).
-
-The examples below use the script ports. For Docker, replace `5198` with
-`8080`.
+and the API at [http://127.0.0.1:5198](http://127.0.0.1:5198). The examples
+below use these ports. For the other run modes, see the
+[API Overview port note](/apis/overview/#ports).
 
 ## Log In
 

@@ -4,8 +4,9 @@ description: Using the KynticAI Scout TypeScript SDK.
 ---
 
 The TypeScript SDK lives in `packages/typescript/scout-sdk` and uses the
-package name `@kynticai/scout-sdk`. Public registry publishing is not
-configured in this docs slice.
+package name `@kynticai/scout-sdk`. Public npm publishing is not yet
+configured; use the local package path below until a release process is
+explicitly approved.
 
 ## Install From This Repository
 

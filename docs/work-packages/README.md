@@ -29,7 +29,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 |---|---|---|---|---|---|
 | WP-001 | Public boundary remediation (remove proprietary leaks) | A | High | — | Complete |
 | WP-002 | Docs reference integrity and naming source of truth | A | High | — | Complete |
-| WP-003 | Docs-site reconciliation and publishing alignment | A | High | — | Backlog |
+| WP-003 | Docs-site reconciliation and publishing alignment | A | High | — | Complete |
 | WP-004 | Cross-tenant authorisation hardening | B | High | — | Backlog |
 | WP-005 | API surface hardening | B | Medium | — | Backlog |
 | WP-006 | SDK compatibility fix (Fact value type) | B | Medium | — | Backlog |

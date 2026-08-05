@@ -40,9 +40,9 @@ context response types.
 ## Publication Status
 
 The repository defines package names and build outputs, but public npm and
-NuGet publishing are not configured in this docs slice. Use the local
-package and project-reference paths shown on the SDK pages until a release
-process is explicitly approved.
+NuGet publishing are not yet configured. Use the local package and
+project-reference paths shown on the SDK pages until a release process is
+explicitly approved.
 
 ## Compatibility Notes
 

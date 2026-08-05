@@ -9,7 +9,8 @@ The GraphQL API is served by Hot Chocolate at:
 http://127.0.0.1:5198/graphql
 ```
 
-The Docker quickstart exposes the same endpoint on port `8080`. In local
+The port depends on the run mode; see the [API Overview port
+note](/apis/overview/#ports) for the API-only Docker path. In local
 development, the browser IDE is available at the same path. Production
 settings can disable introspection, schema requests, and browser GET
 requests.

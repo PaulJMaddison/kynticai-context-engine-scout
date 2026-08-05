@@ -4,8 +4,9 @@ description: Using the KynticAI Scout .NET SDK from C# applications.
 ---
 
 The .NET SDK lives in `src/KynticAI.Scout.Sdk` and uses the package ID
-`KynticAI.Scout.Sdk` when packed locally. Public NuGet publishing is not
-configured in this docs slice.
+`KynticAI.Scout.Sdk` when packed locally. Public NuGet publishing is not yet
+configured; use the project-reference path below until a release process is
+explicitly approved.
 
 ## Add A Project Reference
 

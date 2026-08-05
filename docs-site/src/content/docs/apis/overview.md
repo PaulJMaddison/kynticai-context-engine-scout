@@ -31,18 +31,22 @@ and citation IDs.
 | TypeScript SDK | `@kynticai/scout-sdk` | [TypeScript SDK](/sdks/typescript/) |
 | .NET SDK | `KynticAI.Scout.Sdk` | [.NET SDK](/sdks/dotnet/) |
 
+## Ports
+
+The full demo stack — Docker via `scripts/start-scout-docker.sh` / `.\scripts\start-scout-docker.ps1`, or the local demo scripts — exposes the API at `http://127.0.0.1:5198` and the web console at `http://127.0.0.1:5173`. The API-only Docker quickstart (`docker compose -f deploy/docker-compose.yml up scout-api`, or a manual `docker run -p 8080:8080`) exposes the API at `http://127.0.0.1:8080`. When following the API-only Docker path, use port `8080`; everywhere else, use port `5198`.
+
 ## Authentication
 
 Obtain a bearer token by logging in or exchanging client credentials:
 
 ```bash
 # Interactive login
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://127.0.0.1:5198/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"tenantSlug":"demo","email":"admin@scout.local","password":"DemoAdmin123!"}'
 
 # Machine-to-machine token exchange
-curl -X POST http://localhost:8080/api/auth/token \
+curl -X POST http://127.0.0.1:5198/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{
     "grantType": "client_credentials",
@@ -61,8 +65,8 @@ the full reference:
 
 | UI | URL |
 |---|---|
-| **Scalar** (recommended) | [http://localhost:8080/api-docs](http://localhost:8080/api-docs) |
-| **Swagger UI** | [http://localhost:8080/swagger](http://localhost:8080/swagger) |
+| **Scalar** (recommended) | [http://127.0.0.1:5198/api-docs](http://127.0.0.1:5198/api-docs) |
+| **Swagger UI** | [http://127.0.0.1:5198/swagger](http://127.0.0.1:5198/swagger) |
 
 ## First GraphQL Query
 
@@ -85,7 +89,7 @@ query {
 ## First REST Call
 
 ```bash
-curl "http://localhost:8080/api/v1/context/users/123?tenantSlug=demo" \
+curl "http://127.0.0.1:5198/api/v1/context/users/123?tenantSlug=demo" \
   -H "Authorization: Bearer <token>"
 ```
 

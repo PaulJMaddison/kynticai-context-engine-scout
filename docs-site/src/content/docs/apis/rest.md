@@ -100,6 +100,10 @@ The legacy surface is implemented in
 
 ## Example
 
+These examples use the Docker demo stack or local demo scripts on port
+`5198`. For the API-only Docker path, use port `8080` — see the [API
+Overview port note](/apis/overview/#ports).
+
 ```bash
 TOKEN=$(curl -s -X POST http://127.0.0.1:5198/api/auth/login \
   -H "Content-Type: application/json" \

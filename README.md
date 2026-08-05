@@ -376,6 +376,7 @@ All endpoints support JWT bearer tokens, persisted API clients, `X-Request-Id` c
 | [Enterprise Extension Points](docs/enterprise-extension-points.md) | How paid modules extend the open core |
 | [Roadmap](docs/roadmap.md) | Planned features and milestones |
 | [ADR: GraphQL Semantic Scout](docs/adr/0001-graphql-semantic-scout.md) | Architecture decision record |
+| [Documentation Site](docs-site/README.md) | Public Starlight docs site; build with `npm run build` in `docs-site` |
 
 ---
 
