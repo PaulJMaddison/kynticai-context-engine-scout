@@ -2,11 +2,32 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** C — Delivery engineering
 - **Depends on:** —
 - **Review gate:** standard
+
+## Completion notes
+
+- Browser proof ran and passed locally: `$env:KYNTIC_RUN_BROWSER_TESTS=1; npm
+  run test:e2e` in `apps\web` → 6/6 specs (responsive layout, agent
+  playground, selector builder), Playwright 1.59.1 / chromium headless,
+  artefacts cleaned after the run. Opt-in gate retained; proof remains out of
+  default CI.
+- `demo-mode-page.tsx:339` already reads "licence support" (fixed in WP-002);
+  the US-English sweep of `apps/web/src` found only non-user-facing matches
+  (CSS custom properties, `Authorization` header tokens, HTML autofill
+  attributes).
+- `docs/paid-pilot-setup.md` reviewed: clean, no overclaims, matches the
+  commercial-readiness ladder; no edits needed.
+- `docs/connector-marketplace.md`: one precision edit — the placeholder list
+  now covers all vendor categories that actually exist in
+  `ConnectorCatalogueSeeder`.
+- `apps/web`: lint, 6/6 component tests, and build all pass.
+- FLAGGED for owner review (not changed, per WP-008 do-not rules):
+  `demo-mode-page.tsx:342` claims "production pilots available now", which
+  sits ahead of the commercial-readiness ladder.
 
 ## Context
 

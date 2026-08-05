@@ -136,5 +136,5 @@ The public seed data and tests now assert the connector boundary in executable c
 
 - `postgresql` is present as a public generic example and resolves to the `sqlDatabase` connector alias.
 - `productTelemetryEvents` and `firstPartyConversionEvents` are public event-contract entries that use `POST /api/v1/events/source-system`.
-- `sqlServer`, `billing-system`, `legacy-dotnet-handlers`, CRM vendor entries, ERP entries, email metadata entries, and knowledge-system entries remain placeholders or paid/private metadata.
+- `sqlServer`, `billing-system`, `legacy-dotnet-handlers`, and the CRM, ERP, warehouse, support, email, calendar, collaboration, product-analytics, work-management, and knowledge-system vendor entries remain placeholders or paid/private metadata.
 - The REST and GraphQL catalogue responses expose `publicStatus` so external docs, frontends, and SDK consumers can distinguish open-core examples from commercial or planned entries.

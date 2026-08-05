@@ -21,6 +21,7 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 ### Chores
 
 - Re-enabled and hardened CI/CD (OSS-013): `.github/workflows/ci.yml` now runs independent backend, frontend, and public-safety jobs on the safe default, and `.github/workflows/release.yml` creates a GitHub Release on `v*` tags with npm/NuGet publishing intentionally not configured. Integration test classes now carry `[Trait("Category", "Integration")]` so `--filter "Category!=Integration"` is meaningful, and the pilot-readiness gate now requires safe active workflows instead of forbidding their existence.
+- Completed and documented the browser proof: `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` passes 6/6 Playwright specs in `apps/web` (still opt-in and out of default CI), and `docs/connector-marketplace.md` was corrected so the placeholder connector list matches `ConnectorCatalogueSeeder`.
 
 ## [2.8.0] - 2026-05-21
 

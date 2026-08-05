@@ -68,4 +68,4 @@ Safe validation should finish with successful .NET restore/build, passing backen
 
 ## Known Partial/Blocked Proofs
 
-Playwright proof is blocked until browser dependencies are installed and explicitly opted in. Docker/PostgreSQL rehearsal is blocked without Docker and the external-test gate. Enterprise connector smoke is partial unless the enterprise repo and any approved connector fixtures/endpoints are available; routine paid-pilot checks should pass with connector smoke skipped.
+Playwright browser proof has been run and passes locally with `KYNTIC_RUN_BROWSER_TESTS=1` (6/6 specs across the agent playground, selector builder, and responsive layout suites; run documented in WP-008). It remains an opt-in path. Docker/PostgreSQL rehearsal is blocked without Docker and the external-test gate. Enterprise connector smoke is partial unless the enterprise repo and any approved connector fixtures/endpoints are available; routine paid-pilot checks should pass with connector smoke skipped.
