@@ -12,7 +12,7 @@ Canonical API scopes use colon names:
 - `blueprints:write`
 - `billing:read`
 
-`context:write` is an official scope for write operations that change context or request recomputation. SDK examples should request only the scopes needed by the workflow. Older dot-form scopes such as `context.read`, `context.write`, `events.write`, `audit.read`, `admin.manage`, `blueprints.write`, and `billing.read` are compatibility aliases only.
+`context:write` is an official scope for write operations that change context or request recomputation. SDK examples should request only the scopes needed by the workflow. Older dot-form scopes such as `context.read`, `context.write`, `events.write`, `audit.read`, `admin.manage`, `blueprints.write`, and `billing.read` are compatibility aliases only, as are `context.recompute` (maps to `context:write`) and `connectors.read` (maps to `context:read`).
 
 ## Machine Clients
 

@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** B — Product hardening
 - **Depends on:** —
@@ -97,14 +97,14 @@ tested.
 
 ## Acceptance criteria
 
-- [ ] Every REST endpoint (v1 and legacy) has a unique operation ID in the
+- [x] Every REST endpoint (v1 and legacy) has a unique operation ID in the
       exported OpenAPI document.
-- [ ] CSV export is sanitised against formula injection; JSON export produces
+- [x] CSV export is sanitised against formula injection; JSON export produces
       valid JSON for adversarial field values; both covered by tests.
-- [ ] `SaasArchitectureOverview` values are derived from real state; tests
+- [x] `SaasArchitectureOverview` values are derived from real state; tests
       pin the shape and the empty-data behaviour.
-- [ ] `docs/api-scopes.md` matches the accepted scope set exactly.
-- [ ] Backend suite passes.
+- [x] `docs/api-scopes.md` matches the accepted scope set exactly.
+- [x] Backend suite passes.
 
 ## Verification
 
@@ -122,3 +122,10 @@ dotnet test .\tests\KynticAI.Scout.EndToEndTests\KynticAI.Scout.EndToEndTests.cs
   it as security work even though the severity is low.
 - The legacy endpoints are kept for backward compatibility, so do not remove
   them in this package.
+- Scope aliases were kept and documented as compatibility aliases in
+  `docs/api-scopes.md`; no scope set changed.
+- `scripts/export-openapi.sh` now pins `ASPNETCORE_URLS` so the API binds to
+  the port the script polls on all platforms.
+- Verification: slnx build 0 warnings/0 errors; Unit 112, Integration 42,
+  EndToEnd 54 — all passing. OpenAPI export shows operation IDs for 37/37 v1
+  and 16/16 legacy endpoints.

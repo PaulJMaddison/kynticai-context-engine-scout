@@ -31,7 +31,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 | WP-002 | Docs reference integrity and naming source of truth | A | High | — | Complete |
 | WP-003 | Docs-site reconciliation and publishing alignment | A | High | — | Complete |
 | WP-004 | Cross-tenant authorisation hardening | B | High | — | Complete |
-| WP-005 | API surface hardening | B | Medium | — | Backlog |
+| WP-005 | API surface hardening | B | Medium | — | Complete |
 | WP-006 | SDK compatibility fix (Fact value type) | B | Medium | — | Backlog |
 | WP-007 | CI/CD re-enablement (OSS-013) | C | High | WP-001 | Backlog |
 | WP-008 | Browser proof and frontend polish | C | Medium | — | Backlog |

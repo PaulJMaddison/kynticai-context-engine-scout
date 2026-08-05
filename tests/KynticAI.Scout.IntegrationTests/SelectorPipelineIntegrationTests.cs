@@ -335,6 +335,7 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddSingleton<ContextRecomputeQueue>();
             services.AddSingleton<IContextRecomputeQueue>(provider => provider.GetRequiredService<ContextRecomputeQueue>());
             services.AddSingleton<ICurrentActorService>(new TestCurrentActorService(ActorContext.System()));
+            services.AddScoped<IPlatformRuntimeOptions>(_ => new TestPlatformRuntimeOptions("BackendOnly", "open-core-apis"));
             services.AddSingleton<IOptions<LlmOptions>>(Options.Create(new LlmOptions
             {
                 DefaultProvider = "mock",
@@ -579,5 +580,12 @@ public sealed class SelectorPipelineIntegrationTests
     private sealed class TestCurrentActorService(ActorContext actorContext) : ICurrentActorService
     {
         public ActorContext GetCurrentActor() => actorContext;
+    }
+
+    private sealed class TestPlatformRuntimeOptions(string mode, params string[] featureFlags) : IPlatformRuntimeOptions
+    {
+        public string Mode => mode;
+
+        public IReadOnlyList<string> EnabledFeatureFlags => featureFlags;
     }
 }

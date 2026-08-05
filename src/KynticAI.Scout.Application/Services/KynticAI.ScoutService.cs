@@ -42,7 +42,8 @@ public sealed class ScoutService(
     ISelectorExecutionEngine selectorExecutionEngine,
     IScheduledRecomputeDispatcher scheduledRecomputeDispatcher,
     IBillingEnforcementService billingEnforcementService,
-    IUsageMeteringService usageMeteringService)
+    IUsageMeteringService usageMeteringService,
+    IPlatformRuntimeOptions platformRuntimeOptions)
     : IScoutService
 {
     public async Task<IReadOnlyList<Tenant>> GetTenantsAsync(CancellationToken cancellationToken)
@@ -281,8 +282,8 @@ public sealed class ScoutService(
             tenant.Id,
             tenant.Slug,
             tenant.Name,
-            "ConfiguredByPlatformOptions",
-            ["open-core"],
+            platformRuntimeOptions.Mode,
+            platformRuntimeOptions.EnabledFeatureFlags,
             subscription is null
                 ? null
                 : new SaasSubscriptionSummaryResult(
@@ -2294,7 +2295,16 @@ public sealed class ScoutService(
 
     private static string Csv(string? value)
     {
-        var escaped = (value ?? string.Empty).Replace("\"", "\"\"", StringComparison.Ordinal);
+        // CSV formula-injection guard: cells that begin with =, +, -, @, tab or carriage
+        // return are prefixed with a single quote so spreadsheet applications treat them
+        // as text rather than evaluating a formula or external link.
+        var raw = value ?? string.Empty;
+        if (raw.Length > 0 && (raw[0] is '=' or '+' or '-' or '@' or '\t' or '\r'))
+        {
+            raw = "'" + raw;
+        }
+
+        var escaped = raw.Replace("\"", "\"\"", StringComparison.Ordinal);
         return $"\"{escaped}\"";
     }
 

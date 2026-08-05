@@ -42,6 +42,7 @@ public static class DependencyInjection
 
         services.AddScoped<IScoutDbContext>(provider => provider.GetRequiredService<ScoutDbContext>());
         services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+        services.AddScoped<IPlatformRuntimeOptions, PlatformRuntimeOptions>();
         var dataProtection = services
             .AddDataProtection()
             .SetApplicationName(string.IsNullOrWhiteSpace(dataProtectionOptions.ApplicationName)

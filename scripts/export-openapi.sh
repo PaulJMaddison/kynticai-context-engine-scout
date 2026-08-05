@@ -38,6 +38,7 @@ trap cleanup EXIT
 
 echo "Starting Scout API in Development mode..."
 ASPNETCORE_ENVIRONMENT=Development \
+  ASPNETCORE_URLS="http://127.0.0.1:5198" \
   Platform__EnableOpenApi=true \
   Platform__EnableRest=true \
   "$DOTNET" run --project "$API_PROJECT" --no-launch-profile &
