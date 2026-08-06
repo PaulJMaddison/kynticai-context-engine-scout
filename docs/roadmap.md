@@ -2,26 +2,32 @@
 
 This roadmap describes the current direction of KynticAI Scout at a high level. It is intended to help contributors understand the shape of the public open source core and the likely boundary to future commercial offerings.
 
-## Repository model
+## Shipped
 
-The expected repository split is:
+These capabilities are part of the public open-core deliverable in this repository today. Each links to its primary documentation and the release that introduced or formalised it.
 
-- this public repository for the open source core
-- private paid repositories for enterprise extensions
-- private control-plane repositories for hosted commercial operations
+| Capability | Documentation | Introduced |
+| --- | --- | --- |
+| Semantic/selector engine | [docs/saas-architecture.md](saas-architecture.md) | v2.0.0 |
+| Context facts and snapshots | [docs/public-api-contract.md](public-api-contract.md) | v2.0.0 |
+| GraphQL and REST APIs | [docs/public-api-contract.md](public-api-contract.md) | v2.0.0 |
+| SQLite and PostgreSQL data access | [docs/getting-started.md](getting-started.md), [docs/hosted-deployment.md](hosted-deployment.md) | v1.0.0 |
+| Connector plugin model and catalogue | [docs/connector-plugin-model.md](connector-plugin-model.md), [docs/connector-marketplace.md](connector-marketplace.md) | v2.0.0 |
+| Blueprint Import | [docs/context-consumers.md](context-consumers.md) | v2.0.0 |
+| Webhook signing secrets | [docs/webhook-events.md](webhook-events.md) | v2.3.0 |
+| M2M identity and API clients | [docs/machine-to-machine-identity.md](machine-to-machine-identity.md), [docs/api-scopes.md](api-scopes.md) | v2.0.0 |
+| Score API | [docs/score-api.md](score-api.md) | main after v2.8.0 |
+| Discovery MCP/agent | [docs/discovery-agent-mcp.md](discovery-agent-mcp.md) | main after v2.8.0 |
+| n8n node | [docs/n8n-node.md](n8n-node.md) | main after v2.8.0 |
+| docs site | [docs-site/README.md](../docs-site/README.md) | main after v2.8.0 |
+| Scout pilot setup wizard | [docs/paid-pilot-setup.md](paid-pilot-setup.md) | main after v2.8.0 |
 
-## Public open source core
+Capabilities marked "main after v2.8.0" are merged into the open-core repository on the default branch and are not yet part of a tagged release. The [root CHANGELOG](../CHANGELOG.md) is the canonical record of releases.
 
-Current and near-term public repo priorities:
+## Directional priorities
 
-- keep the semantic engine public
-- keep context facts and snapshots public
-- keep GraphQL and REST APIs public
-- keep SQLite local demo and PostgreSQL support public
-- keep mock connectors public
-- keep SQL/file connector examples public only when they are generic, safe, and fictional
-- keep extension interfaces public
-- keep marketing and documentation public
+These are directions for the open core, not committed delivery dates or scope. Priorities may change as the work-package backlog evolves:
+
 - strengthen the semantic context model
 - improve selector execution, provenance, confidence, and freshness handling
 - improve the GraphQL and REST developer experience
@@ -30,7 +36,15 @@ Current and near-term public repo priorities:
 - provide stable extension contracts for future enterprise modules
 - improve documentation, tests, and examples
 
-## Likely future private enterprise areas
+## Public/private boundary
+
+The intended repository split is:
+
+- this public repository for the open source core
+- private enterprise repositories for paid extension implementations
+- private control-plane repositories for hosted commercial operations
+
+### Likely future private enterprise areas
 
 These are likely to be developed outside the public repo:
 
@@ -44,18 +58,21 @@ These are likely to be developed outside the public repo:
 - compliance report exporters
 - support-backed observability and operational tooling
 
-This list is here to clarify boundary expectations, not to imply that those implementations already exist in the public repository.
-Some of these capabilities now exist in private commercial repositories, but they remain outside the public open-core deliverable.
+This list is here to clarify boundary expectations, not to imply that those implementations already exist in the public repository. Capabilities beyond the open-core deliverable remain outside this repository.
 
-## Future Managed Control-Plane Direction
+## Scout Cloud and managed control plane
 
-If a managed control-plane offering is developed later, it will likely focus on:
+KynticAI Scout Cloud is an optional, support-only offering today. It can manage accounts, licences, downloads, update channels, support access, and optional aggregate usage metadata; it is not required to run the data plane and must not receive raw customer operational data or derived context by default. A managed control-plane offering is a next candidate step for Scout Cloud; if it proceeds, it will likely focus on:
 
 - hosted operations
 - tenant administration
 - managed upgrades
 - usage metering and operational packaging
 - hosted control-plane concerns that do not belong in the open source core
+
+## How we track
+
+Shipped and planned work is tracked as public work packages in [docs/work-packages/README.md](work-packages/README.md). The roadmap above summarises the shipped features and the directional priorities; the work-package backlog carries the concrete planned slices and their status, so the two should be read together.
 
 ## Roadmap principles
 

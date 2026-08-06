@@ -2,85 +2,39 @@
 
 Public KynticAI Scout changes are documented in this file. Private package changes should stay in private changelogs.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## Canonical changelog
 
-> **Note:** Each repository also maintains its own root-level `CHANGELOG.md` with
-> repo-specific detail. This file provides the public Scout release view.
+The canonical and complete changelog for this repository is the root [`CHANGELOG.md`](../../CHANGELOG.md). It follows Keep a Changelog and Semantic Versioning, covers every release from v0.1.0 to the current version, and carries the `[Unreleased]` entries. It is the single source of truth for release history.
 
----
+This file is an index of the per-release notes in this directory, not a separate release history.
 
-## [Unreleased]
+## Release notes
 
-<!-- Add entries here as work is merged to main before the next release. -->
+| Release | Notes |
+| --- | --- |
+| v2.8.0 | [v2.8.0.md](v2.8.0.md) |
+| v2.7.0 | [v2.7.0.md](v2.7.0.md) |
+| v2.6.0 | [v2.6.0.md](v2.6.0.md) |
+| v2.5.1 | [v2.5.1.md](v2.5.1.md) |
+| v2.5.0 | [v2.5.0.md](v2.5.0.md) |
+| v2.4.1 | [v2.4.1.md](v2.4.1.md) |
+| v2.4.0 | [v2.4.0.md](v2.4.0.md) |
+| v2.3.0 | [v2.3.0.md](v2.3.0.md) |
+| v2.2.0 | [v2.2.0.md](v2.2.0.md) |
+| v2.1.0 | [v2.1.0.md](v2.1.0.md) |
+| v2.0.0 | [v2.0.0.md](v2.0.0.md) |
+| v1.1.0 | [v1.1.0.md](v1.1.0.md) |
+| v1.0.0 | [v1.0.0.md](v1.0.0.md) |
 
----
+The demo-era releases (v0.1.0, v0.1.1) and the v2.1.1 patch release have entries in the root `CHANGELOG.md` but no separate note in this directory; the root changelog remains authoritative for them.
 
-## [2.8.0] - 2026-05-21
+## Maintaining this index
 
-### Open-Source (`scout`)
+When a new release is cut, follow [docs/releases/release-process.md](release-process.md):
 
-#### Changed
-- Rebranded the public open-source repository, SDKs, docs, local demo, admin console, package metadata, and screenshots to KynticAI Scout.
-- Removed the temporary website build path from the open-source repo so the main company website can become the public web presence.
-- Aligned default release readiness checks with `main` as the public readiness branch.
-
-#### Security
-- Removed personal contact details from public product surfaces and kept company-level contact defaults.
-
----
-
-## [2.7.0] - 2026-05-13
-
-Public Scout release.
-
-### Open-Source (`scout`)
-
-#### Added
-- Customer data-plane installation and production-readiness runbooks for paid-pilot delivery.
-- Commercial readiness, hosting alignment, observability, machine-to-machine identity, support expectation, privacy, cookie/consent, terms, and paid-pilot legal draft documentation.
-- Production environment readiness checks for production-style data-plane configuration.
-- GitHub Actions CI workflow (build, test, upload results on every push/PR to main).
-- GitHub Actions release workflow (build, test, create GitHub Release on `v*` tags).
-
-#### Changed
-- Updated public release metadata to `2.7.0`.
-- Strengthened the public open-core story around demos, install runbooks, public API/SDK/context package docs, and paid-pilot boundaries.
-
-#### Security
-- Reconfirmed that the public repo does not include paid enterprise implementations, private cloud/control-plane implementation, real licence signing keys, customer-specific code, or raw customer operational data.
-
-### Private Package Coordination
-
-- Private package changes are tracked in private changelogs and are not documented in the public repo.
-
----
-
-## [2.3.0] - 2026-05-12
-
-Public Scout release.
-
-### Open-Source (`scout`)
-
-#### Added
-- First-class webhook signing secrets with create, list, rotate, and revoke REST endpoints.
-- Public-safe governance hook seam for private enterprise policy injection.
-- Canonical API scope contract document and pilot readiness scripts.
-- Paid pilot readiness runbook covering PostgreSQL smoke checks, backup/restore rehearsal, support bundle dry runs, upgrade/rollback rehearsal, and customer handover.
-
-#### Changed
-- Formalised `context:write` as an official scope.
-- Reworded public copy towards paid pilot, customer data plane, and self-hosted language.
-
-#### Security
-- Kept the public repository limited to open-core code, public interfaces, and fictional data.
-- Extended local artefact ignore coverage for runtime data, logs, keys, and certificates.
-
-### Private Package Coordination
-
-- Private package changes are tracked in private changelogs and are not documented in the public repo.
-
----
+1. Add the full release entry to the root `CHANGELOG.md`.
+2. Add a `vX.Y.Z.md` note in this directory.
+3. Add a row to the release-notes table above.
 
 ## Template
 

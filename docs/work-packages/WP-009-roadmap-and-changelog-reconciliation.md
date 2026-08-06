@@ -2,11 +2,29 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** D — Documentation completeness
 - **Depends on:** WP-007 (so the post-CI state can be reflected truthfully)
 - **Review gate:** standard
+
+## Completion notes
+
+- `docs/roadmap.md` refreshed: "Shipped" table lists the delivered open-core
+  capabilities with doc pointers and the release that introduced each (items
+  merged after the last tagged release are honestly marked "main after
+  v2.8.0"); "Directional priorities" section frames future work as
+  directional; the near-disclosure about private commercial repositories is
+  replaced with "Capabilities beyond the open-core deliverable remain outside
+  this repository"; the Scout Cloud section now matches the README
+  (optional, support-only today; managed control plane = next candidate step);
+  a "How we track" note points at the work-package backlog.
+- `docs/releases/CHANGELOG.md` is now a thin index/pointer: it links the root
+  `CHANGELOG.md` as the canonical changelog and lists the per-release notes
+  (v1.0.0-v2.8.0) with the v0.1.0/v0.1.1/v2.1.1 gap documented.
+- `README.md` changelog link now targets the canonical root `CHANGELOG.md`,
+  with a separate row for the release-notes index.
+- Root `CHANGELOG.md` `[Unreleased]` entries from WP-004..WP-008 left intact.
 
 ## Context
 

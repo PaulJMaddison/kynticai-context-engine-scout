@@ -551,7 +551,8 @@ Scout uses [semantic versioning](https://semver.org/) for public releases. Every
 | Resource | Description |
 |---|---|
 | [Release Process](docs/releases/release-process.md) | Public release workflow, checklists, and hotfix process |
-| [Changelog](docs/releases/CHANGELOG.md) | Public Scout changelog |
+| [Changelog](CHANGELOG.md) | Canonical full changelog for all public releases |
+| [Release Notes Index](docs/releases/CHANGELOG.md) | Index of per-release notes in `docs/releases` |
 | [GitHub Releases](https://github.com/PaulJMaddison/scout/releases) | Published releases with auto-generated notes |
 
 ### Release Scripts
