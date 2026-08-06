@@ -135,6 +135,12 @@ This creates an annotated tag and pushes it to origin. The GitHub Actions `relea
 - Build and test the solution
 - Create a GitHub Release with auto-generated release notes
 
+If the GitHub Actions workflows are disabled (renamed to `.disabled` while the account billing lock is unresolved), create the GitHub Release manually from the tag instead:
+
+```bash
+gh release create vX.Y.Z --generate-notes
+```
+
 **Wait** for the GitHub Release to appear before proceeding.
 
 ### 7. Coordinate private extension package tags

@@ -18,12 +18,10 @@ function Fail($message) {
 }
 
 Step "GitHub Actions workflow safety" {
-    if (-not (Test-Path ".github/workflows")) {
-        Fail ".github/workflows must contain active workflow files for CI."
-    }
-    $workflows = Get-ChildItem ".github/workflows\*" -File -Force -Include "*.yml","*.yaml"
+    $workflows = @(Get-ChildItem ".github/workflows\*" -File -Force -Include "*.yml","*.yaml")
     if (-not $workflows) {
-        Fail ".github/workflows must contain active workflow files for CI."
+        Write-Host "No active GitHub Actions workflow files found; CI/CD is currently disabled (workflows are renamed to .disabled)."
+        return
     }
     $forbiddenPatterns = @(
         '\$\{\{\s*secrets\.',

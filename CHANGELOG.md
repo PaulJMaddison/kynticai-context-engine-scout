@@ -6,6 +6,10 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 
 ## [Unreleased]
 
+### Chores
+
+- Disabled GitHub Actions CI/CD workflows again (renamed `.yml` to `.yml.disabled`) because the GitHub account is locked due to a billing issue that prevents Actions jobs from starting. The local verification gates (Release build with warnings as errors, backend and frontend tests, docs-site build, and the public-safety scan) remain the verification path, and the pilot-readiness gate now tolerates the disabled state while still scanning any active workflow for secrets or private markers. Re-enable the workflows when the account lock is resolved.
+
 ## [2.9.0] - 2026-08-06
 
 ### Added

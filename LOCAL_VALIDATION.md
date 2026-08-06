@@ -23,8 +23,11 @@ npm run test
 
 ## CI (Continuous Integration)
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs the safe
-default only. It never runs browser, container, or enterprise proof paths:
+GitHub Actions is currently disabled: the workflows in `.github/workflows` are
+renamed to `.disabled` because the GitHub account is locked due to a billing
+issue that prevents Actions jobs from starting. The disabled `ci.yml` remains
+the reference for the safe default. It never runs browser, container, or
+enterprise proof paths:
 
 - `backend` job: `.NET` restore, Release build with warnings as errors, then
   the unit, SDK, integration, and end-to-end test projects (all

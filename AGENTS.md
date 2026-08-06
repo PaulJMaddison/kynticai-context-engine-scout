@@ -66,7 +66,7 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 
 - V2-003: keep this root AGENTS.md current after meaningful sessions.
 - OSS-021: keep user-facing brand text aligned to `KynticAI`.
-- OSS-013: re-enable and harden CI/CD when that work is picked up.
+- OSS-013: GitHub Actions CI/CD is currently disabled (`*.yml` renamed to `*.yml.disabled`) because the GitHub account is locked due to a billing issue that prevents Actions jobs from starting; re-enable and harden it when the lock is resolved.
 - OSS-015 and OSS-019: public docs and connector authoring remain upcoming public-facing work.
 
 ## State/Update Expectations

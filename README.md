@@ -461,9 +461,9 @@ npm test
 
 Safe validation should produce successful .NET restore/build output, passing backend unit and SDK tests, clean frontend lint/test/build output, and passing TypeScript SDK tests. Browser proof and production-style rehearsal paths are opt-in. Use `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` for Playwright, and set `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1` before Docker/PostgreSQL or enterprise connector smoke rehearsals. See [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md) for the full local-safe command set, required variables, and known partial proofs.
 
-### CI Status
+### CI/CD Status
 
-CI runs the safe default on `ubuntu-latest`: the backend builds with warnings as errors and runs all local/deterministic .NET tests; the frontend runs the web app's lint, tests, and build, the TypeScript SDK build and tests, and the docs-site build; and a public-safety scan fails on any forbidden private-code or secret marker. The badge above reflects the latest `main` run of [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Browser proof (`KYNTIC_RUN_BROWSER_TESTS=1`) and container/enterprise proofs (`KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`) remain opt-in and are never part of default CI. Release workflow: `.github/workflows/release.yml` creates a GitHub Release with auto-generated notes when a `v*` tag is pushed; npm/NuGet publishing is intentionally not configured.
+GitHub Actions is currently disabled: `.github/workflows/ci.yml` and `.github/workflows/release.yml` are renamed to `.disabled` while the GitHub account's billing lock prevents Actions jobs from starting. The local verification gates remain the release bar: a Release build with warnings as errors, all backend (unit, SDK, integration, end-to-end) and frontend (web lint/test/build, TypeScript SDK build/test, docs-site build) checks, and the public-safety scan. Browser proof (`KYNTIC_RUN_BROWSER_TESTS=1`) and container/enterprise proofs (`KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`) remain opt-in and are never part of default CI. The `*.disabled` workflow files remain the reference for the safe default; when the account lock is resolved they can be re-enabled by removing the suffix.
 
 ---
 
