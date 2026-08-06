@@ -463,7 +463,7 @@ Safe validation should produce successful .NET restore/build output, passing bac
 
 ### CI/CD Status
 
-GitHub Actions is currently disabled: `.github/workflows/ci.yml` and `.github/workflows/release.yml` are renamed to `.disabled` while the GitHub account's billing lock prevents Actions jobs from starting. The local verification gates remain the release bar: a Release build with warnings as errors, all backend (unit, SDK, integration, end-to-end) and frontend (web lint/test/build, TypeScript SDK build/test, docs-site build) checks, and the public-safety scan. Browser proof (`KYNTIC_RUN_BROWSER_TESTS=1`) and container/enterprise proofs (`KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`) remain opt-in and are never part of default CI. The `*.disabled` workflow files remain the reference for the safe default; when the account lock is resolved they can be re-enabled by removing the suffix.
+GitHub Actions is currently disabled: `.github/workflows/ci.yml` and `.github/workflows/release.yml` are renamed to `.disabled` while we have prevented Actions jobs from starting. The local verification gates remain the release bar: a Release build with warnings as errors, all backend (unit, SDK, integration, end-to-end) and frontend (web lint/test/build, TypeScript SDK build/test, docs-site build) checks, and the public-safety scan. Browser proof (`KYNTIC_RUN_BROWSER_TESTS=1`) and container/enterprise proofs (`KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`) remain opt-in and are never part of default CI. The `*.disabled` workflow files remain the reference for the safe default; they can be re-enabled by removing the suffix.
 
 ---
 
