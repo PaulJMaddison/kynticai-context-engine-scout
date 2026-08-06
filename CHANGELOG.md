@@ -6,12 +6,23 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-06
+
+### Added
+
+- First tagged release for the Score API ([docs/score-api.md](docs/score-api.md)), the Discovery Agent MCP server ([docs/discovery-agent-mcp.md](docs/discovery-agent-mcp.md)), the n8n integration nodes ([docs/n8n-node.md](docs/n8n-node.md)), the public docs site (`docs-site/`), and the Scout pilot setup wizard ([docs/paid-pilot-setup.md](docs/paid-pilot-setup.md)).
+- Added user documentation for previously thin tooling paths: [docs/migration-tool.md](docs/migration-tool.md) for the open-core context/evidence export CLI, [docs/pilot-lead-capture.md](docs/pilot-lead-capture.md) for `VITE_PILOT_LEAD_ENDPOINT`, and a committed fresh OpenAPI export at [docs/api/openapi.json](docs/api/openapi.json) with the regeneration command documented in `docs/api/README.md`.
+- Added the connector authoring tutorial ([docs/connector-authoring-tutorial.md](docs/connector-authoring-tutorial.md)) and completed the connector authoring and marketplace documentation (OSS-019).
+
 ### Changed
 
 - Migration export tool: default purpose metadata renamed from scout-fortress-migration-export to scout-open-core-migration-export (exported artefacts now carry the new value).
 - Legacy `/api/rest/*` endpoints now expose operation IDs in the exported OpenAPI document.
 - Saas architecture overview (`/api/ops/summary`, GraphQL `SaasArchitectureOverview`) now reports the platform mode and enabled feature flags from real configuration instead of placeholder literals.
 - The .NET and TypeScript SDKs now type `ContextFactResult.valueType` (and the .NET `GroundedContextFactResult`) as the `FactValueType` enum instead of a free-form string. The .NET SDK registers a tolerant JSON converter so it still accepts the API's integer encoding, and its NuGet package remains self-contained (single assembly, no new package dependency). TypeScript consumers now get a `FactValueType` string-literal union (`'string' | 'number' | 'boolean' | 'json' | 'enum' | 'enumSet'`).
+- Refreshed [docs/roadmap.md](docs/roadmap.md) so shipped open-core capabilities are listed with doc and release pointers and future work is framed as directional, and reconciled the changelogs: `docs/releases/CHANGELOG.md` is now an index of per-release notes pointing at the canonical root `CHANGELOG.md`, and the README changelog link targets the canonical file.
+- `docs/connector-plugin-model.md` was verified against the registered plugins and aliases; the connector test-harness and manifest-validator commands were corrected, and `docs/connector-marketplace.md` now states explicitly that placeholder catalogue entries are metadata only (no execution, no vendor certification).
+- Completed and documented the browser proof: `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` passes 6/6 Playwright specs in `apps/web` (still opt-in and out of default CI).
 
 ### Security
 
@@ -21,10 +32,6 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 ### Chores
 
 - Re-enabled and hardened CI/CD (OSS-013): `.github/workflows/ci.yml` now runs independent backend, frontend, and public-safety jobs on the safe default, and `.github/workflows/release.yml` creates a GitHub Release on `v*` tags with npm/NuGet publishing intentionally not configured. Integration test classes now carry `[Trait("Category", "Integration")]` so `--filter "Category!=Integration"` is meaningful, and the pilot-readiness gate now requires safe active workflows instead of forbidding their existence.
-- Completed and documented the browser proof: `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` passes 6/6 Playwright specs in `apps/web` (still opt-in and out of default CI), and `docs/connector-marketplace.md` was corrected so the placeholder connector list matches `ConnectorCatalogueSeeder`.
-- Refreshed `docs/roadmap.md` so shipped open-core capabilities are listed with doc and release pointers and future work is framed as directional, and reconciled the changelogs: `docs/releases/CHANGELOG.md` is now an index of per-release notes pointing at the canonical root `CHANGELOG.md`, and the README changelog link targets the canonical file.
-- Added user documentation for previously thin tooling paths: `docs/migration-tool.md` (open-core context/evidence export CLI, verified against `--help`), `docs/pilot-lead-capture.md` (`VITE_PILOT_LEAD_ENDPOINT` behaviour and privacy guidance), and a committed fresh OpenAPI export at `docs/api/openapi.json` with the regeneration command documented in `docs/api/README.md`.
-- Completed the connector authoring and marketplace documentation (OSS-019): new `docs/connector-authoring-tutorial.md` end-to-end walkthrough, `docs/connector-plugin-model.md` verified against the registered plugins and aliases, fixed connector test-harness and manifest-validator commands, explicit no-vendor-certification statement for placeholder catalogue entries in `docs/connector-marketplace.md`, and aligned docs-site connector pages.
 
 ## [2.8.0] - 2026-05-21
 

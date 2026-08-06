@@ -1,6 +1,6 @@
 {
   "name": "@kynticai/scout-connector-test-harness",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Local test harness for validating KynticAI Scout connectors against public interfaces — manifest shape, metadata extraction, entity mapping, error handling, and unsafe field checks.",
   "license": "MIT",
   "repository": {

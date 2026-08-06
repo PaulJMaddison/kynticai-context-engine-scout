@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.8.0-brightgreen.svg" alt="Release: v2.8.0" /></a>
+  <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.9.0-brightgreen.svg" alt="Release: v2.9.0" /></a>
   <img src="https://img.shields.io/badge/.NET-10.0-purple.svg" alt=".NET 10" />
 
 </p>

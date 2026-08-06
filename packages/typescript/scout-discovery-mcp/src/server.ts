@@ -15,7 +15,7 @@ import {
 export function createDiscoveryServer(): McpServer {
   const server = new McpServer({
     name: 'scout-discovery',
-    version: '2.8.0',
+    version: '2.9.0',
   })
 
   server.tool(
