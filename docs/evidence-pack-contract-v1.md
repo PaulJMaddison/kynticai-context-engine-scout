@@ -39,3 +39,7 @@ Clarity and Importance are separate products and are not required by this contra
 The v1 golden fixtures cover B2B SaaS, ecommerce, support churn, recruitment, finance retention, and healthcare operations. Healthcare fixtures are operational and synthetic only; they do not include patient-level data.
 
 Unit tests in `tests/KynticAI.Scout.UnitTests/UclEvidencePackContractTests.cs` validate the golden fixtures, citation/provenance integrity, masking behaviour, Cloud aggregate exclusions, private-extension handoff shape, and rejection of deliberately unsafe Cloud payload examples.
+
+## Related Tooling
+
+Operators who need to move context/evidence data out of a local Scout deployment can use the [KynticAI Scout Migration Tool](migration-tool.md), an open-core local-only export tool.

@@ -64,6 +64,13 @@ The API host treats `migrate`, `init`, `bootstrap`, and `migrate-database`
 as migration-only arguments. Use the repository rehearsal scripts before
 changing persistent infrastructure.
 
+## Exporting Data
+
+To move context/evidence data out of a deployment, use the Scout Migration
+Tool (`docs/migration-tool.md` in this repository). It is a local-only
+export CLI that writes a portable migration-export package to a local folder
+and never uploads data.
+
 ## Secrets
 
 Do not commit:

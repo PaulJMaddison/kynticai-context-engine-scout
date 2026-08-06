@@ -367,3 +367,5 @@ Key settings:
 - [SDK Development](sdk-development.md) — guide for TypeScript and .NET SDK contributors
 - [Production Install Checklist](production-install-checklist.md) — pre-deployment safety checks
 - [Hosted Deployment](hosted-deployment.md) — Render Blueprint and cloud hosting
+- [Migration Tool](migration-tool.md) — export context/evidence data out of a Scout deployment
+- [Pilot Lead Capture](pilot-lead-capture.md) — how to enable the `/pilot` landing-page lead form

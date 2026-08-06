@@ -36,7 +36,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 | WP-007 | CI/CD re-enablement (OSS-013) | C | High | WP-001 | Complete |
 | WP-008 | Browser proof and frontend polish | C | Medium | — | Complete |
 | WP-009 | Roadmap and changelog reconciliation | D | Medium | WP-007 | Complete |
-| WP-010 | Missing user documentation | D | Medium | — | Backlog |
+| WP-010 | Missing user documentation | D | Medium | — | Complete |
 | WP-011 | Connector authoring and marketplace documentation (OSS-019) | D | Medium | — | Backlog |
 
 ## Phase summary

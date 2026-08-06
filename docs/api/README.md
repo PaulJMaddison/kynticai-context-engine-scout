@@ -36,19 +36,32 @@ OpenAPI documentation is controlled by the `Platform__EnableOpenApi` setting:
 
 Set `Platform__EnableOpenApi=true` to enable in any environment. See the [production install checklist](../production-install-checklist.md) for guidance on exposing OpenAPI in production behind authenticated tooling.
 
-## Exporting the OpenAPI Spec
+## OpenAPI Export
 
-A helper script starts the API, downloads the spec, and stops the API:
+The current REST schema is committed at
+[docs/api/openapi.json](openapi.json) so consumers can find the exact API
+shape without running anything.
+
+To regenerate it, a helper script starts the API in Development mode,
+downloads the spec, and stops the API:
 
 ```bash
 sh ./scripts/export-openapi.sh
 ```
 
-This writes the spec to `docs/api/openapi.json`. You can also download it manually while the API is running:
+This writes the spec to `docs/api/openapi.json` (pretty-printed via
+`python3 -m json.tool`). The script pins the API to
+`http://127.0.0.1:5198`. You can also download the spec manually while the
+API is running:
 
 ```bash
 curl http://127.0.0.1:5198/swagger/v1/swagger.json -o docs/api/openapi.json
 ```
+
+The committed export is regenerated from the code and should be refreshed
+whenever the REST surface changes. Automating a freshness check in CI is a
+documented follow-up; today refreshing the export is a manual step after any
+API route change.
 
 ## Score API Contract
 

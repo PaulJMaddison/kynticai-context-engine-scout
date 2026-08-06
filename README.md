@@ -365,6 +365,8 @@ All endpoints support JWT bearer tokens, persisted API clients, `X-Request-Id` c
 | [Connector Test Harness](docs/connector-test-harness.md) | Local-only validation tool for connector authors |
 | [Connector Manifest Validator](docs/connector-manifest-validator.md) | Public manifest schema and CLI |
 | [Customer Data Plane](docs/customer-data-plane.md) | Where data lives and what the customer owns |
+| [Migration Tool](docs/migration-tool.md) | Export context/evidence data out of a Scout deployment |
+| [Pilot Lead Capture](docs/pilot-lead-capture.md) | How to enable the `/pilot` landing-page lead form |
 | [Integration Layer](docs/integration-layer.md) | How source systems and consumers integrate |
 | [Control Plane / Data Plane](docs/control-plane-data-plane.md) | Architecture split between hosted and customer-owned |
 | [Cloud Commercial Control Contract](docs/cloud-commercial-control.md) | Scout boundary for optional Cloud licences, entitlements, downloads, support, and aggregate usage |

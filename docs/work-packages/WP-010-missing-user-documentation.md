@@ -2,12 +2,34 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** D — Documentation completeness
 - **Depends on:** WP-001 (MigrationTool naming change should land first so the
   docs match the code)
 - **Review gate:** standard
+
+## Completion notes
+
+- `docs/migration-tool.md` created: covers what the tool is, when to use it,
+  prerequisites, build/run commands, the full argument table (verified against
+  the real `--help` output, byte-for-byte), output format/location, exit
+  codes, a worked example, the relationship to Blueprint Import, and the
+  open-core boundary (enterprise migration import is not open core).
+- `docs/pilot-lead-capture.md` created: documents `VITE_PILOT_LEAD_ENDPOINT`
+  behaviour (set vs unset vs failing endpoint), setup, the expected JSON body,
+  privacy/consent guidance, and the safe default (off). The variable is now
+  documented in both `.env.example` and `apps/web/.env.example`.
+- OpenAPI: fresh `docs/api/openapi.json` committed (option a). Regeneration
+  was verified byte-identical on this machine via the script's exact pipeline
+  (bash/WSL unavailable for the shell script directly); the regeneration
+  command is documented in `docs/api/README.md`. No CI freshness check added
+  (documented follow-up).
+- Cross-links added from `docs/getting-started.md`,
+  `docs/evidence-pack-contract-v1.md`, README, and docs-site self-hosting.
+- Verification: MigrationTool `--help` matches the doc exactly; env var
+  resolves to real code; openapi.json is valid JSON and clean of banned
+  tokens; `git diff --check` clean.
 
 ## Context
 

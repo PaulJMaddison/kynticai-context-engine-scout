@@ -1,0 +1,2471 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "KynticAI.Scout.Api",
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/auth/token": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/auth/api-clients": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateApiClientRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/auth/api-clients/{clientId}/rotate": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "parameters": [
+                    {
+                        "name": "clientId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RotateApiClientRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/auth/api-clients/{clientId}/revoke": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "parameters": [
+                    {
+                        "name": "clientId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RotateApiClientRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/onboarding": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "SubmitOnboarding",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmitOnboardingInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/health/live": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/platform/config": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/health/ready": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/ops/summary": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/ops/production-readiness": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/saas/overview": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyGetSaasArchitectureOverview",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/connectors/plugins": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyListConnectorPlugins",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/connectors/register": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyRegisterConnector",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterConnectorInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/connectors/validate": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyValidateConnectorConfiguration",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateConnectorConfigurationInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/connectors/health": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyCheckConnectorHealth",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CheckConnectorHealthInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/blueprints/upload": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyUploadBlueprint",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadBlueprintInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/blueprints/validate": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyValidateBlueprint",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/blueprints/preview": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyPreviewBlueprint",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/blueprints/import": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyImportBlueprint",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/selectors/preview": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyPreviewSelector",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PreviewSelectorInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/selectors/validate": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyValidateSelector",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateSelectorInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/users/{externalUserId}/context": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyGetUserContext",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/users/{externalUserId}/facts": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyListUserContextFacts",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/users/{externalUserId}/sales-context-package": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyGetSalesContextPackage",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SalesContextPackageRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/audit-events": {
+            "get": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyListAuditEvents",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/rest/tenants/{tenantSlug}/users/{externalUserId}/recompute": {
+            "post": {
+                "tags": [
+                    "KynticAI.Scout.Api"
+                ],
+                "operationId": "LegacyQueueContextRecompute",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecomputeUserContextRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/health": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1Health",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/connectors/catalogue": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListConnectorCatalogue",
+                "parameters": [
+                    {
+                        "name": "availability",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/workspaces": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListWorkspaces",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/licence/status": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetLicenceStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/users/{externalUserId}": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetUserContext",
+                "parameters": [
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/accounts/{externalAccountId}": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetAccountContext",
+                "parameters": [
+                    {
+                        "name": "externalAccountId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/users/{externalUserId}/facts": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListUserContextFacts",
+                "parameters": [
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "attributeKey",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/accounts/{externalAccountId}/facts": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListAccountContextFacts",
+                "parameters": [
+                    {
+                        "name": "externalAccountId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "attributeKey",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/snapshots/{snapshotId}": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetContextSnapshot",
+                "parameters": [
+                    {
+                        "name": "snapshotId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/users/{externalUserId}/ai-safe-context-package": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetAiSafeContextPackage",
+                "parameters": [
+                    {
+                        "name": "externalUserId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1AiSafeContextPackageRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/intelligence/next-action": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GenerateNextAction",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1NextActionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/semantic-attributes": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListSemanticAttributes",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dataType",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/context/recompute": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1QueueContextRecompute",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1RecomputeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/selectors/preview": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1PreviewSelector",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1SelectorPreviewRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/selectors/validate": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ValidateSelector",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1SelectorValidateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/events/source-system": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1IngestSourceSystemEvent",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/connectors/{dataSourceId}/events/source-system": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1IngestConnectorSourceSystemEvent",
+                "parameters": [
+                    {
+                        "name": "dataSourceId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/audit-events": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListAuditEvents",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "entityType",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "fromUtc",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "toUtc",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/billing/usage": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetBillingUsage",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/blueprints/upload": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1UploadBlueprint",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UploadBlueprintInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/blueprints/validate": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ValidateBlueprint",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/blueprints/preview": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1PreviewBlueprint",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/blueprints/import": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ImportBlueprint",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlueprintImportInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/audit-events/export": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ExportAuditEvents",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/organisation": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1GetOrganisationSettings",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListOperatorAccounts",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/{id}": {
+            "patch": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1UpdateOperatorAccount",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1UpdateOperatorAccountRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/blueprints": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListBlueprintImports",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/governance/policies": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListGovernancePolicies",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/api-clients": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1CreateApiClient",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1CreateApiClientRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/webhook-signing-secrets": {
+            "get": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1ListWebhookSigningSecrets",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1CreateWebhookSigningSecret",
+                "parameters": [
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/V1CreateWebhookSigningSecretRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/api-clients/{id}/rotate": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1RotateApiClient",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/api-clients/{id}": {
+            "delete": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1RevokeApiClient",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/webhook-signing-secrets/{id}/rotate": {
+            "post": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1RotateWebhookSigningSecret",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/webhook-signing-secrets/{id}": {
+            "delete": {
+                "tags": [
+                    "REST API v1"
+                ],
+                "operationId": "V1RevokeWebhookSigningSecret",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tenantSlug",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BlueprintImportInput": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "importId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "blueprintJson": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "CheckConnectorHealthInput": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dataSourceId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "CreateApiClientRequest": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "workspaceSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "DataSourceKind": {
+                "enum": [
+                    1,
+                    2,
+                    3,
+                    4
+                ],
+                "type": "integer",
+                "format": "int32"
+            },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "password": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "PreviewSelectorInput": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "selectorDefinitionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "draftSelector": {
+                        "$ref": "#/components/schemas/UpsertSelectorDefinitionInput"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "RecomputeUserContextRequest": {
+                "type": "object",
+                "properties": {
+                    "triggeredBy": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "RegisterConnectorInput": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/DataSourceKind"
+                    },
+                    "connectorType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "configurationJson": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "credentialsJson": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "RotateApiClientRequest": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "SalesContextPackageRequest": {
+                "type": "object",
+                "properties": {
+                    "salesObjective": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "SelectorMappingKind": {
+                "enum": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "type": "integer",
+                "format": "int32"
+            },
+            "SubmitOnboardingInput": {
+                "type": "object",
+                "properties": {
+                    "organisationName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "primaryWorkspaceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "adminDisplayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "adminEmail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "adminPassword": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "intendedUseCase": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceSystems": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "dataCategories": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "aiUseCases": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "piiSensitivityLevel": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "preferredDeploymentMode": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "UploadBlueprintInput": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "workspaceSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "blueprintJson": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "UpsertSelectorDefinitionInput": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dataSourceId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "targetAttributeDefinitionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "mappingKind": {
+                        "$ref": "#/components/schemas/SelectorMappingKind"
+                    },
+                    "expressionJson": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "explanationTemplate": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "validationSchemaJson": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultConfidence": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "freshnessWindowMinutes": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "scheduleIntervalMinutes": {
+                        "type": "integer",
+                        "format": "int32",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1AiSafeContextPackageRequest": {
+                "type": "object",
+                "properties": {
+                    "objective": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1CreateApiClientRequest": {
+                "type": "object",
+                "properties": {
+                    "displayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "workspaceSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1CreateWebhookSigningSecretRequest": {
+                "type": "object",
+                "properties": {
+                    "displayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "workspaceSlug": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1NextActionRequest": {
+                "type": "object",
+                "properties": {
+                    "tenant": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subjectType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subjectIdentifier": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "objective": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "purpose": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "actorRole": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1RecomputeRequest": {
+                "type": "object",
+                "properties": {
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "triggeredBy": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1SelectorPreviewRequest": {
+                "type": "object",
+                "properties": {
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "selectorDefinitionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "draftSelector": {
+                        "$ref": "#/components/schemas/UpsertSelectorDefinitionInput"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1SelectorValidateRequest": {
+                "type": "object",
+                "properties": {
+                    "draftSelector": {
+                        "$ref": "#/components/schemas/UpsertSelectorDefinitionInput"
+                    },
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "V1UpdateOperatorAccountRequest": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "role": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ValidateConnectorConfigurationInput": {
+                "type": "object",
+                "properties": {
+                    "connectorType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/DataSourceKind"
+                    },
+                    "configurationJson": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "credentialsJson": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            },
+            "ValidateSelectorInput": {
+                "type": "object",
+                "properties": {
+                    "tenantSlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "draftSelector": {
+                        "$ref": "#/components/schemas/UpsertSelectorDefinitionInput"
+                    },
+                    "externalUserId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        "securitySchemes": {
+            "Bearer": {
+                "type": "http",
+                "description": "JWT bearer token issued by /api/auth/login or /api/auth/token.",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            },
+            "ApiKey": {
+                "type": "apiKey",
+                "description": "Machine client API key. Send X-API-Client-Id and X-API-Key, or Authorization: ApiKey {clientId}:{apiKey}.",
+                "name": "X-API-Key",
+                "in": "header"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "KynticAI.Scout.Api"
+        },
+        {
+            "name": "REST API v1"
+        }
+    ]
+}
