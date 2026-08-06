@@ -7,9 +7,11 @@ Scout connectors implement the public `IConnectorPlugin` contract. A
 connector fetches approved source data, normalises it into JSON, and
 returns provenance so the selector engine can materialise semantic facts.
 
-Use this page as the landing page for authoring. The repository guide at
-`docs/connector-authoring.md` remains a companion reference for existing
-contributors.
+For the end-to-end walkthrough (scaffold, register, validate, health, fetch,
+and provenance) see the repository tutorial at
+`docs/connector-authoring-tutorial.md`. This page is the landing reference;
+the repository guide at `docs/connector-authoring.md` is the full technical
+specification for existing contributors.
 
 ## Public Contract
 
@@ -40,6 +42,12 @@ Copy the template:
 ```text
 samples/connector-template/TemplateConnectorPlugin.cs
 ```
+
+The template folder also ships `template-connector-config.json` and
+`template-connector-manifest.json` for local validation, and the repository
+tutorial (`docs/connector-authoring-tutorial.md`) runs the template through
+registration, validation, health, fetch, and provenance with only local
+dependencies.
 
 Then:
 
@@ -117,3 +125,13 @@ Agent adds repo-wide audit and handover output.
 - [Schema Reference](/schema-reference/)
 - [REST API](/apis/rest/)
 - [GraphQL API](/apis/graphql/)
+
+Repository references:
+
+- `docs/connector-authoring.md` — full technical specification.
+- `docs/connector-authoring-tutorial.md` — end-to-end authoring tutorial.
+- `docs/connector-plugin-model.md` — plugin, alias, and capability model.
+- `docs/connector-marketplace.md` — catalogue labels, readiness labels, and
+  the open-core boundary.
+- `docs/connector-manifest-validator.md` and `docs/connector-test-harness.md` —
+  local manifest validation tooling.

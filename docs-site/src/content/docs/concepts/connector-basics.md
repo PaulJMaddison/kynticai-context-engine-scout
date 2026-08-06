@@ -22,16 +22,26 @@ Source System ──► Connector ──► Raw Payload ──► Selector Engin
 
 ## Built-in Connector Types
 
-Scout ships with three built-in connector plugins in the open-source core:
+Scout registers nine connector plugins in the open-source core. Eight are
+generic or demo plugins and one is the authoring template:
 
 | Type | Aliases | Description |
 |---|---|---|
-| `sqlDatabase` | `sqlTable` | Generic SQL queries against relational databases |
-| `restApi` | `apiPayload`, `crmApi`, `billingApi`, `telemetryApi`, `supportApi` | HTTP-backed operational APIs |
-| `mock` | `mockPayload`, `mockSignal`, `fileUpload` | Deterministic demo fixtures and tests |
+| `mock` | `mockPayload`, `mockSignal`, `fileUpload` | Deterministic demo fixtures, signal-backed previews, and tests (all data-source kinds) |
+| `restApi` | `apiPayload`, `crmApi`, `billingApi`, `telemetryApi`, `productTelemetry`, `supportApi` | HTTP-backed operational APIs |
+| `sqlDatabase` | `sqlTable`, `postgresql` | Generic SQL queries against relational databases |
+| `csvUpload` | `csv`, `spreadsheetUpload` | Parsed CSV-style rows for demos and local tests |
+| `mockCrm` | `mock-crm`, `demoCrm` | Fictional CRM account, contact, and opportunity signals |
+| `mockBilling` | `mock-billing`, `demoBilling` | Fictional plan, renewal, invoice, and payment signals |
+| `mockSupport` | `mock-support`, `demoSupport` | Fictional ticket and satisfaction signals |
+| `inMemoryInventory` | `demoInventory` | Fictional inventory records for authoring examples |
+| `template` | — | Starter connector for community authoring (`samples/connector-template`) |
 
 These connectors are generic by design. They demonstrate the connector
-contract without encoding vendor-specific logic.
+contract without encoding vendor-specific logic. The `mockCrm`, `mockBilling`,
+and `mockSupport` plugins drop the `ScheduledSync` capability; the
+`inMemoryInventory` plugin declares only fetch, preview, dry-run, health, and
+configuration-validation capabilities.
 
 ## Connector Plugin Contract
 
@@ -76,21 +86,25 @@ For enterprise connector enquiries, visit [kynticai.com](https://kynticai.com).
 
 ## Writing a Custom Connector
 
-To build your own connector:
+To build your own connector, start from the template in
+`samples/connector-template`:
 
-1. Implement `IConnectorPlugin` in a separate assembly.
-2. Register it with the `IConnectorRegistry` via dependency injection.
-3. Provide a configuration schema and validation logic.
-4. Return raw payloads from `FetchAsync` — the Selector Engine handles
+1. Copy `TemplateConnectorPlugin.cs` into your own project and rename the
+   class.
+2. Implement `IConnectorPlugin` (extend `ConnectorPluginBase`) in that
+   assembly.
+3. Register it with the `IConnectorRegistry` via dependency injection.
+4. Provide a configuration schema and validation logic.
+5. Return raw payloads from `FetchAsync` — the Selector Engine handles
    semantic mapping.
 
-The generic SQL and REST connectors in the Scout source serve as reference
-implementations.
+Walk the full register → validate → health → fetch → provenance flow in the
+[Connector Authoring](/connectors/authoring/) guide.
 
 ## Next Steps
 
 - [Connector Authoring](/connectors/authoring/) for the public connector
-  contract.
+  contract and the end-to-end tutorial.
 - [Open Source vs Enterprise](/concepts/open-source-vs-enterprise/) for the
   full product boundary.
 - [API Overview](/apis/overview/) for querying context produced by connectors.

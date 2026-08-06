@@ -24,6 +24,7 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 - Completed and documented the browser proof: `KYNTIC_RUN_BROWSER_TESTS=1 npm run test:e2e` passes 6/6 Playwright specs in `apps/web` (still opt-in and out of default CI), and `docs/connector-marketplace.md` was corrected so the placeholder connector list matches `ConnectorCatalogueSeeder`.
 - Refreshed `docs/roadmap.md` so shipped open-core capabilities are listed with doc and release pointers and future work is framed as directional, and reconciled the changelogs: `docs/releases/CHANGELOG.md` is now an index of per-release notes pointing at the canonical root `CHANGELOG.md`, and the README changelog link targets the canonical file.
 - Added user documentation for previously thin tooling paths: `docs/migration-tool.md` (open-core context/evidence export CLI, verified against `--help`), `docs/pilot-lead-capture.md` (`VITE_PILOT_LEAD_ENDPOINT` behaviour and privacy guidance), and a committed fresh OpenAPI export at `docs/api/openapi.json` with the regeneration command documented in `docs/api/README.md`.
+- Completed the connector authoring and marketplace documentation (OSS-019): new `docs/connector-authoring-tutorial.md` end-to-end walkthrough, `docs/connector-plugin-model.md` verified against the registered plugins and aliases, fixed connector test-harness and manifest-validator commands, explicit no-vendor-certification statement for placeholder catalogue entries in `docs/connector-marketplace.md`, and aligned docs-site connector pages.
 
 ## [2.8.0] - 2026-05-21
 

@@ -2,6 +2,11 @@
 
 This guide shows how to build a public KynticAI Scout connector without reading any private repository. A connector is a small .NET plugin that fetches subject-scoped operational data, returns a normalised JSON payload, and describes its configuration and event shape for authoring tools.
 
+> New to authoring? Follow the end-to-end
+> [Connector Authoring Tutorial](connector-authoring-tutorial.md) first: it walks
+> from `samples/connector-template` through register, validate, health, fetch,
+> and provenance. This page is the reference for the full contract.
+
 The example below uses a fictional AcmeCRM API. It is intentionally generic: no vendor SDKs, no customer schemas, no CDC, no vector or embedding work, and no enterprise-only implementation details.
 
 ## Public Contract
@@ -128,7 +133,12 @@ internal sealed class AcmeCrmConnectorPlugin(IHttpClientFactory httpClientFactor
         var payload = JsonNode.Parse(rawJson) as JsonObject
             ?? throw new InvalidOperationException("AcmeCRM response must be a JSON object.");
 
-        var observedAtUtc = DateTime.UtcNow;
+        var observedAtUtc = payload["meta"]?["observedAtUtc"] switch
+        {
+            JsonValue value when value.TryGetValue<DateTime>(out var dateTime) => dateTime,
+            JsonValue value when value.TryGetValue<string>(out var stringValue) && DateTime.TryParse(stringValue, out var parsed) => parsed,
+            _ => DateTime.UtcNow
+        };
         return new ConnectorFetchResult(
             rawJson,
             payload,
@@ -222,11 +232,17 @@ Connector authors should also ship a manifest for local validation tools. Keep i
 - `FreshUntilUtc`: optional freshness expiry.
 - `DiagnosticsJson`: non-secret diagnostics such as status code or timing.
 
+Take `ObservedAtUtc` from the source response when the source provides it (for
+example the configured `observedAtPath`) so provenance is deterministic: the
+same fixture produces the same result on every run. Only fall back to
+`DateTime.UtcNow` when the source genuinely does not expose a timestamp.
+
 Never include raw credentials in `RawPayloadJson`, `NormalizedPayload`, `ProvenanceJson`, or `DiagnosticsJson`.
 
 ## Validation Checklist
 
-Before submitting a connector:
+Before submitting a connector, walk the [Connector Authoring Tutorial](connector-authoring-tutorial.md)
+end to end, then:
 
 1. Run `ConnectorMetadataValidator.Validate(plugin)` in a unit test.
 2. Verify `GetSampleConfiguration()` satisfies every required schema field.

@@ -15,7 +15,7 @@ KynticAI Scout now resolves source-system access through a registry-backed conne
 - `IConnectorPlugin`
   - declares connector metadata, supported capabilities, config schema, validation, health checks, and fetch execution
 - `IConnectorRegistry`
-  - resolves a connector by canonical type or alias such as `crmApi`, `billingApi`, `telemetryApi`, `supportApi`, or `fileUpload`
+  - resolves a connector by canonical type or alias such as `crmApi`, `billingApi`, `telemetryApi`, `productTelemetry`, `supportApi`, `postgresql`, `csv`, or `fileUpload`
 - `IConnectorCredentialStore`
   - stores secrets as protected `secret://...` references and resolves them at runtime
 - `ConnectorConfigurationDescriptor`, `ConnectorConfigurationField`, `ConnectorEventShape`, and `ConnectorIngestEvent`
@@ -29,23 +29,59 @@ Key files:
 
 ## Built-In Plugins
 
-- `sqlDatabase`
-  - alias: `sqlTable`
-  - current use: SQL and warehouse-style selectors against generic or demo schemas
-- `restApi`
-  - aliases: `apiPayload`, `crmApi`, `billingApi`, `telemetryApi`, `productTelemetry`, `supportApi`
-  - current use: generic HTTP-backed operational APIs and demo integrations
+The runtime registers nine `IConnectorPlugin` implementations
+(`src/KynticAI.Scout.Infrastructure/DependencyInjection.cs`): eight demo/generic
+plugins plus the `template` starter:
+
 - `mock`
   - aliases: `mockPayload`, `mockSignal`, `fileUpload`
   - current use: deterministic demos, uploaded payload fixtures, safe file-style examples, and tests
+  - kinds: all four data-source kinds
+- `restApi`
+  - aliases: `apiPayload`, `crmApi`, `billingApi`, `telemetryApi`, `productTelemetry`, `supportApi`
+  - current use: generic HTTP-backed operational APIs and demo integrations
+  - kinds: `Crm`, `EventStream`, `ProductUsage`, `SqlMetric`
+- `sqlDatabase`
+  - aliases: `sqlTable`, `postgresql`
+  - current use: SQL and warehouse-style selectors against generic or demo schemas
+  - kinds: `SqlMetric`, `Crm`, `ProductUsage`
 - `csvUpload`
   - aliases: `csv`, `spreadsheetUpload`
   - current use: parsed CSV-style rows for demos and local tests; it does not watch arbitrary directories
+  - kinds: `Crm`, `SqlMetric`, `ProductUsage`, `EventStream`
+- `mockCrm`
+  - aliases: `mock-crm`, `demoCrm`
+  - current use: fictional CRM account, contact, and opportunity fields for demos and tests
+  - kinds: `Crm`, `EventStream`
+- `mockBilling`
+  - aliases: `mock-billing`, `demoBilling`
+  - current use: fictional plan, renewal, invoice, and payment signals for demos and tests
+  - kinds: `SqlMetric`, `EventStream`
+- `mockSupport`
+  - aliases: `mock-support`, `demoSupport`
+  - current use: fictional ticket and satisfaction signals for demos and tests
+  - kinds: `Crm`, `EventStream`
 - `inMemoryInventory`
   - alias: `demoInventory`
   - current use: fictional inventory data for connector-authoring examples
+  - kinds: `ProductUsage`, `SqlMetric`
 - `template`
-  - current use: complete local template for community connector projects
+  - aliases: none
+  - current use: complete local template for community connector projects (`samples/connector-template`)
+  - kinds: `Crm`
+
+### Capabilities
+
+`ConnectorPluginBase` declares the default capability set:
+
+`FetchSubject`, `Preview`, `DryRun`, `ScheduledSync`, `EventTriggeredRecompute`,
+`HealthCheck`, `ConfigurationValidation`, `SecureCredentialStorage`.
+
+The demo business connectors (`mockCrm`, `mockBilling`, `mockSupport`) override
+this and drop `ScheduledSync`. `inMemoryInventory` declares a narrower set
+(`FetchSubject`, `Preview`, `DryRun`, `HealthCheck`,
+`ConfigurationValidation`). The catalogue seed mirrors these in `GenericCapabilities()`
+and `DemoCapabilities()`.
 
 ## Open core connector boundary
 

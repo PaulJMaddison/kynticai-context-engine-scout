@@ -20,12 +20,21 @@ Use the test harness when:
 cd packages/typescript/scout-connector-test-harness
 npm install && npm run build
 
-# Run against the bundled sample
+# Run against the bundled sample manifest
 node dist/cli.js ../scout-connector-validator/data/sample-manifest.json
 
-# With sample records and JSON output
-node dist/cli.js ./data/sample-connector.json --json
+# Run against the connector template manifest in samples/connector-template
+node dist/cli.js ../../../samples/connector-template/template-connector-manifest.json
+
+# JSON output for machine-readable reports
+node dist/cli.js ../../../samples/connector-template/template-connector-manifest.json --json
 ```
+
+The CLI takes a single manifest JSON file as its positional argument. To run
+entity-mapping checks against sample records, pass `--records <file.json>`
+where the file is a JSON array of `SampleRecord` objects (see the package
+README's "Sample Records Format"); the records file must be a bare array, not
+a wrapped definition object.
 
 ### Programmatic
 

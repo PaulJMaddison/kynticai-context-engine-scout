@@ -28,6 +28,10 @@ The web console also shows first-slice connector readiness labels:
 | Placeholder | Catalogue metadata only; no executable vendor connector is included in the public repo. |
 | Not vendor-certified | The listing must not be read as vendor certification or vendor approval. |
 
+Placeholder entries are metadata only: they register no runtime plugin, do not
+ingest data, and imply no vendor certification or vendor approval. A "Placeholder"
+badge never means a connector is expected to work from the open source.
+
 These labels are deliberately conservative. A connector can be useful for a paid-pilot discussion while still requiring customer-approved validation before operational use.
 
 ## Public Catalogue
@@ -92,7 +96,7 @@ The seed runs during application bootstrap so local demo, backend-only mode, and
 
 ## Extension Points
 
-Runtime connector implementations use `IConnectorPlugin`. Safe open-core plugins can validate configuration, run health checks, fetch records, and return normalised payloads.
+Runtime connector implementations use `IConnectorPlugin`. Safe open-core plugins can validate configuration, run health checks, fetch records, and return normalised payloads. See the [Connector Authoring Tutorial](connector-authoring-tutorial.md) and [connector-authoring.md](connector-authoring.md) for the authoring flow.
 
 Credential handling stays behind `IConnectorCredentialStore`. Configuration schemas can describe secrets, but runtime implementations should persist secret values as protected references and should not store plaintext credentials in connector configuration.
 

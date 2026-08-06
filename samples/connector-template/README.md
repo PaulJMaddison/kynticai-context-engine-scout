@@ -28,4 +28,5 @@ Use it as a starting point when authoring a new connector for Scout.
 - Configuration schemas must be valid JSON Schema objects.
 - Credential fields must use `secret://` references when persisted.
 - Event-shaped records should pass `ConnectorContractRules.ValidateIngestEvent(...)`.
-- See `docs/connector-authoring.md` for the full technical specification.
+- See `docs/connector-authoring-tutorial.md` for the end-to-end walkthrough and
+  `docs/connector-authoring.md` for the full technical specification.

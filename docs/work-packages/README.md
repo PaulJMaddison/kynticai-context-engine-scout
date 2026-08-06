@@ -37,7 +37,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 | WP-008 | Browser proof and frontend polish | C | Medium | — | Complete |
 | WP-009 | Roadmap and changelog reconciliation | D | Medium | WP-007 | Complete |
 | WP-010 | Missing user documentation | D | Medium | — | Complete |
-| WP-011 | Connector authoring and marketplace documentation (OSS-019) | D | Medium | — | Backlog |
+| WP-011 | Connector authoring and marketplace documentation (OSS-019) | D | Medium | — | Complete |
 
 ## Phase summary
 

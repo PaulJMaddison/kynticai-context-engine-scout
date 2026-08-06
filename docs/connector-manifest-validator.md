@@ -113,6 +113,10 @@ const result = validateManifest(manifest, {
 ```bash
 npx scout-validate-manifest ./my-connector-manifest.json
 npx scout-validate-manifest ./manifests/ --check-duplicates
+
+# Validate the bundled connector template manifest
+cd packages/typescript/scout-connector-validator
+node dist/cli.js ../../../samples/connector-template/template-connector-manifest.json
 ```
 
 ### Discovery Agent MCP

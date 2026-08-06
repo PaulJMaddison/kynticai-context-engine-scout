@@ -2,11 +2,39 @@
 
 ## Metadata
 
-- **Status:** Backlog
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** D — Documentation completeness
 - **Depends on:** —
 - **Review gate:** standard (xhigh if a connector contract example changes)
+
+## Completion notes
+
+- `docs/connector-plugin-model.md` verified against code: added `mockCrm`,
+  `mockBilling`, `mockSupport`, the `postgresql` alias, full alias/kinds per
+  plugin, and `ConnectorPluginBase` default capabilities with demo/inventory
+  overrides.
+- New `docs/connector-authoring-tutorial.md`: end-to-end walkthrough
+  (scaffold → contract rules → GraphQL/REST register → validate + health →
+  selector-preview provenance → marketplace), every step runnable with the
+  safe default. The template's lack of a `.csproj` is documented honestly
+  (coverage = unit tests + byte-for-byte diff, confirmed zero-diff).
+- `docs/connector-authoring.md` cross-linked to the tutorial; the AcmeCRM
+  example now derives provenance from the response's `observedAtUtc`.
+- `docs/connector-test-harness.md`: fixed a broken CLI command (was crashing
+  with a TypeError); now runs against the template manifest and documents the
+  `--records` array requirement (verified 21/21).
+- `docs/connector-manifest-validator.md`: added the template validation
+  command (verified "All valid").
+- `docs/connector-marketplace.md`: explicit statement that placeholder
+  catalogue entries are metadata only (no execution, no vendor
+  certification), matching the web console readiness labels; tutorial link.
+- docs-site `connectors/authoring.md` and `concepts/connector-basics.md`
+  aligned (fixed a stale "three built-in plugins" table to all nine) and
+  cross-linked; docs-site rebuild passes (22 pages).
+- Verification: ConnectorAuthoringTests + ConnectorPluginModelTests 27/27;
+  harness CLI 21/21; validator CLI "All valid"; docs-site build clean;
+  `git diff --check` clean; no new connector code/catalogue/contract changes.
 
 ## Context
 
