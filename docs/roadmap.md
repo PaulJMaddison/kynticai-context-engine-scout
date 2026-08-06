@@ -16,13 +16,13 @@ These capabilities are part of the public open-core deliverable in this reposito
 | Blueprint Import | [docs/context-consumers.md](context-consumers.md) | v2.0.0 |
 | Webhook signing secrets | [docs/webhook-events.md](webhook-events.md) | v2.3.0 |
 | M2M identity and API clients | [docs/machine-to-machine-identity.md](machine-to-machine-identity.md), [docs/api-scopes.md](api-scopes.md) | v2.0.0 |
-| Score API | [docs/score-api.md](score-api.md) | main after v2.8.0 |
-| Discovery MCP/agent | [docs/discovery-agent-mcp.md](discovery-agent-mcp.md) | main after v2.8.0 |
-| n8n node | [docs/n8n-node.md](n8n-node.md) | main after v2.8.0 |
-| docs site | [docs-site/README.md](../docs-site/README.md) | main after v2.8.0 |
-| Scout pilot setup wizard | [docs/paid-pilot-setup.md](paid-pilot-setup.md) | main after v2.8.0 |
+| Score API | [docs/score-api.md](score-api.md) | v2.9.0 |
+| Discovery MCP/agent | [docs/discovery-agent-mcp.md](discovery-agent-mcp.md) | v2.9.0 |
+| n8n node | [docs/n8n-node.md](n8n-node.md) | v2.9.0 |
+| docs site | [docs-site/README.md](../docs-site/README.md) | v2.9.0 |
+| Scout pilot setup wizard | [docs/paid-pilot-setup.md](paid-pilot-setup.md) | v2.9.0 |
 
-Capabilities marked "main after v2.8.0" are merged into the open-core repository on the default branch and are not yet part of a tagged release. The [root CHANGELOG](../CHANGELOG.md) is the canonical record of releases.
+The [root CHANGELOG](../CHANGELOG.md) is the canonical record of releases.
 
 ## Directional priorities
 

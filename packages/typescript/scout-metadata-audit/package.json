@@ -1,6 +1,6 @@
 {
   "name": "@kynticai/scout-metadata-audit",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Local-only metadata audit runner for KynticAI Scout connector manifests and sample data.",
   "license": "MIT",
   "repository": {

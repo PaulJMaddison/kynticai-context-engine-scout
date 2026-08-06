@@ -9,10 +9,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Version>2.8.0</Version>
-    <AssemblyVersion>2.8.0.0</AssemblyVersion>
-    <FileVersion>2.8.0.0</FileVersion>
-    <InformationalVersion>2.8.0</InformationalVersion>
+    <Version>2.9.0</Version>
+    <AssemblyVersion>2.9.0.0</AssemblyVersion>
+    <FileVersion>2.9.0.0</FileVersion>
+    <InformationalVersion>2.9.0</InformationalVersion>
     <Product>KynticAI Scout</Product>
     <Authors>KynticAI</Authors>
     <Company>KynticAI</Company>
@@ -22,6 +22,6 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/PaulJMaddison/scout</PackageProjectUrl>
     <PackageTags>context-infrastructure;graphql;rest;dotnet;react;semantic-layer;context-engineering;open-core</PackageTags>
-    <PackageReleaseNotes>2.8.0 adds CI/release workflows, Scalar API documentation, comprehensive E2E test coverage, cross-platform fixes, getting started guide, and release process documentation for the open-core public launch.</PackageReleaseNotes>
+    <PackageReleaseNotes>2.9.0 completes the public data-plane foundation: hardened cross-tenant authorisation and API surface, SDK fact-value-type compatibility fix, re-enabled CI/CD with a public-safety scan, documented browser proof, connector authoring and marketplace documentation, migration tool and pilot lead-capture docs, a committed OpenAPI export, and a refreshed roadmap and changelog.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>
