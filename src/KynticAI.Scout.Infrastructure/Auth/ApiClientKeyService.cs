@@ -29,7 +29,7 @@ public sealed class ApiClientKeyService(
         var actor = currentActorService.GetCurrentActor();
         var tenant = await GetTenantForActorAsync(tenantSlug, actor, cancellationToken);
         var workspace = await ResolveWorkspaceAsync(tenant.Id, workspaceSlug, cancellationToken);
-        EnsureWorkspaceAccess(actor, tenant, workspace);
+        await EnsureWorkspaceAccessAsync(actor, tenant, workspace, cancellationToken);
         await billingEnforcementService.EnsureWithinLimitAsync(tenant.Id, BillingLimitMetric.ApiClients, 1, cancellationToken, workspace?.Id);
 
         var utcNow = timeProvider.GetUtcNow().UtcDateTime;
@@ -87,7 +87,7 @@ public sealed class ApiClientKeyService(
             .Include(x => x.Workspace)
             .FirstOrDefaultAsync(x => x.TenantId == tenant.Id && x.ClientId == clientId.Trim(), cancellationToken)
             ?? throw new InvalidOperationException($"API client '{clientId}' was not found.");
-        EnsureWorkspaceAccess(actor, tenant, client.Workspace);
+        await EnsureWorkspaceAccessAsync(actor, tenant, client.Workspace, cancellationToken);
 
         var utcNow = timeProvider.GetUtcNow().UtcDateTime;
         var apiKey = GenerateApiKey();
@@ -116,7 +116,7 @@ public sealed class ApiClientKeyService(
             .Include(x => x.Workspace)
             .FirstOrDefaultAsync(x => x.TenantId == tenant.Id && x.ClientId == clientId.Trim(), cancellationToken)
             ?? throw new InvalidOperationException($"API client '{clientId}' was not found.");
-        EnsureWorkspaceAccess(actor, tenant, client.Workspace);
+        await EnsureWorkspaceAccessAsync(actor, tenant, client.Workspace, cancellationToken);
 
         var utcNow = timeProvider.GetUtcNow().UtcDateTime;
         client.Revoke(utcNow);
@@ -190,7 +190,7 @@ public sealed class ApiClientKeyService(
             cancellationToken) ?? throw new InvalidOperationException($"Workspace '{workspaceSlug}' was not found.");
     }
 
-    private void EnsureWorkspaceAccess(ActorContext actor, Tenant tenant, Workspace? workspace)
+    private async Task EnsureWorkspaceAccessAsync(ActorContext actor, Tenant tenant, Workspace? workspace, CancellationToken cancellationToken)
     {
         if (actor.IsSystem || actor.IsPlatformOwner || actor.WorkspaceId is null || workspace is null || actor.WorkspaceId == workspace.Id)
         {
@@ -213,7 +213,7 @@ public sealed class ApiClientKeyService(
             null,
             null,
             timeProvider.GetUtcNow().UtcDateTime));
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync(cancellationToken);
         throw new UnauthorizedAccessException("Workspace access is not permitted.");
     }
 

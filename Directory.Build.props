@@ -9,10 +9,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Version>2.9.0</Version>
-    <AssemblyVersion>2.9.0.0</AssemblyVersion>
-    <FileVersion>2.9.0.0</FileVersion>
-    <InformationalVersion>2.9.0</InformationalVersion>
+    <Version>2.10.0</Version>
+    <AssemblyVersion>2.10.0.0</AssemblyVersion>
+    <FileVersion>2.10.0.0</FileVersion>
+    <InformationalVersion>2.10.0</InformationalVersion>
     <Product>KynticAI Scout</Product>
     <Authors>KynticAI</Authors>
     <Company>KynticAI</Company>

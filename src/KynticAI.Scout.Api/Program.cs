@@ -375,6 +375,7 @@ authGroup.MapPost("/login", async (
 authGroup.MapPost("/token", async (
         HttpRequest httpRequest,
         MachineClientAuthenticationService authenticationService,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken) =>
     {
         MachineTokenRequest request;
@@ -405,7 +406,7 @@ authGroup.MapPost("/token", async (
                 request.ClientSecret,
                 request.Scope,
                 cancellationToken);
-            var expiresIn = Math.Max(1, (int)Math.Ceiling((result.ExpiresAtUtc - DateTime.UtcNow).TotalSeconds));
+            var expiresIn = Math.Max(1, (int)Math.Ceiling((result.ExpiresAtUtc - timeProvider.GetUtcNow().UtcDateTime).TotalSeconds));
             return Results.Ok(new MachineTokenResponse(
                 result.AccessToken,
                 "Bearer",
@@ -677,7 +678,7 @@ app.MapGet("/health/live", () => Results.Ok(new
     status = "ok",
     service = "KynticAI.Scout.Api"
 }));
-app.MapGet("/api/platform/config", () => Results.Ok(new
+var platformConfigEndpoint = app.MapGet("/api/platform/config", () => Results.Ok(new
 {
     service = "KynticAI.Scout.Api",
     mode = platformOptions.Mode,
@@ -707,6 +708,10 @@ app.MapGet("/api/platform/config", () => Results.Ok(new
         openApi = platformOptions.EnableOpenApi
     }
 }));
+if (hostedMode)
+{
+    platformConfigEndpoint.RequireAuthorization();
+}
 app.MapGet("/health/ready", async (ScoutDbContext scoutDbContext, CustomerOpsDbContext customerOpsDbContext, CancellationToken cancellationToken) =>
 {
     var scoutReady = await scoutDbContext.Database.CanConnectAsync(cancellationToken);

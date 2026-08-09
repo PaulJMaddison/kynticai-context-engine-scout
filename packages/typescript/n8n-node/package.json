@@ -1,6 +1,6 @@
 {
   "name": "@kyntic/n8n-node",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "description": "Local n8n community node for sending provider-neutral source-system events to KynticAI Scout.",
   "license": "MIT",
   "type": "commonjs",

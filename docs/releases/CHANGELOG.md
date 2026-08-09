@@ -12,6 +12,7 @@ This file is an index of the per-release notes in this directory, not a separate
 
 | Release | Notes |
 | --- | --- |
+| v2.10.0 | [v2.10.0.md](v2.10.0.md) |
 | v2.9.0 | [v2.9.0.md](v2.9.0.md) |
 | v2.8.0 | [v2.8.0.md](v2.8.0.md) |
 | v2.7.0 | [v2.7.0.md](v2.7.0.md) |

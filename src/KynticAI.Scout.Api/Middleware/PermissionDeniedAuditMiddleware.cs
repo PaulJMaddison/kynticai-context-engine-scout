@@ -4,7 +4,7 @@ using KynticAI.Scout.Infrastructure.Persistence;
 
 namespace KynticAI.Scout.Api.Middleware;
 
-public sealed class PermissionDeniedAuditMiddleware(RequestDelegate next)
+public sealed class PermissionDeniedAuditMiddleware(RequestDelegate next, TimeProvider timeProvider)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -49,7 +49,7 @@ public sealed class PermissionDeniedAuditMiddleware(RequestDelegate next)
             }),
             null,
             null,
-            DateTime.UtcNow));
+            timeProvider.GetUtcNow().UtcDateTime));
         await dbContext.SaveChangesAsync(context.RequestAborted);
     }
 }

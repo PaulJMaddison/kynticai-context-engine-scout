@@ -7,7 +7,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>Typed .NET client SDK for KynticAI Scout.</Description>
     <PackageId>KynticAI.Scout.Sdk</PackageId>
-    <Version>2.9.0</Version>
+    <Version>2.10.0</Version>
     <Authors>KynticAI</Authors>
     <Company>KynticAI</Company>
     <PackageTags>kynticai-scout;scout;context;graphql;sdk</PackageTags>
