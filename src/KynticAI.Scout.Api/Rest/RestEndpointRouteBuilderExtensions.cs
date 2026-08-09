@@ -121,6 +121,10 @@ public static class RestEndpointRouteBuilderExtensions
         {
             return Results.ValidationProblem(ToDictionary(exception));
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
+        }
         catch (InvalidOperationException exception)
         {
             return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
@@ -136,6 +140,10 @@ public static class RestEndpointRouteBuilderExtensions
         catch (ValidationException exception)
         {
             return Results.ValidationProblem(ToDictionary(exception));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
         }
         catch (InvalidOperationException exception)
         {
@@ -153,6 +161,10 @@ public static class RestEndpointRouteBuilderExtensions
         catch (ValidationException exception)
         {
             return Results.ValidationProblem(ToDictionary(exception));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status403Forbidden);
         }
         catch (InvalidOperationException exception)
         {

@@ -1,6 +1,6 @@
 {
   "name": "@kynticai/scout-connector-validator",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "description": "Public connector manifest validator for KynticAI Scout — validates connector manifests against the expected schema.",
   "license": "MIT",
   "repository": {

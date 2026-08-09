@@ -1,6 +1,6 @@
 {
   "name": "@kyntic/discovery-agent",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "description": "Local-only MCP server and CLI for auditing codebases and generating KynticAI Scout handovers.",
   "license": "MIT",
   "type": "module",

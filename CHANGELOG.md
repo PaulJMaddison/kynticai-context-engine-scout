@@ -6,6 +6,22 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-08-09
+
+### Fixed
+
+- API client workspace access checks are now fully asynchronous: `ApiClientKeyService.EnsureWorkspaceAccess` became `EnsureWorkspaceAccessAsync`, and the create, rotate, and revoke operations now await the database save with the caller's cancellation token instead of calling the synchronous `SaveChanges`.
+- Cross-tenant requests on the legacy `/api/rest/*` endpoints now return `403 authorization.denied`, matching v1 and GraphQL behaviour. `KynticAI.ScoutService.GetTenantAsync` now throws `UnauthorizedAccessException` on a tenant-slug mismatch, and the REST endpoint helpers map it to a 403 `ProblemDetails` response instead of a generic 400.
+- The `/api/auth/token` endpoint and the permission-denied audit middleware now use the injected `TimeProvider` instead of `DateTimeOffset.UtcNow`, making expiry and audit-timestamp computation deterministic and testable.
+
+### Changed
+
+- `/api/platform/config` now requires authorisation when the API runs in hosted (SaaS) mode; it remains anonymous for local development. No SDK or web-app consumer calls this endpoint.
+
+### Security
+
+- `/api/platform/config` no longer exposes platform configuration to anonymous callers in hosted deployments.
+
 ### Chores
 
 - Disabled GitHub Actions CI/CD workflows again (renamed `.yml` to `.yml.disabled`) because the GitHub account is locked due to a billing issue that prevents Actions jobs from starting. The local verification gates (Release build with warnings as errors, backend and frontend tests, docs-site build, and the public-safety scan) remain the verification path, and the pilot-readiness gate now tolerates the disabled state while still scanning any active workflow for secrets or private markers. Re-enable the workflows when the account lock is resolved.

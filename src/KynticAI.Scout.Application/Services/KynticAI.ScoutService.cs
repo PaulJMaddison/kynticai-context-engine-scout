@@ -1888,7 +1888,7 @@ public sealed class ScoutService(
                 null,
                 clock.UtcNow));
             await dbContext.SaveChangesAsync(cancellationToken);
-            throw new InvalidOperationException("Cross-tenant access is not permitted.");
+            throw new UnauthorizedAccessException("Cross-tenant access is not permitted.");
         }
 
         return await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == normalizedSlug, cancellationToken)
