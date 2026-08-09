@@ -109,6 +109,53 @@ public sealed class UclEvidencePackContractTests
     }
 
     [Fact]
+    public void ScoutLocalContextBriefProofArtifact_IsSchemaValidAndLabelsFallbackProbabilities()
+    {
+        var payload = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "docs/proof-artifacts/scout-local-context-brief-2026-08-09.json"));
+        var validation = UclScoutLocalContextBriefV1Validator.ValidateJson(payload);
+        var root = JsonNode.Parse(payload)!.AsObject();
+
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        Assert.Equal("scout-local-context-brief", root["brief_kind"]!.GetValue<string>());
+        Assert.Equal("context-engine.scout-local-context-brief.v1", root["brief_version"]!.GetValue<string>());
+        Assert.True(root["source_scope"]!["synthetic"]!.GetValue<bool>());
+        Assert.True(root["source_scope"]!["authorised_for_local_proof"]!.GetValue<bool>());
+
+        var actionOptions = root["action_options"]!.AsArray();
+        var actions = actionOptions
+            .Select(action => action!["action"]!.GetValue<string>())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("email_customer_with_x_offer", actions);
+        Assert.Contains("offer_prize_draw_registration", actions);
+        Assert.Contains("do_not_reply", actions);
+        Assert.All(actionOptions, action =>
+        {
+            Assert.Equal("local_basic_proof_not_fortress_canonical", action!["probability_label"]!.GetValue<string>());
+            Assert.NotEmpty(action["evidence_ids"]!.AsArray());
+            Assert.NotEmpty(action["caveats"]!.AsArray());
+        });
+
+        Assert.True(root["handoff"]!["fortress_required_for_canonical_scoring"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void ScoutMiniFlywheelReport_RecordsImprovementAndCloudBoundary()
+    {
+        var report = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "docs/proof-artifacts/scout-mini-flywheel-report-2026-08-09.md"));
+
+        Assert.Contains("Context Engine - Scout local behaviour", report, StringComparison.Ordinal);
+        Assert.Contains("not Fortress canonical production scoring", report, StringComparison.Ordinal);
+        Assert.Contains("top-action hit rate rises from `0.50` to `0.67`", report, StringComparison.Ordinal);
+        Assert.Contains("Cloud/control-plane payloads must remain aggregate/control-plane only", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("Cloud stores customer intelligence", report, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void EnterpriseRelationshipEngineHandoffSample_IsValidAndPublicSafe()
     {
         var payload = File.ReadAllText(Path.Combine(

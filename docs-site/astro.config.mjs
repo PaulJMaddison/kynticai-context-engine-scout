@@ -9,7 +9,7 @@ const structuredData = JSON.stringify([
 		name: 'KynticAI Scout',
 		applicationCategory: 'DeveloperApplication',
 		operatingSystem: 'Self-hosted',
-		softwareVersion: '2.9.0',
+		softwareVersion: '2.10.0',
 		license: 'https://opensource.org/licenses/MIT',
 		url: 'https://kynticai.com',
 		description:

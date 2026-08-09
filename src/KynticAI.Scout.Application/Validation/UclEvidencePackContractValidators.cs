@@ -447,6 +447,354 @@ public static class UclCloudAggregateUsageV1Validator
     }
 }
 
+public static class UclScoutLocalContextBriefV1Validator
+{
+    private static readonly HashSet<string> RequiredActions = new(StringComparer.Ordinal)
+    {
+        "email_customer_with_x_offer",
+        "offer_prize_draw_registration",
+        "do_not_reply"
+    };
+
+    public static UclContractValidationResult ValidateJson(string briefJson)
+    {
+        var errors = new List<string>();
+        JsonObject? root;
+        try
+        {
+            root = JsonNode.Parse(briefJson) as JsonObject;
+        }
+        catch (JsonException ex)
+        {
+            return UclContractValidationResult.Invalid([$"brief is not valid JSON: {ex.Message}"]);
+        }
+
+        if (root is null)
+        {
+            return UclContractValidationResult.Invalid(["brief root must be a JSON object."]);
+        }
+
+        RequireString(root, "brief_kind", UclEvidencePackContractVersions.ScoutLocalContextBriefKind, errors);
+        RequireString(root, "brief_version", UclEvidencePackContractVersions.ScoutLocalContextBriefV1, errors);
+        RequireNonEmptyString(root, "brief_id", errors);
+        RequireDateTime(root, "generated_at", errors);
+        ValidateSubject(root["subject"], errors);
+        ValidateSourceScope(root["source_scope"], errors);
+        var evidenceIds = ValidateEvidence(root["evidence"], errors);
+        ValidateRelationshipContext(root["relationship_context"], evidenceIds, errors);
+        ValidateActions(root["action_options"], evidenceIds, errors);
+        ValidateDoNotActions(root["do_not_action_options"], evidenceIds, errors);
+        ValidateHandoff(root["handoff"], errors);
+
+        return errors.Count == 0
+            ? UclContractValidationResult.Valid
+            : UclContractValidationResult.Invalid(errors);
+    }
+
+    private static void ValidateSubject(JsonNode? node, List<string> errors)
+    {
+        if (node is not JsonObject obj)
+        {
+            errors.Add("subject must be an object.");
+            return;
+        }
+
+        RequireNonEmptyString(obj, "entity_id", errors);
+        RequireNonEmptyString(obj, "entity_type", errors);
+    }
+
+    private static void ValidateSourceScope(JsonNode? node, List<string> errors)
+    {
+        if (node is not JsonObject obj)
+        {
+            errors.Add("source_scope must be an object.");
+            return;
+        }
+
+        RequireString(obj, "data_plane", "customer-owned", errors);
+        RequireBoolean(obj, "synthetic", expected: true, errors);
+        RequireBoolean(obj, "authorised_for_local_proof", expected: true, errors);
+        ValidateStringArray(obj["approved_sources"], "source_scope.approved_sources", errors);
+        if (obj["approved_sources"] is JsonArray sources && sources.Count < 4)
+        {
+            errors.Add("source_scope.approved_sources must include the synthetic web, email, interest, registration, and outcome source set.");
+        }
+    }
+
+    private static HashSet<string> ValidateEvidence(JsonNode? node, List<string> errors)
+    {
+        var evidenceIds = new HashSet<string>(StringComparer.Ordinal);
+        if (node is not JsonArray evidence || evidence.Count == 0)
+        {
+            errors.Add("evidence must be a non-empty array.");
+            return evidenceIds;
+        }
+
+        foreach (var item in evidence)
+        {
+            if (item is not JsonObject obj)
+            {
+                errors.Add("evidence entries must be objects.");
+                continue;
+            }
+
+            if (!TryGetString(obj["evidence_id"], out var evidenceId) || string.IsNullOrWhiteSpace(evidenceId))
+            {
+                errors.Add("evidence.evidence_id is required.");
+                continue;
+            }
+
+            if (!evidenceIds.Add(evidenceId))
+            {
+                errors.Add($"evidence ID {evidenceId} is duplicated.");
+            }
+
+            RequireNonEmptyString(obj, "source_type", errors);
+            RequireNonEmptyString(obj, "source_id", errors);
+            RequireNonEmptyString(obj, "summary", errors);
+            RequireBoolean(obj, "exact_item_stored_locally", expected: true, errors);
+            RequireDateTime(obj, "observed_at", errors);
+        }
+
+        return evidenceIds;
+    }
+
+    private static void ValidateRelationshipContext(JsonNode? node, HashSet<string> evidenceIds, List<string> errors)
+    {
+        if (node is not JsonObject obj)
+        {
+            errors.Add("relationship_context must be an object.");
+            return;
+        }
+
+        ValidateNonEmptyObjectArray(obj["matched_journeys"], "relationship_context.matched_journeys", errors);
+        ValidateCitationArray(obj["attribution_paths"], "relationship_context.attribution_paths", "evidence_ids", evidenceIds, errors);
+        RequireNonEmptyString(obj, "outcome_window", errors);
+        RequireString(obj, "probability_scope", "Scout local/basic proof only; Fortress owns canonical production scoring.", errors);
+    }
+
+    private static void ValidateActions(JsonNode? node, HashSet<string> evidenceIds, List<string> errors)
+    {
+        if (node is not JsonArray actions || actions.Count == 0)
+        {
+            errors.Add("action_options must be a non-empty array.");
+            return;
+        }
+
+        var seenActions = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in actions)
+        {
+            if (item is not JsonObject obj)
+            {
+                errors.Add("action_options entries must be objects.");
+                continue;
+            }
+
+            if (TryGetString(obj["action"], out var action))
+            {
+                seenActions.Add(action);
+            }
+            else
+            {
+                errors.Add("action_options.action is required.");
+            }
+
+            RequireNonNegativeInteger(obj, "rank", errors);
+            RequireDecimalRange(obj, "estimated_success_probability", 0m, 1m, errors);
+            RequireString(obj, "probability_label", "local_basic_proof_not_fortress_canonical", errors);
+            ValidateCitationIds(obj["evidence_ids"], "action_options.evidence_ids", evidenceIds, errors);
+            ValidateStringArray(obj["caveats"], "action_options.caveats", errors);
+        }
+
+        foreach (var required in RequiredActions)
+        {
+            if (!seenActions.Contains(required))
+            {
+                errors.Add($"action_options must include {required}.");
+            }
+        }
+    }
+
+    private static void ValidateDoNotActions(JsonNode? node, HashSet<string> evidenceIds, List<string> errors)
+    {
+        if (node is not JsonArray actions || actions.Count == 0)
+        {
+            errors.Add("do_not_action_options must be a non-empty array.");
+            return;
+        }
+
+        foreach (var item in actions)
+        {
+            if (item is not JsonObject obj)
+            {
+                errors.Add("do_not_action_options entries must be objects.");
+                continue;
+            }
+
+            RequireString(obj, "action", "do_not_reply", errors);
+            RequireDecimalRange(obj, "estimated_no_further_contact_probability", 0m, 1m, errors);
+            RequireString(obj, "probability_label", "local_basic_proof_not_fortress_canonical", errors);
+            ValidateCitationIds(obj["evidence_ids"], "do_not_action_options.evidence_ids", evidenceIds, errors);
+            ValidateStringArray(obj["caveats"], "do_not_action_options.caveats", errors);
+        }
+    }
+
+    private static void ValidateHandoff(JsonNode? node, List<string> errors)
+    {
+        if (node is not JsonObject obj)
+        {
+            errors.Add("handoff must be an object.");
+            return;
+        }
+
+        RequireNonEmptyString(obj, "approved_consumer", errors);
+        RequireBoolean(obj, "model_may_explain_not_infer_evidence", expected: true, errors);
+        RequireBoolean(obj, "fortress_required_for_canonical_scoring", expected: true, errors);
+    }
+
+    private static void ValidateNonEmptyObjectArray(JsonNode? node, string path, List<string> errors)
+    {
+        if (node is not JsonArray array || array.Count == 0)
+        {
+            errors.Add($"{path} must be a non-empty array.");
+            return;
+        }
+
+        foreach (var item in array)
+        {
+            if (item is not JsonObject)
+            {
+                errors.Add($"{path} entries must be objects.");
+            }
+        }
+    }
+
+    private static void ValidateCitationArray(
+        JsonNode? node,
+        string path,
+        string citationProperty,
+        HashSet<string> evidenceIds,
+        List<string> errors)
+    {
+        if (node is not JsonArray array || array.Count == 0)
+        {
+            errors.Add($"{path} must be a non-empty array.");
+            return;
+        }
+
+        foreach (var item in array)
+        {
+            if (item is not JsonObject obj)
+            {
+                errors.Add($"{path} entries must be objects.");
+                continue;
+            }
+
+            ValidateCitationIds(obj[citationProperty], $"{path}.{citationProperty}", evidenceIds, errors);
+        }
+    }
+
+    private static void ValidateCitationIds(JsonNode? node, string path, HashSet<string> evidenceIds, List<string> errors)
+    {
+        if (node is not JsonArray citationIds || citationIds.Count == 0)
+        {
+            errors.Add($"{path} must be a non-empty array.");
+            return;
+        }
+
+        foreach (var item in citationIds)
+        {
+            if (!TryGetString(item, out var evidenceId) || string.IsNullOrWhiteSpace(evidenceId))
+            {
+                errors.Add($"{path} entries must be strings.");
+                continue;
+            }
+
+            if (!evidenceIds.Contains(evidenceId))
+            {
+                errors.Add($"{path} cites {evidenceId} without matching evidence.");
+            }
+        }
+    }
+
+    private static void ValidateStringArray(JsonNode? node, string path, List<string> errors)
+    {
+        if (node is not JsonArray array || array.Count == 0)
+        {
+            errors.Add($"{path} must be a non-empty array.");
+            return;
+        }
+
+        foreach (var item in array)
+        {
+            if (!TryGetString(item, out var value) || string.IsNullOrWhiteSpace(value))
+            {
+                errors.Add($"{path} entries must be non-empty strings.");
+            }
+        }
+    }
+
+    private static void RequireString(JsonObject root, string propertyName, string expectedValue, List<string> errors)
+    {
+        if (!TryGetString(root[propertyName], out var value) || value != expectedValue)
+        {
+            errors.Add($"{propertyName} must be '{expectedValue}'.");
+        }
+    }
+
+    private static void RequireNonEmptyString(JsonObject root, string propertyName, List<string> errors)
+    {
+        if (!TryGetString(root[propertyName], out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            errors.Add($"{propertyName} must be a non-empty string.");
+        }
+    }
+
+    private static void RequireBoolean(JsonObject root, string propertyName, bool expected, List<string> errors)
+    {
+        if (root[propertyName] is not JsonValue value || !value.TryGetValue(out bool actual) || actual != expected)
+        {
+            errors.Add($"{propertyName} must be {expected.ToString().ToLowerInvariant()}.");
+        }
+    }
+
+    private static void RequireDateTime(JsonObject root, string propertyName, List<string> errors)
+    {
+        if (!TryGetString(root[propertyName], out var value) || !DateTime.TryParse(value, out _))
+        {
+            errors.Add($"{propertyName} must be an ISO 8601 timestamp.");
+        }
+    }
+
+    private static void RequireNonNegativeInteger(JsonObject root, string propertyName, List<string> errors)
+    {
+        if (root[propertyName] is not JsonValue value || !value.TryGetValue(out int actual) || actual < 0)
+        {
+            errors.Add($"{propertyName} must be a non-negative integer.");
+        }
+    }
+
+    private static void RequireDecimalRange(JsonObject root, string propertyName, decimal minimum, decimal maximum, List<string> errors)
+    {
+        if (root[propertyName] is not JsonValue value || !value.TryGetValue(out decimal actual) || actual < minimum || actual > maximum)
+        {
+            errors.Add($"{propertyName} must be between {minimum} and {maximum}.");
+        }
+    }
+
+    private static bool TryGetString(JsonNode? node, out string value)
+    {
+        if (node is JsonValue jsonValue && jsonValue.TryGetValue(out string? candidate) && candidate is not null)
+        {
+            value = candidate;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+}
+
 public static class UclEnterpriseRelationshipEngineHandoffV1Validator
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

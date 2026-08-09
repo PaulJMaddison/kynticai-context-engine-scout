@@ -1,6 +1,6 @@
 # Customer Data Plane
 
-This page explains how KynticAI Scout runs beside customer systems as a customer-controlled data plane for exact data items, relationships, attribution paths, outcomes, governed context, and local APIs.
+This page explains how Context Engine · Scout runs beside customer systems as a customer-controlled data plane for exact data items, relationships, attribution paths, outcomes, governed context, and local APIs.
 
 We do not build the brain. We build the nervous system. Scout carries trusted business context from existing operational systems to the customer's own AI tools, workflows, reports, apps, local LLMs, and agents.
 
@@ -46,7 +46,7 @@ For the synthetic sales walkthrough, Scout links only the customer-approved reco
 - product usage summaries
 - billing health, payment status, and days-past-due signals
 
-These records are carried as exact linked records with citation IDs. Deterministic relationships such as email-to-contact, contact-to-account, account-to-opportunity, account/contact-to-activity, contact-to-email-engagement, account/contact-to-web-conversion, account/contact-to-support-ticket, account/contact-to-product-usage, account-to-billing, and account/contact-to-outcome are built in the local data plane. Attribution paths record what happened and in what order. Scout may emit `BasicRelationshipEngine` fallback signals to support a recommended next action and a compatibility handoff artefact for proof-mode private analysis. Advanced relationship-set analysis, attribution-path comparison, outcome matching, and governed JSON handoff belong to private extensions. Optional Cloud/control-plane output remains aggregate usage metadata only: counters, status, timestamps, package version, and audit/control-plane event metadata, not relationship types, attribution paths, weights, recommendations, confidence, caveats, citation IDs, raw operational records, or per-entity relationship metadata.
+These records are carried as exact linked records with citation IDs. Deterministic relationships such as email-to-contact, contact-to-account, account-to-opportunity, account/contact-to-activity, contact-to-email-engagement, account/contact-to-web-conversion, account/contact-to-support-ticket, account/contact-to-product-usage, account-to-billing, and account/contact-to-outcome are built in the local data plane. Attribution paths record what happened and in what order. Scout may emit `BasicRelationshipEngine` fallback signals to support a recommended next action and a compatibility handoff artefact for proof-mode private analysis. Those probabilities are local/basic proof, not Fortress canonical scoring. Advanced relationship-set analysis, attribution-path comparison, outcome matching, and governed JSON handoff belong to Fortress/private extensions. Optional Cloud/control-plane output remains aggregate usage metadata only: counters, status, timestamps, package version, and audit/control-plane event metadata, not relationship types, attribution paths, weights, recommendations, confidence, caveats, citation IDs, raw operational records, or per-entity relationship metadata.
 
 The B2B SaaS sales/customer-success path remains the primary demo. The companion relationship-intelligence proof fixture also covers ecommerce conversion, support churn, recruitment, finance retention, and healthcare operations with synthetic records only. Those examples are local proof artefacts for deterministic tests and docs, not production customer deployments, regulated datasets, vendor-certified connector runs, or traction evidence.
 
@@ -59,7 +59,7 @@ The B2B SaaS sales/customer-success path remains the primary demo. The companion
 5. Attribution paths record what happened, in what order, for a user, account, workflow, or other business entity.
 6. Context snapshots version the facts and local relationship state.
 7. Downstream consumers retrieve context through REST, GraphQL, SDKs, internal services, governed JSON packages, or `POST /api/v1/intelligence/next-action`.
-8. In the wider UCL direction, private modules can add advanced analysis before a customer-owned LLM, workflow engine, or app explains the ranked next action.
+8. In the wider Context Engine direction, Fortress/private modules can add advanced analysis before a customer-owned LLM, workflow engine, or app explains the ranked next action.
 
 ## Why It Matters Commercially
 
@@ -71,4 +71,4 @@ A buyer can prove one workflow without a replatforming programme. A CTO can veri
 
 The public repo includes the reusable open core: local demo, customer data-plane foundations, APIs, SDKs, generic connectors, mock connectors, selector engine, exact data items, local relationships, provenance, audit, docs, and extension points.
 
-Paid/private scope can include enterprise connector implementations, advanced relationship analysis, attribution-path analysis, SSO, SCIM, advanced governance, compliance exports, deployment packs, SLAs, private cloud support, and optional hosted control-plane operations. Those paid implementations are intentionally not shipped in this public repository.
+Paid/private scope can include Fortress connector implementations, advanced relationship analysis, attribution-path analysis, SSO, SCIM, advanced governance, compliance exports, deployment packs, SLAs, private cloud support, and optional hosted control-plane operations. Those paid implementations are intentionally not shipped in this public repository.

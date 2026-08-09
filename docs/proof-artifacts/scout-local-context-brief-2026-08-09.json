@@ -1,0 +1,191 @@
+{
+  "brief_kind": "scout-local-context-brief",
+  "brief_version": "context-engine.scout-local-context-brief.v1",
+  "brief_id": "scout-local-synthetic-visitor-001",
+  "generated_at": "2026-08-09T12:00:00Z",
+  "subject": {
+    "entity_id": "visitor-synthetic-1042",
+    "entity_type": "prospect"
+  },
+  "source_scope": {
+    "data_plane": "customer-owned",
+    "synthetic": true,
+    "authorised_for_local_proof": true,
+    "approved_sources": [
+      "web_event",
+      "email_event",
+      "product_search_interest",
+      "registration_status",
+      "outcome_label"
+    ],
+    "boundary_note": "All exact items are synthetic and stored in the local Scout data plane for inspection."
+  },
+  "evidence": [
+    {
+      "evidence_id": "SRC-WEB-001",
+      "source_type": "web_event",
+      "source_id": "web-visit-20260808-1042",
+      "observed_at": "2026-08-08T09:12:00Z",
+      "summary": "Synthetic visitor viewed the home page and pricing explainer in one session.",
+      "exact_item_stored_locally": true
+    },
+    {
+      "evidence_id": "SRC-EMAIL-001",
+      "source_type": "email_event",
+      "source_id": "email-open-20260808-1042",
+      "observed_at": "2026-08-08T10:05:00Z",
+      "summary": "Synthetic visitor opened an authorised offer email and clicked the product comparison link.",
+      "exact_item_stored_locally": true
+    },
+    {
+      "evidence_id": "SRC-INTEREST-001",
+      "source_type": "product_search_interest",
+      "source_id": "search-interest-20260808-1042",
+      "observed_at": "2026-08-08T10:09:00Z",
+      "summary": "Synthetic search terms indicated interest in product X and low-friction registration.",
+      "exact_item_stored_locally": true
+    },
+    {
+      "evidence_id": "SRC-REG-001",
+      "source_type": "registration_status",
+      "source_id": "registration-status-20260808-1042",
+      "observed_at": "2026-08-08T10:30:00Z",
+      "summary": "Synthetic visitor did not complete registration after viewing the prize-draw form.",
+      "exact_item_stored_locally": true
+    },
+    {
+      "evidence_id": "SRC-OUTCOME-T0-001",
+      "source_type": "outcome_label",
+      "source_id": "historical-outcome-window-t0",
+      "observed_at": "2026-08-01T00:00:00Z",
+      "summary": "Initial synthetic history favoured direct product offer emails for similar home-page and email-click journeys.",
+      "exact_item_stored_locally": true
+    },
+    {
+      "evidence_id": "SRC-OUTCOME-T2-001",
+      "source_type": "outcome_label",
+      "source_id": "appended-outcome-window-t2",
+      "observed_at": "2026-08-07T00:00:00Z",
+      "summary": "Date-stamped appended outcomes showed prize-draw registration improved for similar unregistered visitors.",
+      "exact_item_stored_locally": true
+    }
+  ],
+  "relationship_context": {
+    "matched_journeys": [
+      {
+        "match_id": "MATCH-LOCAL-001",
+        "journey_label": "home_page_email_click_unregistered",
+        "outcome": "registered_after_prize_draw",
+        "similarity_score": 0.78,
+        "evidence_ids": [
+          "SRC-WEB-001",
+          "SRC-EMAIL-001",
+          "SRC-REG-001",
+          "SRC-OUTCOME-T2-001"
+        ]
+      }
+    ],
+    "attribution_paths": [
+      {
+        "path_id": "PATH-LOCAL-001",
+        "relationship_type": "visitor_to_email_to_interest_to_registration_status",
+        "path": [
+          "visitor-synthetic-1042",
+          "web-visit-20260808-1042",
+          "email-open-20260808-1042",
+          "search-interest-20260808-1042",
+          "registration-status-20260808-1042"
+        ],
+        "evidence_ids": [
+          "SRC-WEB-001",
+          "SRC-EMAIL-001",
+          "SRC-INTEREST-001",
+          "SRC-REG-001"
+        ]
+      },
+      {
+        "path_id": "PATH-LOCAL-002",
+        "relationship_type": "similar_outcome_window",
+        "path": [
+          "visitor-synthetic-1042",
+          "MATCH-LOCAL-001",
+          "appended-outcome-window-t2"
+        ],
+        "evidence_ids": [
+          "SRC-OUTCOME-T2-001",
+          "SRC-WEB-001",
+          "SRC-EMAIL-001"
+        ]
+      }
+    ],
+    "outcome_window": "T0 initial history plus T2 appended synthetic outcomes dated 2026-08-07",
+    "probability_scope": "Scout local/basic proof only; Fortress owns canonical production scoring."
+  },
+  "action_options": [
+    {
+      "rank": 1,
+      "action": "offer_prize_draw_registration",
+      "estimated_success_probability": 0.67,
+      "probability_label": "local_basic_proof_not_fortress_canonical",
+      "evidence_ids": [
+        "SRC-EMAIL-001",
+        "SRC-INTEREST-001",
+        "SRC-REG-001",
+        "SRC-OUTCOME-T2-001"
+      ],
+      "caveats": [
+        "Synthetic fixture only; verify consent and promotion eligibility before any real customer contact.",
+        "This is Scout fallback ranking, not Fortress canonical scoring."
+      ]
+    },
+    {
+      "rank": 2,
+      "action": "email_customer_with_x_offer",
+      "estimated_success_probability": 0.58,
+      "probability_label": "local_basic_proof_not_fortress_canonical",
+      "evidence_ids": [
+        "SRC-WEB-001",
+        "SRC-EMAIL-001",
+        "SRC-INTEREST-001",
+        "SRC-OUTCOME-T0-001"
+      ],
+      "caveats": [
+        "Synthetic fixture only; product X interest is inferred from authorised local search terms.",
+        "This is Scout fallback ranking, not Fortress canonical scoring."
+      ]
+    },
+    {
+      "rank": 3,
+      "action": "do_not_reply",
+      "estimated_success_probability": 0.31,
+      "probability_label": "local_basic_proof_not_fortress_canonical",
+      "evidence_ids": [
+        "SRC-REG-001",
+        "SRC-OUTCOME-T0-001"
+      ],
+      "caveats": [
+        "Low outreach confidence remains a valid local option when consent, fatigue, or data quality is unclear.",
+        "This is Scout fallback ranking, not Fortress canonical scoring."
+      ]
+    }
+  ],
+  "do_not_action_options": [
+    {
+      "action": "do_not_reply",
+      "estimated_no_further_contact_probability": 0.69,
+      "probability_label": "local_basic_proof_not_fortress_canonical",
+      "evidence_ids": [
+        "SRC-REG-001",
+        "SRC-OUTCOME-T0-001"
+      ],
+      "caveats": [
+        "Use when consent, contact policy, or promotion eligibility fails local governance checks."
+      ]
+    }
+  ],
+  "handoff": {
+    "approved_consumer": "workflow",
+    "model_may_explain_not_infer_evidence": true,
+    "fortress_required_for_canonical_scoring": true
+  }
+}

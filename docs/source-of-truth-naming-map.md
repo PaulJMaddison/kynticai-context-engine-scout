@@ -13,6 +13,7 @@ This document is the canonical source of truth for product, brand, and artefact 
 | Name | Canonical spelling | When to use |
 | --- | --- | --- |
 | Public brand | `KynticAI` | The company and public brand, always written with `AI`. Never write bare "Kyntic" in user-facing copy. |
+| Product line | `Context Engine` | The buyer-facing architecture that turns authorised raw data into source-traced, governed next-step briefs. |
 | Open-core product tier | `KynticAI Scout` | The open-source, MIT-licensed public product: the open-core data plane, local demo, admin console, APIs, SDKs, and docs. |
 | Universal Context Layer | `UCL` | The conceptual layer and architecture: source systems -> customer-owned data plane -> governed context for approved consumers. Write the full term once, then use `UCL`. |
 
@@ -26,6 +27,8 @@ Rule: `KynticAI` always carries the `AI`. Plain "Kyntic" is forbidden in all use
 | Customer data plane | The same layer seen from the customer's perspective: exact data items, relationships, attribution paths, provenance, audit, and local APIs stay customer-controlled by default. |
 | Control plane | The optional hosted commercial/control-plane layer (Scout Cloud). It manages accounts, licences, downloads, support access, update channels, and optional aggregate usage metadata only. It is never a data-plane store. |
 | Open core | The public, MIT-licensed Scout core in this repository. |
+| Context Engine · Scout | Buyer-facing copy for the free/open-source local proof path. Use `UCL` for repository history, architecture lineage, and existing technical contract names. |
+| Fortress | Private sovereign production runtime. Route production/private scale, private connectors, advanced relationship/path weighting, outcome matching, and canonical scoring to Fortress. |
 | Private Enterprise modules | Scoped paid/private extensions: private connectors, governance, identity, deployment packs, and advanced analysis. They live outside the public repo. |
 | Cloud | Optional commercial/control-plane support (Scout Cloud). Not required to run the data plane; must not receive raw customer data or derived relationship intelligence by default. |
 | KynticAI Discovery MCP | The buyer-facing, metadata-only wrapper for IT-manager-led discovery: local codebase audit, connector catalogue inspection, manifest validation, metadata quality report, and Discovery Signature review. |

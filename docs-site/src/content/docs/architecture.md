@@ -1,10 +1,10 @@
 ---
 title: Architecture
-description: Public architecture of KynticAI Scout and its open-source data-plane boundary.
+description: Public architecture of Context Engine · Scout and its open-source data-plane boundary.
 ---
 
-KynticAI Scout is the public, MIT-licensed data-plane foundation for the
-Universal Context Layer. It runs beside existing operational systems,
+Context Engine · Scout is the public, MIT-licensed local proof path for the
+Universal Context Layer data-plane foundation. It runs beside existing operational systems,
 turns approved source records into exact data items, relationships, attribution
 paths, outcomes, governed semantic context, and local JSON packages, and exposes
 that context through GraphQL, REST, SDKs, and context packages.
@@ -26,10 +26,10 @@ grounded in approved source data.
 | API surfaces | Authenticated GraphQL, REST v1, legacy REST, TypeScript SDK, and .NET SDK. |
 | Admin console | Local React admin/demo console for schemas, selectors, sources, and context. |
 
-Private enterprise connector implementations, customer-specific mappings,
-managed deployment code, proprietary analysis modules, relationship-set
-analysis, attribution-path analysis, private engine internals, and proprietary roadmap
-material are intentionally outside the Scout repository.
+Private connector implementations, customer-specific mappings, managed
+deployment code, Fortress canonical analysis modules, relationship-set
+analysis, attribution-path analysis, private engine internals, and proprietary
+roadmap material are intentionally outside the Scout repository.
 
 ## Runtime Shape
 
@@ -40,7 +40,7 @@ Approved source systems
   -> selector execution
   -> semantic facts and exact data items
   -> relationships, attribution paths, and outcomes
-  -> optional Scout basic fallback-only signals or Enterprise canonical analysis
+  -> optional Scout basic fallback-only signals or Fortress canonical analysis
   -> governed JSON and ranked next-action options for an approved consumer
   -> context snapshots and packages
   -> GraphQL / REST / SDK consumers
@@ -62,7 +62,7 @@ workspace, licence, API-client, billing-usage, and onboarding records. In
 the open-source repo these are public-safe data-plane foundations, not a
 hosted control-plane deployment promise.
 
-Optional Cloud/control-plane payloads should stay aggregate-usage-only by
+Optional Cloud/control-plane payloads should stay aggregate/control-plane-only by
 default: tenant/control-plane identifiers, package version, feature counters,
 health/status, timestamps, and audit/control-plane event metadata. They should
 not require raw source records, connector credentials, local evidence-pack
@@ -100,13 +100,12 @@ Important controls include:
 
 ## Open Source And Enterprise
 
-Scout defines the public extension contracts. Private commercial enterprise
+Scout defines the public extension contracts. Fortress/private commercial
 modules live outside this repository. The public docs describe only the
-category boundary: proprietary analysis modules,
-canonical relationship-set analysis, vendor-specific connectors, enterprise
-identity, managed deployment support, and advanced governance belong outside
-Scout. Clarity and Importance are separate products and are not required for
-this UCL path.
+category boundary: canonical relationship-set analysis, vendor-specific
+connectors, enterprise identity, managed deployment support, and advanced
+governance belong outside Scout. Clarity and Importance are separate products
+and are not required for this UCL path.
 
 See [Open Source vs Enterprise](/concepts/open-source-vs-enterprise/) for
 the support boundary and [Connector Authoring](/connectors/authoring/) for
@@ -119,4 +118,4 @@ the ASP.NET Core API in `src/KynticAI.Scout.Api`, the application contracts
 in `src/KynticAI.Scout.Application`, the EF Core persistence model in
 `src/KynticAI.Scout.Infrastructure`, and the SDKs under `src/` and
 `packages/typescript/`. Future diagrams should be generated only from
-public repository structure and must not imply private enterprise internals.
+public repository structure and must not imply Fortress/private internals.

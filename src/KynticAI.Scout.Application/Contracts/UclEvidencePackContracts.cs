@@ -8,6 +8,8 @@ public static class UclEvidencePackContractVersions
     public const string CloudAggregateUsageV1 = "ucl.cloud-aggregate-usage.v1";
     public const string EnterpriseRelationshipEngineHandoffKind = "ucl.enterprise-relationship-engine-handoff";
     public const string EnterpriseRelationshipEngineHandoffV1 = "ucl.enterprise-relationship-engine-handoff.v1";
+    public const string ScoutLocalContextBriefKind = "scout-local-context-brief";
+    public const string ScoutLocalContextBriefV1 = "context-engine.scout-local-context-brief.v1";
     public const string CustomerOwnedDataPlane = "customer-owned-data-plane";
 }
 

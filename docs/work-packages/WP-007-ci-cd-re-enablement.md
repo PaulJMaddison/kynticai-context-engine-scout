@@ -1,8 +1,8 @@
-# WP-007 — CI/CD re-enablement (OSS-013)
+# WP-007 — CI/CD reference hardening (OSS-013)
 
 ## Metadata
 
-- **Status:** Complete
+- **Status:** Complete — intentionally disabled by policy
 - **Priority:** High
 - **Phase:** C — Delivery engineering
 - **Depends on:** WP-001 (CI must not accidentally re-introduce forbidden
@@ -11,14 +11,15 @@
 
 ## Completion notes
 
-- `.github/workflows/ci.yml` re-enabled with three independent jobs
-  (`backend`, `frontend`, `public-safety`) on `ubuntu-latest`; Release build
-  with `-warnaserror`, all four local/deterministic .NET test projects with
-  TRX upload, `npm ci`/lint/test/build for `apps\web`, TypeScript SDK
-  build/test, and `docs-site` build.
-- `.github/workflows/release.yml` re-enabled on the `v*` tag trigger with
-  build/test + public-safety scan + GitHub Release; npm/NuGet publishing
-  intentionally not configured (documented in the workflow).
+- `.github/workflows/ci.yml.disabled` is retained as a hardened reference with
+  three independent jobs (`backend`, `frontend`, `public-safety`) on
+  `ubuntu-latest`; Release build with `-warnaserror`, all four
+  local/deterministic .NET test projects with TRX upload, `npm ci`/lint/test/build
+  for `apps\web`, TypeScript SDK build/test, and `docs-site` build.
+- `.github/workflows/release.yml.disabled` is retained as a hardened reference
+  for the `v*` tag trigger with build/test + public-safety scan + GitHub
+  Release; npm/NuGet publishing intentionally not configured (documented in the
+  workflow).
 - `scripts/public-safety-scan.ps1` / `.sh` added as the single source of
   truth for the forbidden-code scan, shared by the pilot-readiness gate and
   CI.
@@ -30,11 +31,12 @@
   making `--filter "Category!=Integration"` meaningful (verified: integration
   project reports "No test matches" while Unit 112 / Sdk 40 / EndToEnd 54
   pass).
-- `LOCAL_VALIDATION.md` documents the CI scope and opt-in proofs;
-  `README.md` has a live CI status badge and CI Status section.
+- `LOCAL_VALIDATION.md` and `README.md` document that GitHub Actions stays
+  disabled while the GitHub account lock remains unresolved; the disabled files
+  remain the reference for the safe default.
 - Local verification: slnx Release build `-warnaserror` 0W/0E; full
   pilot-readiness.ps1 pass; apps\web lint/test/build, TS SDK build + 17 tests,
-  docs-site build all green. Live GitHub Actions run pending first push.
+  docs-site build all green. Live GitHub Actions remain intentionally disabled.
 
 ## Context
 
@@ -67,10 +69,12 @@ Two secondary defects to fix while here:
 
 ## Objective
 
-Re-enable a hardened CI pipeline that runs the safe-default validation for
-all four workstreams (.NET, web, TypeScript SDK, docs-site), adds the
-public-safety scan, keeps browser/container proofs opt-in, and is reconciled
-with the pilot-readiness gate so the gate and CI do not contradict each other.
+Keep a hardened CI pipeline definition available as disabled reference
+workflows that cover the safe-default validation for all four workstreams
+(.NET, web, TypeScript SDK, docs-site), add the public-safety scan, keep
+browser/container proofs opt-in, and reconcile the pilot-readiness gate with the
+intentional disabled state. Do not enable GitHub Actions until the owner
+explicitly asks for it.
 
 ## Do not do
 
@@ -89,8 +93,8 @@ with the pilot-readiness gate so the gate and CI do not contradict each other.
 
 ## Scope / files touched
 
-- `.github/workflows/ci.yml` (renamed from `.disabled`, then hardened)
-- `.github/workflows/release.yml` (renamed from `.disabled`, then hardened)
+- `.github/workflows/ci.yml.disabled` (hardened reference workflow)
+- `.github/workflows/release.yml.disabled` (hardened reference workflow)
 - `scripts/pilot-readiness.ps1` and `scripts/pilot-readiness.sh` (rework the
   "No GitHub Actions workflows" step)
 - `scripts/codex-cloud-setup.sh:213` (fix or remove the dead filter)
@@ -99,7 +103,7 @@ with the pilot-readiness gate so the gate and CI do not contradict each other.
 
 ## Tasks
 
-1. **Decide the CI scope.** Recommended target: one `ci.yml` with two jobs:
+1. **Decide the CI scope.** Reference target: one `ci.yml.disabled` with two jobs:
    - `backend`: setup-dotnet from `global.json` → restore → build
      `--configuration Release -warnaserror` → test UnitTests + Sdk.Tests +
      IntegrationTests + EndToEndTests (all local/deterministic) → upload TRX.
@@ -132,11 +136,12 @@ with the pilot-readiness gate so the gate and CI do not contradict each other.
    remove the filter line from `codex-cloud-setup.sh`. Prefer the trait
    approach so the filter becomes real.
 
-5. **Release workflow.** Re-enable `release.yml` with the existing `v*` tag
-   trigger, but restrict it: build/test first, then create the release only
-   from an approved tag. Do NOT wire npm/NuGet publishing without explicit
-   approval (that is a separate package/decision). Document in the workflow
-   comments that publishing is intentionally not configured.
+5. **Release workflow.** Keep `release.yml.disabled` as the reference for the
+   existing `v*` tag trigger: build/test first, then create the release only
+   from an approved tag when the workflow is deliberately enabled later. Do NOT
+   wire npm/NuGet publishing without explicit approval (that is a separate
+   package/decision). Document in the workflow comments that publishing is
+   intentionally not configured.
 
 6. **Update `LOCAL_VALIDATION.md` and README badges.** Add a CI badge/status
    note and document that CI runs the safe default (browser/container/enterprise
@@ -144,20 +149,22 @@ with the pilot-readiness gate so the gate and CI do not contradict each other.
 
 ## Acceptance criteria
 
-- [ ] `.github/workflows/ci.yml` and `.github/workflows/release.yml` are
-      active (not `.disabled`) and contain no secrets or private references.
-- [ ] CI runs .NET build+test (warnaserror), web lint+test+build, SDK
-      build+test, and docs-site build, all on the safe default.
-- [ ] CI includes the extended public-safety scan and fails on any forbidden
-      pattern.
-- [ ] `scripts/pilot-readiness.ps1`/`.sh` pass with active workflows present
-      (gate reworked, not deleted).
-- [ ] `codex-cloud-setup.sh` filter is backed by real `Category=Integration`
-      traits or removed.
-- [ ] Browser and container/enterprise proofs remain opt-in and are not part
+- [x] `.github/workflows/ci.yml.disabled` and
+      `.github/workflows/release.yml.disabled` remain disabled by policy and
+      contain no secrets or private references.
+- [x] The disabled CI reference covers .NET build+test (warnaserror), web
+      lint+test+build, SDK build+test, and docs-site build, all on the safe
+      default.
+- [x] The disabled CI reference includes the extended public-safety scan and
+      would fail on any forbidden pattern when deliberately enabled later.
+- [x] `scripts/pilot-readiness.ps1`/`.sh` tolerate the intentional disabled
+      workflow state while still scanning any active workflow for unsafe
+      content.
+- [x] `codex-cloud-setup.sh` filter is backed by real
+      `Category=Integration` traits.
+- [x] Browser and container/enterprise proofs remain opt-in and are not part
       of default CI.
-- [ ] Local safe-default validation still passes after any project-file
-      changes.
+- [x] Local safe-default validation still passes after project-file changes.
 
 ## Verification
 

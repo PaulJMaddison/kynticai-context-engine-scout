@@ -9,22 +9,22 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.9.0-brightgreen.svg" alt="Release: v2.9.0" /></a>
+  <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.10.0-brightgreen.svg" alt="Release: v2.10.0" /></a>
   <img src="https://img.shields.io/badge/.NET-10.0-purple.svg" alt=".NET 10" />
 
 </p>
 
 <p align="center">
-  <strong>KynticAI Scout turns authorised company data into exact data items, relationships, attribution paths, and governed JSON for AI.</strong>
+  <strong>Context Engine · Scout turns authorised company data into exact data items, relationships, attribution paths, and governed JSON for AI.</strong>
 </p>
 
 <p align="center">
-  Scout is the open-core UCL data plane: it ingests company data through connectors or assisted imports, keeps exact items in the customer's environment, and prepares relationship-set evidence for customer-owned apps, workflows, and LLMs.
+  Scout is the free/open-source local proof path for the Context Engine: it ingests authorised data through connectors or assisted imports, keeps exact items in the customer's environment, and prepares relationship-set evidence for customer-owned apps, workflows, and LLMs. UCL remains the repo/history and architecture name for the underlying customer-owned data-plane contracts.
 </p>
 
 ---
 
-> **Naming and maturity note:** Workspace naming is defined in [source-of-truth-naming-map.md](docs/source-of-truth-naming-map.md). This README describes the open-core Scout/UCL data plane and local demo; it does not claim complete self-serve SaaS maturity, vendor-certified connectors, live customer deployments, customer traction, or private-extension production capabilities.
+> **Naming and maturity note:** Workspace naming is defined in [source-of-truth-naming-map.md](docs/source-of-truth-naming-map.md). This README describes Context Engine · Scout as the open-source local proof path plus UCL data-plane contracts and local demo; it does not claim complete self-serve SaaS maturity, vendor-certified connectors, live customer deployments, customer traction, Fortress canonical scoring, or private-extension production capabilities.
 
 ## Docker Quick Start
 
@@ -94,7 +94,7 @@ For contributor-only local runtime scripts (`.NET` + Node outside Docker), see t
 
 Scout is **customer-owned data-plane infrastructure for AI-enabled products**. It does not replace your CRM, ERP, support desk, or billing system. It sits beside those systems and creates governed exact data items, relationships, attribution paths, outcomes, provenance, and local APIs so that downstream consumers -- AI copilots, workflow engines, reporting tools, internal apps, local LLMs -- get trusted business meaning instead of disconnected records.
 
-The flagship UCL workflow is: source systems -> UCL/Scout customer-owned data plane -> exact data items, relationships, attribution paths, comparable relationship sets, and outcomes -> governed JSON with evidence, ranked options, confidence, and caveats -> customer-owned apps, workflows, reporting tools, local LLMs, or agents. This public repo demonstrates the open-core data-plane mechanics: source access, selectors, semantic facts, exact linked records, provenance, masking, audit, APIs, SDKs, basic fallback intelligence, extension handoff artefacts, and a local demo/admin console. Private modules can add paid connectors, identity/governance, advanced analysis, and customer-specific hardening where required.
+The flagship Context Engine · Scout workflow is: source systems -> UCL/Scout customer-owned data plane -> exact data items, relationships, attribution paths, comparable relationship sets, and outcomes -> governed JSON with evidence, ranked options, confidence, and caveats -> customer-owned apps, workflows, reporting tools, local LLMs, or agents. This public repo demonstrates the open-core data-plane mechanics: source access, selectors, semantic facts, exact linked records, provenance, masking, audit, APIs, SDKs, basic fallback intelligence, extension handoff artefacts, and a local demo/admin console. Fortress handles private production scale, private connectors, advanced relationship/path weighting, outcome matching, governance, and canonical scoring where required.
 
 For the seeded sales walkthrough, "authorised data" means subject-scoped data items approved for the customer data plane: normalised email address, CRM contact/account, account registration/profile, sales activity, email replies or meetings booked, web conversion and pricing-page events, open opportunities, support tickets, product usage summaries, billing health, and prior won/lost outcome signals. Those exact items, relationships, attribution paths, outcomes, citations, local JSON artefacts, connector credentials, selectors, facts, snapshots, and audit logs stay in the customer-controlled environment by default.
 
@@ -228,7 +228,12 @@ The seeded demo includes synthetic realistic B2B SaaS data: 2 tenants, 30 accoun
 
 For first-run speed, the Docker demo precomputes governed context snapshots for the guided walkthrough records listed below. The broader synthetic operational dataset remains available for connector, selector, relationship, and API exploration.
 
-The demo relationship JSON is intentionally exact and inspectable. It links the authorised records in the customer data plane, carries citation IDs and masking decisions, shows deterministic relationships such as email-to-contact and contact-to-account, includes attribution-path evidence and similar won/lost patterns where present, and produces basic fallback-only signals plus a grounded recommended next action for a customer-owned consumer. The optional Cloud aggregate usage payload for the same flow contains only control-plane usage metadata, not the derived relationship intelligence.
+The demo relationship JSON is intentionally exact and inspectable. It links the authorised records in the customer data plane, carries citation IDs and masking decisions, shows deterministic relationships such as email-to-contact and contact-to-account, includes attribution-path evidence and similar won/lost patterns where present, and produces basic fallback-only signals plus a grounded recommended next action for a customer-owned consumer. These probabilities are local Scout proof only, not Fortress canonical scoring. The optional Cloud aggregate usage payload for the same flow contains only control-plane usage metadata, not the derived relationship intelligence.
+
+The dated local Context Engine · Scout proof artefacts are:
+
+- [Governed local context brief](docs/proof-artifacts/scout-local-context-brief-2026-08-09.json)
+- [Mini-flywheel ranking report](docs/proof-artifacts/scout-mini-flywheel-report-2026-08-09.md)
 
 The primary walkthrough remains B2B SaaS revenue/customer success. A separate deterministic proof fixture at `samples/relationship-intelligence/exact-data-proof.synthetic.json` also covers ecommerce conversion, support churn, recruitment, finance retention, and healthcare operations using synthetic records only. Those cross-domain fixtures are proof artefacts for local tests and docs; they are not customer production deployments, live customer data, vendor certification, or traction claims.
 

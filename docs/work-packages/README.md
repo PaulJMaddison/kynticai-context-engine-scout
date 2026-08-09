@@ -33,7 +33,7 @@ tasks, acceptance criteria, and verification commands, and respects the
 | WP-004 | Cross-tenant authorisation hardening | B | High | — | Complete |
 | WP-005 | API surface hardening | B | Medium | — | Complete |
 | WP-006 | SDK compatibility fix (Fact value type) | B | Medium | — | Complete |
-| WP-007 | CI/CD re-enablement (OSS-013) | C | High | WP-001 | Complete |
+| WP-007 | CI/CD reference hardening (OSS-013; intentionally disabled) | C | High | WP-001 | Complete |
 | WP-008 | Browser proof and frontend polish | C | Medium | — | Complete |
 | WP-009 | Roadmap and changelog reconciliation | D | Medium | WP-007 | Complete |
 | WP-010 | Missing user documentation | D | Medium | — | Complete |
@@ -67,7 +67,8 @@ tagged, or presented as deliverable until Phase A is clean.
 
 ### Phase C — Delivery engineering
 
-- **WP-007** re-enables CI/CD (OSS-013) and reconciles it with the
+- **WP-007** keeps the hardened CI/CD workflows as disabled reference files
+  (OSS-013) and reconciles that intentional disabled state with the
   pilot-readiness gate.
 - **WP-008** completes browser proof and applies frontend copy polish.
 

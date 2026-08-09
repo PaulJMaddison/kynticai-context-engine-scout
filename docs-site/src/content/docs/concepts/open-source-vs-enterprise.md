@@ -1,22 +1,22 @@
 ---
 title: Open Source vs Enterprise
-description: What ships in the free KynticAI Scout open-source data-plane core and what requires a commercial licence.
+description: What ships in the free Context Engine · Scout open-source proof path and what routes to Fortress.
 ---
 
 KynticAI follows an **open-core** model. The public **Scout** repository is
-the free, MIT-licensed customer data-plane foundation. Private enterprise
-modules are available separately under a commercial licence.
+the free, MIT-licensed local proof path for Context Engine data-plane
+mechanics. Production/private scale and canonical scoring route to Fortress.
 
 ## What's Included in Scout (Open Source)
 
-Scout is a complete, self-hostable customer data-plane platform. The
-open-source repository includes:
+Scout is a complete local/open-source proof of a self-hostable customer
+data-plane foundation. The open-source repository includes:
 
 | Area | What You Get |
 |---|---|
 | **Semantic Engine** | Selector execution, fact materialisation, confidence scoring |
 | **Exact Data Items** | Subject-scoped records, data items, citations, masking decisions, and provenance |
-| **Relationship JSON** | Governed relationships, attribution-path evidence, basic fallback-only signals, and next-best-action workflows for approved consumers |
+| **Relationship JSON** | Governed relationships, attribution-path evidence, basic fallback-only signals, caveats, and next-action options for approved consumers |
 | **Context Snapshots** | Point-in-time business profiles with provenance |
 | **GraphQL + REST APIs** | Full query surface for all context data |
 | **TypeScript SDK** | Typed client for Node.js and browser environments |
@@ -31,34 +31,34 @@ open-source repository includes:
 | **Docker Support** | Single-container and Compose-based deployment |
 | **Demo Data** | Realistic seeded B2B SaaS dataset for evaluation |
 
-## What Requires a Commercial Licence
+## What Routes To Fortress
 
-Private enterprise modules extend the Scout core with capabilities designed
-for production enterprise deployments. They are not included in the Scout
-repository and are not open source.
+Fortress extends the Scout proof path with capabilities designed for private
+sovereign production deployments. These capabilities are not included in the
+Scout repository and are not open source.
 
 Enterprise capabilities include:
 
-- proprietary analysis modules for relationship sets, attribution paths, comparable examples, and outcome-pattern scoring
+- canonical analysis modules for relationship sets, attribution paths, comparable examples, and outcome-pattern scoring
 - Vendor-certified connectors (e.g. Salesforce, HubSpot, Dynamics,
   Snowflake, SAP, and others)
 - Enterprise SSO / SAML / SCIM identity integration
 - Advanced governance and compliance exports
 - Credential vault integrations
 - Managed deployment packs and installers
-- SLA-backed support
+- production support, deployment governance, and SLA-backed operation
 
 :::note
-Private enterprise internals are not published in the Scout repository. The list
+Fortress internals are not published in the Scout repository. The list
 above describes the *category* of enterprise capability, not implementation
 details.
 :::
 
 ## How They Relate
 
-Scout defines stable public extension interfaces. Private enterprise modules
-implement those interfaces in a separate private codebase. Enterprise modules
-plug into the Scout core via dependency injection — no forking required.
+Scout defines stable public extension interfaces. Fortress/private modules
+implement those interfaces outside this public codebase and plug into the
+Scout core via dependency injection — no forking required.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -66,9 +66,9 @@ plug into the Scout core via dependency injection — no forking required.
 │  Customer data plane, APIs, SDKs, admin UI, │
 │  exact items, generic connectors, seams     │
 ├─────────────────────────────────────────────┤
-│  Private enterprise modules                 │
-│  proprietary analysis modules, connectors   │
-│  governance, compliance, managed deployment │
+│  Fortress/private modules                   │
+│  canonical analysis, connectors, governance │
+│  compliance, managed deployment             │
 └─────────────────────────────────────────────┘
 ```
 
