@@ -31,7 +31,7 @@ The setup scripts download repo-local runtimes automatically, so you do **not** 
 ### Clone and Bootstrap
 
 ```bash
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 
 # Linux / macOS

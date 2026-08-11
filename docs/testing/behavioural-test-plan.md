@@ -5,7 +5,7 @@ WP-00/01 final code quality check loop. For each area this records the behaviour
 protected, currently tested contexts, missing contexts, risk if the behaviour fails,
 tests to add, and the appropriate test level.
 
-Reference: `C:\Kyntic\docs\work-packages\2026-08-10-final-code-quality-check\00-final-code-quality-check-standard.md`
+Reference: `C:\Kyntic\kynticai-workspace-docs\work-packages\2026-08-10-final-code-quality-check\00-final-code-quality-check-standard.md`
 and `01-final-code-quality-check-ucl-scout.md`.
 
 ## Summary Of Priorities

@@ -5,12 +5,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PaulJMaddison/scout.git",
+    "url": "git+https://github.com/PaulJMaddison/kynticai-context-engine-scout.git",
     "directory": "packages/typescript/scout-discovery-mcp"
   },
-  "homepage": "https://github.com/PaulJMaddison/scout",
+  "homepage": "https://github.com/PaulJMaddison/kynticai-context-engine-scout",
   "bugs": {
-    "url": "https://github.com/PaulJMaddison/scout/issues"
+    "url": "https://github.com/PaulJMaddison/kynticai-context-engine-scout/issues"
   },
   "type": "module",
   "main": "./dist/index.js",

@@ -15,7 +15,7 @@ Choose **one** of the following:
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 ```
 

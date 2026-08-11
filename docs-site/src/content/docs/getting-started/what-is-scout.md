@@ -69,7 +69,7 @@ Context Engine · Scout, Fortress, or Cloud.
 
 ## Licence
 
-KynticAI Scout is released under the [MIT Licence](https://github.com/PaulJMaddison/scout/blob/main/LICENSE).
+KynticAI Scout is released under the [MIT Licence](https://github.com/PaulJMaddison/kynticai-context-engine-scout/blob/main/LICENSE).
 
 ## Next Steps
 

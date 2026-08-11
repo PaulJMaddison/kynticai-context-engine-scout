@@ -20,7 +20,7 @@ You need:
 Clone and start the full stack:
 
 ```bash
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 sh ./scripts/start-scout-docker.sh --reset
 ```
@@ -28,7 +28,7 @@ sh ./scripts/start-scout-docker.sh --reset
 Windows PowerShell:
 
 ```powershell
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 .\scripts\start-scout-docker.ps1 -Reset
 ```

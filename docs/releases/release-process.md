@@ -4,7 +4,7 @@ This document describes the public KynticAI Scout release process and the coordi
 
 | Area | Visibility | Purpose |
 |---|---|---|
-| [scout](https://github.com/PaulJMaddison/scout) | Public | Open-source core: domain, APIs, SDKs, React frontend |
+| [scout](https://github.com/PaulJMaddison/kynticai-context-engine-scout) | Public | Open-source core: domain, APIs, SDKs, React frontend |
 | Private extensions | Private | Enterprise extensions: connectors, governance, identity, deployment |
 | Private control plane | Private | Hosted control plane: accounts, licensing, billing, portal |
 
@@ -161,7 +161,7 @@ git push origin vX.Y.Z
 
 ### 9. Verify the GitHub Release (open-source)
 
-- Navigate to [GitHub Releases](https://github.com/PaulJMaddison/scout/releases)
+- Navigate to [GitHub Releases](https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases)
 - Confirm the release was created by the workflow
 - Review the auto-generated release notes
 - Edit the release notes if needed to add cross-repo context

@@ -5,13 +5,13 @@
   "description": "Open core marketing site and self-hosted admin console for KynticAI Scout.",
   "license": "MIT",
   "author": "KynticAI",
-  "homepage": "https://github.com/PaulJMaddison/scout",
+  "homepage": "https://github.com/PaulJMaddison/kynticai-context-engine-scout",
   "bugs": {
-    "url": "https://github.com/PaulJMaddison/scout/issues"
+    "url": "https://github.com/PaulJMaddison/kynticai-context-engine-scout/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PaulJMaddison/scout.git"
+    "url": "git+https://github.com/PaulJMaddison/kynticai-context-engine-scout.git"
   },
   "keywords": [
     "context-infrastructure",

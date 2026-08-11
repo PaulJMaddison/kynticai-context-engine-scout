@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://github.com/PaulJMaddison/scout/releases"><img src="https://img.shields.io/badge/release-v2.10.0-brightgreen.svg" alt="Release: v2.10.0" /></a>
+  <a href="https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases"><img src="https://img.shields.io/badge/release-v2.10.0-brightgreen.svg" alt="Release: v2.10.0" /></a>
   <img src="https://img.shields.io/badge/.NET-10.0-purple.svg" alt=".NET 10" />
 
 </p>
@@ -36,7 +36,7 @@ Prerequisites:
 - Docker Desktop or Docker Engine with Docker Compose
 
 ```bash
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 sh ./scripts/start-scout-docker.sh --reset
 ```
@@ -45,7 +45,7 @@ sh ./scripts/start-scout-docker.sh --reset
 <summary><strong>Windows (PowerShell)</strong></summary>
 
 ```powershell
-git clone https://github.com/PaulJMaddison/scout.git
+git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git
 cd scout
 
 .\scripts\start-scout-docker.ps1 -Reset
@@ -560,7 +560,7 @@ Scout uses [semantic versioning](https://semver.org/) for public releases. Every
 | [Release Process](docs/releases/release-process.md) | Public release workflow, checklists, and hotfix process |
 | [Changelog](CHANGELOG.md) | Canonical full changelog for all public releases |
 | [Release Notes Index](docs/releases/CHANGELOG.md) | Index of per-release notes in `docs/releases` |
-| [GitHub Releases](https://github.com/PaulJMaddison/scout/releases) | Published releases with auto-generated notes |
+| [GitHub Releases](https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases) | Published releases with auto-generated notes |
 
 ### Release Scripts
 
