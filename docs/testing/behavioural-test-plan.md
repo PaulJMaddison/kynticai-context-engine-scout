@@ -83,10 +83,13 @@ Appropriate level: unit (no persistence required).
 
 Behaviour protected: fallback-only relationship weights are deterministic per type and
 objective; scout weights are declared non-canonical; enterprise owns canonical weighting.
-Currently tested: one happy-path weight, ownership metadata, and an integration of the
-weighting contract into the evidence pack. Missing contexts: objective synonyms
-(`sales`/`sell`, `convert`, `retain`), unknown objective fallback weight, and the full
-weight table across relationship types. Tests to add: parameterised weight-table test.
+Currently tested: ownership metadata, integration of the weighting contract into the
+evidence pack, and a parameterised table covering every current relationship type,
+objective aliases (`sales`/`sell`, `convert`, `retain`), objective-sensitive weights,
+objective-insensitive weights, and the unknown relationship/objective fallback. The
+table protects the public fallback contract without treating Scout weights as canonical.
+Missing contexts: no high-risk local gap identified; update the table when a new
+relationship type or objective alias is introduced. Appropriate level: unit.
 
 ### P5 — Governed JSON packets (`UclEvidencePackV1`, enterprise handoff, cloud usage)
 
@@ -145,3 +148,11 @@ Missing contexts: none identified as high risk.
 Safe default for this repo: `dotnet restore .\KynticAI.Scout.slnx`, `dotnet build .\KynticAI.Scout.slnx`,
 `dotnet test .\tests\KynticAI.Scout.UnitTests\KynticAI.Scout.UnitTests.csproj`. No Docker,
 live databases, or external proof is started by the routine checks.
+
+## 2026-08-11 WP-01 Iteration Record
+
+- Added the fallback-weight decision table in `NextActionIntelligenceServiceTests`.
+- The test locks down objective aliases, all current relationship-type weights, and the
+  safe `0.50` fallback for an unrecognised relationship type/objective.
+- No production behaviour changed. Docker, PostgreSQL/pgvector, browser, and live
+  connector proof remain opt-in and were not started by this iteration.

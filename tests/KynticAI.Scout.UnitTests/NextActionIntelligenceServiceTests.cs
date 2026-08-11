@@ -135,6 +135,56 @@ public sealed class NextActionIntelligenceServiceTests
         Assert.Contains("private relationship weighting", weighting.CanonicalEngine, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [MemberData(nameof(FallbackWeightCases))]
+    public void BasicRelationshipEngine_ResolvesObjectiveAliasesAndUnknownObjectivesToDeterministicFallbackWeights(
+        RelationshipType relationshipType,
+        string objective,
+        string expectedNormalisedObjective,
+        decimal expectedWeight)
+    {
+        var engine = new BasicRelationshipEngine();
+
+        var result = engine.ResolveFallbackWeight(relationshipType, objective);
+
+        Assert.Equal(expectedNormalisedObjective, result.Objective);
+        Assert.Equal(expectedWeight, result.Weight);
+        Assert.Equal("fallback", result.Direction);
+        Assert.Contains("fallback-only public weight", result.Rationale, StringComparison.Ordinal);
+    }
+
+    public static TheoryData<RelationshipType, string, string, decimal> FallbackWeightCases => new()
+    {
+        { RelationshipType.EmailToContact, "unknown", "unknown", 1.00m },
+        { RelationshipType.ContactToAccount, "retention", "retention", 1.00m },
+        { RelationshipType.AccountToOpportunity, "sales", "sale", 0.88m },
+        { RelationshipType.AccountToOpportunity, "conversion", "conversion", 0.88m },
+        { RelationshipType.AccountToOpportunity, "renewal", "renewal", 0.48m },
+        { RelationshipType.AccountToSalesActivity, "sell", "sale", 0.74m },
+        { RelationshipType.ContactToSalesActivity, "convert", "conversion", 0.74m },
+        { RelationshipType.ContactToEmailEngagement, "sale", "sale", 0.78m },
+        { RelationshipType.ContactToEmailEngagement, "support", "support", 0.44m },
+        { RelationshipType.AccountToWebConversion, "convert", "conversion", 0.80m },
+        { RelationshipType.ContactToWebConversion, "retention", "retention", 0.42m },
+        { RelationshipType.AccountToSupportTicket, "support", "support", 0.86m },
+        { RelationshipType.ContactToSupportTicket, "retain", "retention", 0.86m },
+        { RelationshipType.AccountToSupportTicket, "sale", "sale", 0.70m },
+        { RelationshipType.AccountToProductUsage, "unknown", "unknown", 0.76m },
+        { RelationshipType.ContactToProductUsage, "conversion", "conversion", 0.76m },
+        { RelationshipType.AccountToBilling, "churn", "churn", 0.70m },
+        { RelationshipType.AccountToOutcome, "unknown", "unknown", 0.92m },
+        { RelationshipType.ContactToOutcome, "sale", "sale", 0.92m },
+        { RelationshipType.SimilarSuccessfulSalePath, "unknown", "unknown", 0.82m },
+        { RelationshipType.SimilarProductUsagePattern, "unknown", "unknown", 0.72m },
+        { RelationshipType.SimilarWebJourney, "unknown", "unknown", 0.66m },
+        { RelationshipType.SimilarEmailResponsePattern, "unknown", "unknown", 0.64m },
+        { RelationshipType.SimilarSupportBlockers, "unknown", "unknown", 0.62m },
+        { RelationshipType.SameSegment, "unknown", "unknown", 0.48m },
+        { RelationshipType.SameRoleSeniority, "unknown", "unknown", 0.44m },
+        { RelationshipType.SameDomain, "unknown", "unknown", 0.38m },
+        { (RelationshipType)999, "unrecognised-objective", "unrecognised-objective", 0.50m }
+    };
+
     [Fact]
     public async Task ReadOnlyActors_ReceiveMaskedFields()
     {
