@@ -145,6 +145,7 @@ internal sealed class FullSourceCaptureCoordinator(
             var continuationBefore = checkpoint.ContinuationToken;
             var historyBefore = checkpoint.HistoryCompleteness;
             var consistencyBefore = checkpoint.CurrentStateConsistency;
+            var inFlightGeneration = checked(checkpoint.Generation + 1);
 
             var batch = await connector.CaptureBatchAsync(
                 new ConnectorSourceCaptureRequest(
@@ -190,6 +191,11 @@ internal sealed class FullSourceCaptureCoordinator(
                 {
                     persisted++;
                 }
+                await EnsureGenerationMembershipAsync(
+                    installation,
+                    record,
+                    inFlightGeneration,
+                    cancellationToken);
                 earliest = Min(earliest, record.OccurredAtUtc);
                 latest = Max(latest, record.OccurredAtUtc);
             }
@@ -333,6 +339,59 @@ internal sealed class FullSourceCaptureCoordinator(
         dbContext.SourceSystemEvents.Add(sourceEvent);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    /// <summary>
+    /// A retained source event can legitimately appear in more than one FULL_SOURCE generation
+    /// when the source record is unchanged. Generation membership is therefore a separate fact
+    /// from event identity. The unique source key inside one generation must, however, resolve to
+    /// exactly one retained event; contradictory duplicates fail the generation closed.
+    /// </summary>
+    private async Task EnsureGenerationMembershipAsync(
+        ConnectorInstallation installation,
+        ConnectorSourceCaptureRecord record,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        var eventId = $"capture:{record.IdempotencyKey}";
+        var sourceEvent = await dbContext.SourceSystemEvents
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
+                && x.SourceSystem == installation.ConnectorType
+                && x.EventId == eventId,
+                cancellationToken)
+            ?? throw new InvalidOperationException(
+                "Retained source event disappeared before generation membership could be recorded.");
+
+        var sourceNamespace = BuildSourceNamespace(installation.Id);
+        var existing = await dbContext.SourceCaptureGenerationMembers
+            .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
+                && x.ConnectorInstallationId == installation.Id
+                && x.Generation == generation
+                && x.SourceObjectType == record.SourceObjectType
+                && x.SourceRecordId == record.SourceRecordId,
+                cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.SourceSystemEventId != sourceEvent.Id
+                || !string.Equals(existing.SourceNamespace, sourceNamespace, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Source key '{record.SourceObjectType}/{record.SourceRecordId}' appeared more than once with contradictory retained evidence in FULL_SOURCE generation {generation}.");
+            }
+            return;
+        }
+
+        dbContext.SourceCaptureGenerationMembers.Add(SourceCaptureGenerationMember.Create(
+            installation.TenantId,
+            installation.Id,
+            generation,
+            sourceEvent.Id,
+            sourceNamespace,
+            record.SourceObjectType,
+            record.SourceRecordId,
+            clock.UtcNow));
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
