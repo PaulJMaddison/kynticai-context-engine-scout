@@ -1,0 +1,157 @@
+using KynticAI.Scout.Domain.Common;
+
+namespace KynticAI.Scout.Domain.Entities;
+
+/// <summary>
+/// Customer-local cursor/lease state for whole-source connector capture. It is deliberately
+/// independent of KynticAI Cloud: source positions, cursors and capture history remain in the
+/// sovereign data plane. One active lease per connector installation prevents Scout/Fortress
+/// cutover from creating two independent pollers for the same source.
+/// </summary>
+public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
+{
+    private ConnectorCaptureCheckpoint()
+    {
+    }
+
+    public Guid ConnectorInstallationId { get; private set; }
+    public Guid DataSourceId { get; private set; }
+    public string CaptureProfile { get; private set; } = string.Empty;
+    public string CaptureProfileVersion { get; private set; } = string.Empty;
+    public string CoverageScope { get; private set; } = string.Empty;
+    public string HistoryCompleteness { get; private set; } = string.Empty;
+    public string? ContinuationToken { get; private set; }
+    public string HighWaterMarkJson { get; private set; } = "{}";
+    public DateTime? EarliestAvailableAtUtc { get; private set; }
+    public DateTime? EarliestCapturedAtUtc { get; private set; }
+    public DateTime? LatestCapturedAtUtc { get; private set; }
+    public DateTime? LastFullSourceCompletedAtUtc { get; private set; }
+    public long CapturedRecordCount { get; private set; }
+    public long Generation { get; private set; }
+    public string? LeaseOwner { get; private set; }
+    public DateTime? LeaseExpiresAtUtc { get; private set; }
+    public string? LastError { get; private set; }
+
+    public static ConnectorCaptureCheckpoint Create(
+        Guid tenantId,
+        Guid connectorInstallationId,
+        Guid dataSourceId,
+        string captureProfile,
+        string captureProfileVersion,
+        string coverageScope,
+        string historyCompleteness,
+        DateTime? earliestAvailableAtUtc,
+        DateTime utcNow)
+    {
+        var checkpoint = new ConnectorCaptureCheckpoint
+        {
+            TenantId = tenantId,
+            ConnectorInstallationId = connectorInstallationId,
+            DataSourceId = dataSourceId,
+            CaptureProfile = captureProfile.Trim(),
+            CaptureProfileVersion = captureProfileVersion.Trim(),
+            CoverageScope = coverageScope.Trim(),
+            HistoryCompleteness = historyCompleteness.Trim(),
+            EarliestAvailableAtUtc = earliestAvailableAtUtc,
+            HighWaterMarkJson = "{}"
+        };
+        checkpoint.SetAuditTimestamps(utcNow);
+        return checkpoint;
+    }
+
+    public bool TryAcquireLease(string owner, TimeSpan duration, DateTime utcNow)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        if (duration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(duration));
+
+        if (LeaseExpiresAtUtc.HasValue
+            && LeaseExpiresAtUtc.Value > utcNow
+            && !string.Equals(LeaseOwner, owner, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        LeaseOwner = owner.Trim();
+        LeaseExpiresAtUtc = utcNow.Add(duration);
+        SetAuditTimestamps(utcNow);
+        return true;
+    }
+
+    public void RenewLease(string owner, TimeSpan duration, DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        LeaseExpiresAtUtc = utcNow.Add(duration);
+        SetAuditTimestamps(utcNow);
+    }
+
+    public void Advance(
+        string owner,
+        string? continuationToken,
+        string highWaterMarkJson,
+        long capturedRecords,
+        DateTime? earliestCapturedAtUtc,
+        DateTime? latestCapturedAtUtc,
+        DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        if (capturedRecords < 0)
+            throw new ArgumentOutOfRangeException(nameof(capturedRecords));
+
+        ContinuationToken = string.IsNullOrWhiteSpace(continuationToken) ? null : continuationToken;
+        HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
+        CapturedRecordCount = checked(CapturedRecordCount + capturedRecords);
+        EarliestCapturedAtUtc = Min(EarliestCapturedAtUtc, earliestCapturedAtUtc);
+        LatestCapturedAtUtc = Max(LatestCapturedAtUtc, latestCapturedAtUtc);
+        LastError = null;
+        SetAuditTimestamps(utcNow);
+    }
+
+    public void CompleteFullSourceGeneration(
+        string owner,
+        string highWaterMarkJson,
+        string historyCompleteness,
+        DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
+        HistoryCompleteness = historyCompleteness.Trim();
+        ContinuationToken = null;
+        LastFullSourceCompletedAtUtc = utcNow;
+        Generation = checked(Generation + 1);
+        LastError = null;
+        SetAuditTimestamps(utcNow);
+    }
+
+    public void MarkFailed(string owner, string error, DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        LastError = string.IsNullOrWhiteSpace(error) ? "unknown capture error" : error.Trim();
+        SetAuditTimestamps(utcNow);
+    }
+
+    public void ReleaseLease(string owner, DateTime utcNow)
+    {
+        if (!string.Equals(LeaseOwner, owner, StringComparison.Ordinal))
+            return;
+        LeaseOwner = null;
+        LeaseExpiresAtUtc = null;
+        SetAuditTimestamps(utcNow);
+    }
+
+    private void EnsureLeaseOwner(string owner, DateTime utcNow)
+    {
+        if (!string.Equals(LeaseOwner, owner, StringComparison.Ordinal)
+            || !LeaseExpiresAtUtc.HasValue
+            || LeaseExpiresAtUtc.Value <= utcNow)
+        {
+            throw new InvalidOperationException("Connector capture checkpoint is not leased by this worker.");
+        }
+    }
+
+    private static DateTime? Min(DateTime? left, DateTime? right)
+        => left is null ? right : right is null ? left : left <= right ? left : right;
+
+    private static DateTime? Max(DateTime? left, DateTime? right)
+        => left is null ? right : right is null ? left : left >= right ? left : right;
+}
