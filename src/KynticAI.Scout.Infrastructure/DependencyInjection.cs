@@ -105,6 +105,16 @@ public static class DependencyInjection
         services.AddScoped<LocalSourceCaptureJournal>();
         services.AddScoped<ISelectorExecutionEngine, UpgradeCapturingSelectorExecutionEngine>();
 
+        // Whole-source capture is deliberately a separate contract from selector subject reads.
+        // These adapters retain the complete customer-permitted source projection in the local
+        // SourceSystemEvent journal. They are NOT started automatically: migration/configuration
+        // validation and an explicit operator command must pass before a production capture loop
+        // owns connector leases.
+        services.AddScoped<IUpgradeSourceCaptureConnector, SqlFullSourceCaptureConnector>();
+        services.AddScoped<IUpgradeSourceCaptureConnector, RestFullSourceCaptureConnector>();
+        services.AddScoped<IUpgradeSourceCaptureConnector, CsvFullSourceCaptureConnector>();
+        services.AddScoped<FullSourceCaptureCoordinator>();
+
         services.AddScoped<IOnboardingService, SaasOnboardingService>();
         services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
         services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
