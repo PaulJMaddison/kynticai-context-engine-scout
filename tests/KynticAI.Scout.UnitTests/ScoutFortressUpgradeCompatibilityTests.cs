@@ -68,6 +68,39 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
     }
 
     [Fact]
+    public void SubjectOnDemandCapture_IsNotMisrepresentedAsWholeSourceCoverage()
+    {
+        var now = DateTime.SpecifyKind(new DateTime(2026, 8, 15, 18, 30, 0), DateTimeKind.Utc);
+        var capture = new LocalSourceCaptureMetadataV1(
+            LocalDataPlaneContracts.CaptureMetadataV1,
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            "sqlDatabase",
+            "sql.subject-fetch.v1",
+            LocalDataPlaneContracts.CaptureProfileFullPermittedV1,
+            "1",
+            "public",
+            "contacts",
+            "contact-42",
+            "snapshot",
+            "{\"observedAt\":\"2026-08-15T18:28:00Z\"}",
+            now.AddMinutes(-2),
+            now.AddMinutes(-2),
+            now,
+            new string('a', 64),
+            "customer-permitted.v1",
+            true,
+            "capture-42",
+            LocalDataPlaneContracts.CoverageSubjectOnDemand,
+            LocalDataPlaneContracts.HistoryOnDemand,
+            null,
+            new string('b', 64),
+            new string('c', 64));
+
+        Assert.True(capture.HasStructurallyValidCaptureMetadata);
+        Assert.False(capture.IsUpgradeCompatible);
+    }
+
+    [Fact]
     public void CaptureEnvelope_PreservesExactSourcePositionWithoutSecrets()
     {
         var now = DateTime.SpecifyKind(new DateTime(2026, 8, 15, 18, 30, 0), DateTimeKind.Utc);
@@ -86,7 +119,12 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
             new string('a', 64),
             "redaction-v1",
             FullPermittedPayloadRetained: true,
-            "sql:800:3");
+            "sql:800:3",
+            CoverageScope: LocalDataPlaneContracts.CoverageFullSource,
+            HistoryCompleteness: LocalDataPlaneContracts.HistoryFromRetentionBoundary,
+            EarliestAvailableAtUtc: now.AddDays(-30),
+            RawPayloadSha256: new string('b', 64),
+            PermittedFieldSetSha256: new string('c', 64));
 
         var capture = LocalSourceCaptureEnvelope.FromConnectorResult("sql", metadata, now);
         var headers = LocalSourceCaptureEnvelope.MergeIntoHeadersJson("{\"trace\":\"safe\"}", capture);
@@ -95,6 +133,7 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
         Assert.Equal(LocalDataPlaneContracts.CaptureMetadataV1,
             json.RootElement.GetProperty("kynticCapture").GetProperty("Contract").GetString());
         Assert.Contains("\"ordinal\":3", capture.SourcePositionJson, StringComparison.Ordinal);
+        Assert.Equal(LocalDataPlaneContracts.CoverageFullSource, capture.CoverageScope);
         Assert.DoesNotContain("password", headers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("protectedValue", headers, StringComparison.OrdinalIgnoreCase);
     }
