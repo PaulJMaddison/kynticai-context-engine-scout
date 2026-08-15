@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using KynticAI.Scout.Application.Abstractions;
@@ -25,6 +27,8 @@ internal sealed class FullSourceCaptureCoordinator(
     IClock clock,
     ILogger<FullSourceCaptureCoordinator> logger)
 {
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
+
     private readonly string owner = $"scout:{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private readonly IReadOnlyDictionary<string, IUpgradeSourceCaptureConnector> connectors = captureConnectors
         .GroupBy(x => x.ConnectorType, StringComparer.OrdinalIgnoreCase)
@@ -104,39 +108,77 @@ internal sealed class FullSourceCaptureCoordinator(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        if (!checkpoint.TryAcquireLease(owner, TimeSpan.FromMinutes(5), now))
+        if (!checkpoint.TryAcquireLease(owner, LeaseDuration, now))
         {
             return new FullSourceCaptureRunResult(
                 installation.Id, installation.ConnectorType, false, 0, false,
                 "Capture lease is held by another local worker.");
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Entry(checkpoint).State = EntityState.Detached;
+            return new FullSourceCaptureRunResult(
+                installation.Id, installation.ConnectorType, false, 0, false,
+                "Capture lease was acquired concurrently by another local worker.");
+        }
 
         try
         {
             var configuration = ParseConfiguration(dataSource.ConnectionConfigJson);
+            ValidateCapturePermission(connector.ConnectorType, configuration);
+
             var resolved = await credentialStore.ResolveConfigurationSecretsAsync(
                 dataSource.TenantId,
                 configuration,
                 cancellationToken);
             var credentials = resolved["credentials"] as JsonObject ?? new JsonObject();
+            var continuationBefore = checkpoint.ContinuationToken;
+            var historyBefore = checkpoint.HistoryCompleteness;
+
             var batch = await connector.CaptureBatchAsync(
                 new ConnectorSourceCaptureRequest(
                     installation,
                     dataSource,
                     resolved,
                     credentials,
-                    checkpoint.ContinuationToken,
+                    continuationBefore,
                     maxRecords,
                     now),
                 cancellationToken);
+
+            // A connector call may block on the source. Do not write any captured records if our
+            // lease expired while waiting; reacquiring would hide an overlapping capture owner.
+            checkpoint.RenewLease(owner, LeaseDuration, clock.UtcNow);
+
+            var batchHistory = ValidateBatchSemantics(
+                connector.ConnectorType,
+                batch.Records,
+                continuationBefore,
+                historyBefore);
+            var earliestAvailable = batch.Records
+                .Where(x => x.EarliestAvailableAtUtc.HasValue)
+                .Select(x => x.EarliestAvailableAtUtc)
+                .Min();
+            if (batch.Records.Count > 0)
+            {
+                checkpoint.ObserveCaptureSemantics(
+                    owner,
+                    batchHistory,
+                    earliestAvailable,
+                    clock.UtcNow);
+            }
 
             var persisted = 0;
             DateTime? earliest = null;
             DateTime? latest = null;
             foreach (var record in batch.Records)
             {
-                ValidateRecord(record);
+                ValidateRecord(connector.ConnectorType, record);
                 if (await PersistRecordAsync(installation, dataSource, record, cancellationToken))
                 {
                     persisted++;
@@ -155,16 +197,13 @@ internal sealed class FullSourceCaptureCoordinator(
                 clock.UtcNow);
             if (batch.IsComplete)
             {
-                var history = batch.Records.Count == 0
-                    ? checkpoint.HistoryCompleteness
-                    : batch.Records
-                        .Select(x => x.HistoryCompleteness)
-                        .Distinct(StringComparer.Ordinal)
-                        .SingleOrDefault() ?? LocalDataPlaneContracts.HistoryUnknown;
+                // The checkpoint carries the last non-empty page's semantics. This matters when
+                // the source size is an exact multiple of the batch size and the terminal page is
+                // empty: an empty page must not silently revert history to UNKNOWN.
                 checkpoint.CompleteFullSourceGeneration(
                     owner,
                     batch.HighWaterMarkJson,
-                    history,
+                    checkpoint.HistoryCompleteness,
                     clock.UtcNow);
             }
             checkpoint.ReleaseLease(owner, clock.UtcNow);
@@ -284,7 +323,55 @@ internal sealed class FullSourceCaptureCoordinator(
         return true;
     }
 
-    private static void ValidateRecord(ConnectorSourceCaptureRecord record)
+    private static string ValidateBatchSemantics(
+        string connectorType,
+        IReadOnlyList<ConnectorSourceCaptureRecord> records,
+        string? continuationBefore,
+        string historyBefore)
+    {
+        if (records.Count == 0)
+        {
+            return string.IsNullOrWhiteSpace(historyBefore)
+                ? LocalDataPlaneContracts.HistoryUnknown
+                : historyBefore;
+        }
+
+        var histories = records
+            .Select(x => x.HistoryCompleteness)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (histories.Length != 1 || !IsKnownHistory(histories[0]))
+        {
+            throw new InvalidOperationException(
+                "A whole-source capture page must use one known history-completeness value.");
+        }
+
+        var incomingHistory = histories[0];
+        if (!string.IsNullOrWhiteSpace(continuationBefore)
+            && !string.IsNullOrWhiteSpace(historyBefore)
+            && !string.Equals(historyBefore, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal)
+            && !string.Equals(historyBefore, incomingHistory, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Whole-source capture changed history-completeness semantics inside one paged generation.");
+        }
+
+        // The two generic Scout enumerators prove a bounded current source snapshot, not an
+        // immutable historical event log. Provider-specific connectors may later prove stronger
+        // retention semantics, but generic SQL/REST configuration cannot promote itself to
+        // COMPLETE/FROM_RETENTION_BOUNDARY merely by changing a string setting.
+        if (IsGenericSnapshotConnector(connectorType)
+            && !string.Equals(incomingHistory, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.Ordinal)
+            && !string.Equals(incomingHistory, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Generic connector '{connectorType}' may only claim SNAPSHOT_ONLY or UNKNOWN history. Use a provider-specific capture connector to prove historical completeness.");
+        }
+
+        return incomingHistory;
+    }
+
+    private static void ValidateRecord(string connectorType, ConnectorSourceCaptureRecord record)
     {
         if (string.IsNullOrWhiteSpace(record.SourceObjectType)
             || string.IsNullOrWhiteSpace(record.SourceRecordId)
@@ -292,10 +379,107 @@ internal sealed class FullSourceCaptureCoordinator(
             || string.IsNullOrWhiteSpace(record.SourcePositionJson)
             || string.IsNullOrWhiteSpace(record.RawPayloadJson)
             || string.IsNullOrWhiteSpace(record.IdempotencyKey)
-            || string.IsNullOrWhiteSpace(record.RawPayloadSha256))
+            || string.IsNullOrWhiteSpace(record.RawPayloadSha256)
+            || string.IsNullOrWhiteSpace(record.SchemaFingerprintSha256)
+            || string.IsNullOrWhiteSpace(record.PermittedFieldSetSha256)
+            || string.IsNullOrWhiteSpace(record.RedactionPolicyVersion)
+            || string.IsNullOrWhiteSpace(record.CaptureProfileVersion))
         {
             throw new InvalidOperationException("Whole-source connector returned an incomplete source record.");
         }
+
+        if (!string.Equals(record.CaptureProfile, LocalDataPlaneContracts.CaptureProfileFullPermittedV1, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Whole-source connector did not return the full-permitted capture profile.");
+        }
+
+        if (!IsKnownHistory(record.HistoryCompleteness))
+        {
+            throw new InvalidOperationException($"Unknown history-completeness value '{record.HistoryCompleteness}'.");
+        }
+
+        if (IsGenericSnapshotConnector(connectorType)
+            && !string.Equals(record.HistoryCompleteness, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.Ordinal)
+            && !string.Equals(record.HistoryCompleteness, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Generic connector '{connectorType}' cannot claim exact historical coverage.");
+        }
+
+        if (string.Equals(record.HistoryCompleteness, LocalDataPlaneContracts.HistoryFromRetentionBoundary, StringComparison.Ordinal)
+            && !record.EarliestAvailableAtUtc.HasValue)
+        {
+            throw new InvalidOperationException(
+                "FROM_RETENTION_BOUNDARY capture must declare the earliest available source timestamp.");
+        }
+
+        if (!IsSha256(record.RawPayloadSha256)
+            || !IsSha256(record.SchemaFingerprintSha256)
+            || !IsSha256(record.PermittedFieldSetSha256))
+        {
+            throw new InvalidOperationException("Whole-source capture hashes must be 64-character SHA-256 hex values.");
+        }
+
+        var actualPayloadSha = Sha256(record.RawPayloadJson);
+        if (!string.Equals(actualPayloadSha, record.RawPayloadSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Whole-source connector raw payload hash does not match the retained payload.");
+        }
+
+        try
+        {
+            if (JsonNode.Parse(record.SourcePositionJson) is not JsonObject)
+            {
+                throw new InvalidOperationException(
+                    "Whole-source connector source position must be a JSON object.");
+            }
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(
+                "Whole-source connector source position is not valid JSON.", exception);
+        }
+    }
+
+    private static void ValidateCapturePermission(string connectorType, JsonObject configuration)
+    {
+        if (!string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var explicitlyRetainEntireObject = configuration["retainEntireResponseObject"] is JsonValue value
+            && value.TryGetValue<bool>(out var retain)
+            && retain;
+        if (!explicitlyRetainEntireObject)
+        {
+            throw new InvalidOperationException(
+                "Generic REST whole-source capture requires retainEntireResponseObject=true. This is an explicit customer-permitted retention decision; selector/API access alone is not permission to journal every returned field.");
+        }
+    }
+
+    private static bool IsGenericSnapshotConnector(string connectorType)
+        => string.Equals(connectorType, "sqlDatabase", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsKnownHistory(string value)
+        => string.Equals(value, LocalDataPlaneContracts.HistoryComplete, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.HistoryFromRetentionBoundary, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.HistoryOnDemand, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal);
+
+    private static bool IsSha256(string value)
+        => value.Length == 64 && value.All(static character =>
+            (character >= '0' && character <= '9')
+            || (character >= 'a' && character <= 'f')
+            || (character >= 'A' && character <= 'F'));
+
+    private static string Sha256(string value)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private static JsonObject ParseConfiguration(string json)
