@@ -18,6 +18,12 @@ public static class LocalDataPlaneContracts
     public const string PayloadStorageLegacyJsonbV0 = "legacy-jsonb.v0";
     public const string PayloadStorageUnknown = "UNKNOWN";
 
+    // Generation membership is independent of exact payload storage. It proves which retained
+    // event represented each source key in one completed FULL_SOURCE generation. Without this
+    // marker, zero membership rows cannot be distinguished from an old pre-membership checkpoint.
+    public const string GenerationMembershipV1 = "generation-membership.v1";
+    public const string GenerationMembershipUnknown = "UNKNOWN";
+
     public const string CoverageFullSource = "FULL_SOURCE";
     public const string CoverageSubjectOnDemand = "SUBJECT_ON_DEMAND";
     public const string CoverageSnapshotImport = "SNAPSHOT_IMPORT";
@@ -139,7 +145,8 @@ public sealed record ScoutConnectorUpgradeDescriptorV1(
     long CompletedCaptureGeneration = 0,
     string HighWaterMarkSha256 = "",
     string PayloadStorageContract = LocalDataPlaneContracts.PayloadStorageUnknown,
-    string CurrentStateConsistency = LocalDataPlaneContracts.CurrentStateUnknown);
+    string CurrentStateConsistency = LocalDataPlaneContracts.CurrentStateUnknown,
+    string GenerationMembershipContract = LocalDataPlaneContracts.GenerationMembershipUnknown);
 
 public sealed record ScoutUpgradeManifestV1(
     string Contract,
@@ -174,7 +181,8 @@ public sealed record UpgradeCompatibilityEvidence(
     bool RequiresSourceReconnect,
     bool HistoricalCoverageKnownComplete,
     bool ExactPayloadEvidenceRetained = false,
-    bool CurrentStateContinuityKnown = false);
+    bool CurrentStateContinuityKnown = false,
+    bool GenerationMembershipKnown = false);
 
 public static class ScoutFortressUpgradePolicy
 {
@@ -197,6 +205,7 @@ public static class ScoutFortressUpgradePolicy
                 && evidence.HistoricalCoverageKnownComplete
                 && evidence.ExactPayloadEvidenceRetained
                 && evidence.CurrentStateContinuityKnown
+                && evidence.GenerationMembershipKnown
                 ? LocalUpgradeReadiness.LosslessDerivedRebuild
                 : evidence.IsPostgres
                     ? LocalUpgradeReadiness.HistoryLimited
@@ -207,7 +216,8 @@ public static class ScoutFortressUpgradePolicy
             || !evidence.AllRetainedEventsRetainFullPermittedPayload
             || !evidence.HistoricalCoverageKnownComplete
             || !evidence.ExactPayloadEvidenceRetained
-            || !evidence.CurrentStateContinuityKnown)
+            || !evidence.CurrentStateContinuityKnown
+            || !evidence.GenerationMembershipKnown)
             return LocalUpgradeReadiness.HistoryLimited;
 
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
