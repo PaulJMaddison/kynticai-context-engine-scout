@@ -18,6 +18,15 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
     public string CaptureProfileVersion { get; private set; } = string.Empty;
     public string CoverageScope { get; private set; } = string.Empty;
     public string HistoryCompleteness { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Storage contract of the last completed full-source generation. Legacy Scout rows were
+    /// retained in jsonb only and therefore cannot prove byte-identical replay after a database
+    /// round trip. New generations set this to exact-text.v1 only after every retained capture
+    /// record has an exact local payload-evidence sidecar.
+    /// </summary>
+    public string PayloadStorageContract { get; private set; } = "legacy-jsonb.v0";
+
     public string? ContinuationToken { get; private set; }
     public string HighWaterMarkJson { get; private set; } = "{}";
     public DateTime? EarliestAvailableAtUtc { get; private set; }
@@ -39,7 +48,8 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         string coverageScope,
         string historyCompleteness,
         DateTime? earliestAvailableAtUtc,
-        DateTime utcNow)
+        DateTime utcNow,
+        string payloadStorageContract = "legacy-jsonb.v0")
     {
         var checkpoint = new ConnectorCaptureCheckpoint
         {
@@ -50,6 +60,9 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
             CaptureProfileVersion = captureProfileVersion.Trim(),
             CoverageScope = coverageScope.Trim(),
             HistoryCompleteness = historyCompleteness.Trim(),
+            PayloadStorageContract = string.IsNullOrWhiteSpace(payloadStorageContract)
+                ? "legacy-jsonb.v0"
+                : payloadStorageContract.Trim(),
             EarliestAvailableAtUtc = earliestAvailableAtUtc,
             HighWaterMarkJson = "{}"
         };
@@ -125,13 +138,21 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         SetAuditTimestamps(utcNow);
     }
 
-    public void CompleteFullSourceGeneration(string owner, string highWaterMarkJson, string historyCompleteness, DateTime utcNow)
+    public void CompleteFullSourceGeneration(
+        string owner,
+        string highWaterMarkJson,
+        string historyCompleteness,
+        DateTime utcNow,
+        string payloadStorageContract = "legacy-jsonb.v0")
     {
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
+        if (string.IsNullOrWhiteSpace(payloadStorageContract))
+            throw new ArgumentException("Payload storage contract is required.", nameof(payloadStorageContract));
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
         HistoryCompleteness = historyCompleteness.Trim();
+        PayloadStorageContract = payloadStorageContract.Trim();
         ContinuationToken = null;
         LastFullSourceCompletedAtUtc = utcNow;
         Generation = checked(Generation + 1);
