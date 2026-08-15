@@ -9,6 +9,10 @@ namespace KynticAI.Scout.Domain.Entities;
 /// PostgreSQL jsonb may normalise representation, so it is not a byte-preserving evidence
 /// store. This sidecar preserves the exact customer-permitted JSON text whose SHA-256 appears
 /// in the capture metadata. It never leaves the customer data plane.
+///
+/// Evidence is deliberately event-scoped rather than generation-scoped. The same deterministic
+/// source event may be encountered again during a later full-source generation; its exact bytes
+/// remain evidence for that event without duplicating or relabelling history.
 /// </summary>
 public sealed class SourceCapturePayloadEvidence : AuditedTenantEntity
 {
@@ -22,8 +26,6 @@ public sealed class SourceCapturePayloadEvidence : AuditedTenantEntity
 
     public string CoverageScope { get; private set; } = string.Empty;
 
-    public long CaptureGeneration { get; private set; }
-
     public string ExactPayloadText { get; private set; } = string.Empty;
 
     public string RawPayloadSha256 { get; private set; } = string.Empty;
@@ -36,7 +38,6 @@ public sealed class SourceCapturePayloadEvidence : AuditedTenantEntity
         Guid connectorInstallationId,
         string storageContract,
         string coverageScope,
-        long captureGeneration,
         string exactPayloadText,
         string rawPayloadSha256,
         DateTime utcNow)
@@ -49,8 +50,6 @@ public sealed class SourceCapturePayloadEvidence : AuditedTenantEntity
             throw new ArgumentException("Source system event id is required.", nameof(sourceSystemEventId));
         if (connectorInstallationId == Guid.Empty)
             throw new ArgumentException("Connector installation id is required.", nameof(connectorInstallationId));
-        if (captureGeneration < 0)
-            throw new ArgumentOutOfRangeException(nameof(captureGeneration));
         if (rawPayloadSha256.Length != 64 || !rawPayloadSha256.All(Uri.IsHexDigit))
             throw new ArgumentException("Raw payload SHA-256 must be 64 hexadecimal characters.", nameof(rawPayloadSha256));
 
@@ -61,7 +60,6 @@ public sealed class SourceCapturePayloadEvidence : AuditedTenantEntity
             ConnectorInstallationId = connectorInstallationId,
             StorageContract = storageContract.Trim(),
             CoverageScope = coverageScope.Trim(),
-            CaptureGeneration = captureGeneration,
             ExactPayloadText = exactPayloadText,
             RawPayloadSha256 = rawPayloadSha256.Trim().ToLowerInvariant()
         };
