@@ -1,11 +1,14 @@
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Saas;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace KynticAI.Scout.Application.Abstractions;
 
 public interface IScoutDbContext
 {
+    DatabaseFacade Database { get; }
+
     DbSet<Tenant> Tenants { get; }
 
     DbSet<UserProfile> UserProfiles { get; }
@@ -33,6 +36,8 @@ public interface IScoutDbContext
     DbSet<RecomputeJob> RecomputeJobs { get; }
 
     DbSet<ProvenanceMetadata> ProvenanceMetadata { get; }
+
+    DbSet<ConnectorCredential> ConnectorCredentials { get; }
 
     DbSet<SourceSystemEvent> SourceSystemEvents { get; }
 
