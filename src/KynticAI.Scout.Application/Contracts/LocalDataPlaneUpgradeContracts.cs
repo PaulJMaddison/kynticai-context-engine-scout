@@ -14,6 +14,13 @@ public static class LocalDataPlaneContracts
     public const string UpgradeManifestV1 = "kyntic-scout-upgrade-manifest.v1";
     public const string CaptureProfileFullPermittedV1 = "full-permitted.v1";
 
+    // PayloadJson remains JSON/jsonb-friendly Scout state. Exact replay evidence is retained in
+    // a separate text sidecar so PostgreSQL jsonb normalisation cannot invalidate a byte-level
+    // payload hash after a database round trip.
+    public const string PayloadStorageExactTextV1 = "exact-text.v1";
+    public const string PayloadStorageLegacyJsonbV0 = "legacy-jsonb.v0";
+    public const string PayloadStorageUnknown = "UNKNOWN";
+
     public const string CoverageFullSource = "FULL_SOURCE";
     public const string CoverageSubjectOnDemand = "SUBJECT_ON_DEMAND";
     public const string CoverageSnapshotImport = "SNAPSHOT_IMPORT";
@@ -42,7 +49,7 @@ public enum LocalUpgradeReadiness
 /// CoverageScope is deliberately separate from FullPermittedPayloadRetained. A subject
 /// lookup can retain its complete permitted payload and still not prove that Scout has
 /// captured the whole source estate. Lossless Scout -> Fortress claims require FULL_SOURCE
-/// coverage plus an explicit history completeness statement.
+/// coverage plus an explicit history completeness statement and exact retained payload evidence.
 /// </summary>
 public sealed record LocalSourceCaptureMetadataV1(
     string Contract,
@@ -67,7 +74,8 @@ public sealed record LocalSourceCaptureMetadataV1(
     string HistoryCompleteness = LocalDataPlaneContracts.HistoryUnknown,
     DateTime? EarliestAvailableAtUtc = null,
     string RawPayloadSha256 = "",
-    string PermittedFieldSetSha256 = "")
+    string PermittedFieldSetSha256 = "",
+    string PayloadStorageContract = LocalDataPlaneContracts.PayloadStorageUnknown)
 {
     [JsonIgnore]
     public bool HasStructurallyValidCaptureMetadata =>
@@ -83,12 +91,14 @@ public sealed record LocalSourceCaptureMetadataV1(
         && !string.IsNullOrWhiteSpace(IdempotencyKey)
         && !string.IsNullOrWhiteSpace(CoverageScope)
         && !string.IsNullOrWhiteSpace(HistoryCompleteness)
-        && !string.IsNullOrWhiteSpace(RawPayloadSha256);
+        && !string.IsNullOrWhiteSpace(RawPayloadSha256)
+        && !string.IsNullOrWhiteSpace(PayloadStorageContract);
 
     [JsonIgnore]
     public bool IsUpgradeCompatible =>
         HasStructurallyValidCaptureMetadata
         && FullPermittedPayloadRetained
+        && string.Equals(PayloadStorageContract, LocalDataPlaneContracts.PayloadStorageExactTextV1, StringComparison.Ordinal)
         && string.Equals(CoverageScope, LocalDataPlaneContracts.CoverageFullSource, StringComparison.Ordinal)
         && (string.Equals(HistoryCompleteness, LocalDataPlaneContracts.HistoryComplete, StringComparison.Ordinal)
             || string.Equals(HistoryCompleteness, LocalDataPlaneContracts.HistoryFromRetentionBoundary, StringComparison.Ordinal));
@@ -116,7 +126,8 @@ public sealed record ScoutConnectorUpgradeDescriptorV1(
     DateTime? EarliestUpgradeCompatibleAtUtc = null,
     DateTime? LastFullSourceCompletedAtUtc = null,
     long CompletedCaptureGeneration = 0,
-    string HighWaterMarkSha256 = "");
+    string HighWaterMarkSha256 = "",
+    string PayloadStorageContract = LocalDataPlaneContracts.PayloadStorageUnknown);
 
 public sealed record ScoutUpgradeManifestV1(
     string Contract,
@@ -149,7 +160,8 @@ public sealed record UpgradeCompatibilityEvidence(
     bool AllRetainedEventsRetainFullPermittedPayload,
     bool ConnectorTypesSupportedByTarget,
     bool RequiresSourceReconnect,
-    bool HistoricalCoverageKnownComplete);
+    bool HistoricalCoverageKnownComplete,
+    bool ExactPayloadEvidenceRetained = false);
 
 public static class ScoutFortressUpgradePolicy
 {
@@ -165,15 +177,15 @@ public static class ScoutFortressUpgradePolicy
             return LocalUpgradeReadiness.ReconnectRequired;
 
         // Zero retained rows is not proof that the source is empty. It is safe only when a
-        // completed FULL_SOURCE generation has independently established both capture fidelity
-        // and the historical boundary. This prevents a fresh PostgreSQL Scout installation from
-        // being labelled lossless merely because it has not captured anything yet.
+        // completed FULL_SOURCE generation has independently established capture fidelity,
+        // exact payload-retention semantics and the historical boundary.
         if (!evidence.HasRetainedEvents)
         {
             return evidence.IsPostgres
                 && evidence.AllRetainedEventsHaveCaptureMetadata
                 && evidence.AllRetainedEventsRetainFullPermittedPayload
                 && evidence.HistoricalCoverageKnownComplete
+                && evidence.ExactPayloadEvidenceRetained
                 ? LocalUpgradeReadiness.LosslessDerivedRebuild
                 : evidence.IsPostgres
                     ? LocalUpgradeReadiness.HistoryLimited
@@ -182,7 +194,8 @@ public static class ScoutFortressUpgradePolicy
 
         if (!evidence.AllRetainedEventsHaveCaptureMetadata
             || !evidence.AllRetainedEventsRetainFullPermittedPayload
-            || !evidence.HistoricalCoverageKnownComplete)
+            || !evidence.HistoricalCoverageKnownComplete
+            || !evidence.ExactPayloadEvidenceRetained)
             return LocalUpgradeReadiness.HistoryLimited;
 
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
