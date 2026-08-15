@@ -50,7 +50,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     /// SourceSystemEvent.PayloadJson because PostgreSQL jsonb is semantic storage and may
     /// normalise representation after a round trip.
     /// </summary>
-    public DbSet<SourceCapturePayloadEvidence> SourceCapturePayloadEvidence => Set<SourceCapturePayloadEvidence>();
+    public DbSet<SourceCapturePayloadEvidence> SourceCapturePayloadEvidenceRecords => Set<SourceCapturePayloadEvidence>();
 
     public DbSet<UserSignal> UserSignals => Set<UserSignal>();
 
@@ -193,7 +193,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
                 continue;
             }
 
-            SourceCapturePayloadEvidence.Add(SourceCapturePayloadEvidence.Create(
+            SourceCapturePayloadEvidenceRecords.Add(KynticAI.Scout.Domain.Entities.SourceCapturePayloadEvidence.Create(
                 sourceEvent.TenantId,
                 sourceEvent.Id,
                 connectorInstallationId,
