@@ -14,9 +14,6 @@ public static class LocalDataPlaneContracts
     public const string UpgradeManifestV1 = "kyntic-scout-upgrade-manifest.v1";
     public const string CaptureProfileFullPermittedV1 = "full-permitted.v1";
 
-    // PayloadJson remains JSON/jsonb-friendly Scout state. Exact replay evidence is retained in
-    // a separate text sidecar so PostgreSQL jsonb normalisation cannot invalidate a byte-level
-    // payload hash after a database round trip.
     public const string PayloadStorageExactTextV1 = "exact-text.v1";
     public const string PayloadStorageLegacyJsonbV0 = "legacy-jsonb.v0";
     public const string PayloadStorageUnknown = "UNKNOWN";
@@ -30,6 +27,21 @@ public static class LocalDataPlaneContracts
     public const string HistoryOnDemand = "ON_DEMAND";
     public const string HistorySnapshotOnly = "SNAPSHOT_ONLY";
     public const string HistoryUnknown = "UNKNOWN";
+
+    // Current-state consistency is deliberately separate from historical fidelity.
+    // A CSV/file snapshot can be internally immutable but have no historical mutations;
+    // a live SQL/API enumeration can cover the estate without representing one point in time.
+    public const string CurrentStateImmutableSnapshot = "IMMUTABLE_SNAPSHOT";
+    public const string CurrentStatePointInTime = "POINT_IN_TIME";
+    public const string CurrentStateSourceNativeOrdered = "SOURCE_NATIVE_ORDERED";
+    public const string CurrentStateLiveKeyset = "LIVE_KEYSET";
+    public const string CurrentStateApiCursor = "API_CURSOR";
+    public const string CurrentStateUnknown = "UNKNOWN";
+
+    public static bool IsStrongCurrentStateConsistency(string? value)
+        => string.Equals(value, CurrentStateImmutableSnapshot, StringComparison.Ordinal)
+            || string.Equals(value, CurrentStatePointInTime, StringComparison.Ordinal)
+            || string.Equals(value, CurrentStateSourceNativeOrdered, StringComparison.Ordinal);
 }
 
 public enum LocalUpgradeReadiness
@@ -46,10 +58,9 @@ public enum LocalUpgradeReadiness
 /// complete source payload the customer authorised this connector to collect, after the
 /// configured redaction/allow-list policy. It does not mean "all fields in the source".
 ///
-/// CoverageScope is deliberately separate from FullPermittedPayloadRetained. A subject
-/// lookup can retain its complete permitted payload and still not prove that Scout has
-/// captured the whole source estate. Lossless Scout -> Fortress claims require FULL_SOURCE
-/// coverage plus an explicit history completeness statement and exact retained payload evidence.
+/// CoverageScope and HistoryCompleteness are separate dimensions. Generation-level current
+/// state consistency is held on the checkpoint/upgrade descriptor rather than duplicated on
+/// every retained row.
 /// </summary>
 public sealed record LocalSourceCaptureMetadataV1(
     string Contract,
@@ -127,7 +138,8 @@ public sealed record ScoutConnectorUpgradeDescriptorV1(
     DateTime? LastFullSourceCompletedAtUtc = null,
     long CompletedCaptureGeneration = 0,
     string HighWaterMarkSha256 = "",
-    string PayloadStorageContract = LocalDataPlaneContracts.PayloadStorageUnknown);
+    string PayloadStorageContract = LocalDataPlaneContracts.PayloadStorageUnknown,
+    string CurrentStateConsistency = LocalDataPlaneContracts.CurrentStateUnknown);
 
 public sealed record ScoutUpgradeManifestV1(
     string Contract,
@@ -161,7 +173,8 @@ public sealed record UpgradeCompatibilityEvidence(
     bool ConnectorTypesSupportedByTarget,
     bool RequiresSourceReconnect,
     bool HistoricalCoverageKnownComplete,
-    bool ExactPayloadEvidenceRetained = false);
+    bool ExactPayloadEvidenceRetained = false,
+    bool CurrentStateContinuityKnown = false);
 
 public static class ScoutFortressUpgradePolicy
 {
@@ -176,9 +189,6 @@ public static class ScoutFortressUpgradePolicy
         if (!evidence.ConnectorCredentialsReferencedLocally)
             return LocalUpgradeReadiness.ReconnectRequired;
 
-        // Zero retained rows is not proof that the source is empty. It is safe only when a
-        // completed FULL_SOURCE generation has independently established capture fidelity,
-        // exact payload-retention semantics and the historical boundary.
         if (!evidence.HasRetainedEvents)
         {
             return evidence.IsPostgres
@@ -186,6 +196,7 @@ public static class ScoutFortressUpgradePolicy
                 && evidence.AllRetainedEventsRetainFullPermittedPayload
                 && evidence.HistoricalCoverageKnownComplete
                 && evidence.ExactPayloadEvidenceRetained
+                && evidence.CurrentStateContinuityKnown
                 ? LocalUpgradeReadiness.LosslessDerivedRebuild
                 : evidence.IsPostgres
                     ? LocalUpgradeReadiness.HistoryLimited
@@ -195,7 +206,8 @@ public static class ScoutFortressUpgradePolicy
         if (!evidence.AllRetainedEventsHaveCaptureMetadata
             || !evidence.AllRetainedEventsRetainFullPermittedPayload
             || !evidence.HistoricalCoverageKnownComplete
-            || !evidence.ExactPayloadEvidenceRetained)
+            || !evidence.ExactPayloadEvidenceRetained
+            || !evidence.CurrentStateContinuityKnown)
             return LocalUpgradeReadiness.HistoryLimited;
 
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
