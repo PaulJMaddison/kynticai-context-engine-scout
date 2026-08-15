@@ -47,9 +47,15 @@ public sealed record ConnectorSourceCaptureRecord(
     DateTime? EarliestAvailableAtUtc,
     string IdempotencyKey);
 
+/// <summary>
+/// CurrentStateConsistency is deliberately independent from HistoryCompleteness.
+/// A connector can enumerate every permitted current row while still lacking a coherent
+/// point-in-time snapshot or source-native historical mutations.
+/// </summary>
 public sealed record ConnectorSourceCaptureBatch(
     IReadOnlyList<ConnectorSourceCaptureRecord> Records,
     string? NextContinuationToken,
     bool IsComplete,
     string HighWaterMarkJson,
-    string DiagnosticsJson);
+    string DiagnosticsJson,
+    string CurrentStateConsistency = "UNKNOWN");
