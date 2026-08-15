@@ -2,180 +2,303 @@
 
 ## Last Updated
 
-2026-08-15 — upgrade-compatible local capture and tier-continuity work.
+2026-08-15 — Scout source-capture / sovereign Scout -> Fortress continuity engineering.
 
 ## Branch / baseline
 
 - Repository: `PaulJMaddison/kynticai-context-engine-scout`
 - Branch: `chatgpt/fortress-upgrade-compatible-capture`
 - Starting `main` commit: `49f352bfded6452f5ede6c49a1996282368dacae`
-- Status: **AUTHORED / NOT RUNTIME-GREEN** until local .NET compile/tests pass.
+- Status: **AUTHORED / NOT RUNTIME-GREEN** until local .NET compile/tests/migrations pass.
 
-This file is intentionally public-safe. Do not place proprietary Fortress implementation or private customer material in this repository.
+This file is public-safe. Do not place proprietary Fortress identity/scoring algorithms or private customer material in Scout.
 
-## Goal
+## Current product decision
 
-Make Scout an excellent source-data foundation that can later move to a richer KynticAI tier without making the customer reconnect the systems they already configured or deliberately throwing away locally retained source history.
+Scout should not be a deliberately lossy data collector that forces the customer to reconnect/re-ingest everything when they buy Fortress.
 
-The important distinction is:
+For connector types offered in Scout, the target architecture is:
 
-- Scout may expose simpler context/relationship capabilities;
-- connectors should capture a stable, upgrade-compatible **customer-permitted source envelope** locally;
-- richer tiers may rebuild their own derived state from that source envelope;
-- Scout-derived context/fallback scores are not a substitute for later canonical derived state.
+`customer source -> local Kyntic connector capture -> local PostgreSQL source journal -> Scout simple derivations`
 
-## Current data-plane truth
+and after upgrade:
 
-Scout already persists `SourceSystemEvent.PayloadJson` and source-event metadata in the local relational store. `ConnectorFetchResult` already had a raw payload plus normalised payload/provenance. This means upgrade continuity can build on existing source retention rather than creating a second copy of all raw data.
+`same customer source -> same local connector installation/checkpoint/secret reference -> same PostgreSQL source journal -> Fortress governed engine + rebuildable indexes`
 
-Before this branch, the missing information was mainly the upgrade semantics around the payload: stable connector instance, connector definition/capture version, provider-native exact source position/checkpoint, source object/record identity, operation, schema fingerprint, redaction policy and idempotency key.
+The tier changes the **engine capability**, not the customer's source connection.
 
-## Architecture decision: full customer-permitted capture
+Scout may use only a small semantic subset of a source payload for its own features. The capture plane should retain the complete **customer-permitted** source envelope locally so Fortress can later derive richer identity, chronology, relationships, outcomes and governed context without a destructive re-ingest.
 
-For connector types offered in Scout and a later KynticAI tier, the desired capture profile is the same conceptual source envelope.
+`customer-permitted` always means after the customer's allow-list/redaction/minimisation/residency policy. It never means collecting fields the customer did not authorise.
 
-`full customer-permitted` means the complete payload the customer has authorised the connector to collect **after** configured allow-list/redaction/data-minimisation rules. It never means collecting fields the customer has disallowed.
+## Important correction made this session: subject reads are not whole-source capture
 
-Scout itself can consume only the subset it needs. Retaining the authorised source envelope locally allows a later tier to build richer identities, chronology, relationships and governed context without asking the source system to replay data that Scout discarded.
+The existing Scout selector runtime calls `IConnectorPlugin.FetchAsync` for one subject and then computes a selector result. Even if that returned payload is retained perfectly, it proves only that Scout stored everything it happened to ask for. It does **not** prove that Scout captured the whole CRM/database/API estate.
 
-Storage/retention remains a customer/local deployment concern and should be configurable.
+This distinction is now encoded explicitly:
 
-## New contracts in this branch
+- `SUBJECT_ON_DEMAND` — one subject read performed for Scout context calculation;
+- `FULL_SOURCE` — connector capture covering the complete customer-permitted source projection;
+- `SNAPSHOT_IMPORT` — complete supplied snapshot/file, but not necessarily change history.
 
-### `LocalDataPlaneUpgradeContracts.cs`
+History is separately classified as:
 
-Adds:
+- `COMPLETE`;
+- `FROM_RETENTION_BOUNDARY`;
+- `SNAPSHOT_ONLY`;
+- `ON_DEMAND`;
+- `UNKNOWN`.
 
-- `kyntic-local-source-capture.v1`
-- `kyntic-scout-upgrade-manifest.v1`
-- `full-permitted.v1`
-- upgrade readiness categories:
-  - `Lossless`
-  - `LosslessDerivedRebuild`
-  - `HistoryLimited`
-  - `ReconnectRequired`
-  - `Unsupported`
+An event is strongly upgrade-compatible only when it is structurally complete, retains the full customer-permitted payload, has `FULL_SOURCE` coverage and can prove `COMPLETE` or `FROM_RETENTION_BOUNDARY` history.
 
-The source capture metadata includes connector instance/version, source namespace/object/record ID, operation, exact provider-native `SourcePositionJson`, occurred/source-recorded/ingested times, schema fingerprint, redaction-policy version, full-permitted-retention flag and deterministic idempotency key.
+This prevents a false `LOSSLESS` claim.
 
-### Connector abstraction change
+## Source journal
 
-`IConnectorPlugin.cs` now supports:
+Scout already has the right local persistence primitive: `SourceSystemEvent`.
 
-- `ConnectorCapability.UpgradeCompatibleCapture`
-- optional `ConnectorCaptureMetadata` on `ConnectorFetchResult`
+It stores the raw source payload plus local source/event metadata in the customer relational data plane. We are building upgrade continuity around that existing journal rather than creating another copy of the estate.
 
-The optional parameter preserves source compatibility for existing connector implementations while allowing upgraded connectors to provide the stronger capture contract.
+Scout derived artifacts such as `ContextFact`, `ContextSnapshot`, selector confidence and the basic relationship fallback are **not** promoted to Fortress canonical truth. Fortress rebuilds richer derived state from retained source truth.
 
-### `LocalSourceCaptureEnvelope`
+## Code authored in this branch
 
-Converts connector capture metadata into the public local capture contract and merges it into source-event headers under `kynticCapture`.
+### Local capture contracts
 
-It does not duplicate raw payload into the metadata block and it rejects incomplete/incorrectly timed capture metadata.
+`LocalDataPlaneUpgradeContracts.cs` now defines:
 
-### `ScoutUpgradeCompatibilityService`
+- `kyntic-local-source-capture.v1`;
+- `kyntic-scout-upgrade-manifest.v1`;
+- `full-permitted.v1`;
+- explicit coverage/history semantics;
+- source object/record identity;
+- operation;
+- provider-native source position;
+- occurred/source-recorded/ingested timestamps;
+- schema fingerprint;
+- redaction policy version;
+- raw-payload hash;
+- permitted-field-set hash;
+- deterministic idempotency key;
+- earliest source-history boundary.
 
-Builds a metadata-only upgrade manifest from the local installation. It reads local connector/data-source/source-event state but exports only safe continuity metadata:
+### Selector-source journaling
 
-- connector instance/data-source/workspace IDs;
-- connector type/status;
-- hash of connection configuration, not configuration contents;
-- local secret **references**, never protected secret values;
-- retained event counts and time coverage;
-- capture profiles/schema fingerprints;
-- history/full-payload completeness;
-- storage provider and upgrade classification.
+`UpgradeCapturingSelectorExecutionEngine` decorates the existing `SelectorExecutionEngine`.
 
-The manifest explicitly says customer data remains local and contains no credentials.
+A successful live/scheduled/event-triggered connector read is passed to `LocalSourceCaptureJournal`, which persists the source payload into `SourceSystemEvent` before the read is allowed to exist only as Scout-derived context.
 
-## PostgreSQL decision
+Preview and dry-run do not create durable history.
 
-Production upgrades are intended to keep the same customer-local PostgreSQL database/cluster where practical.
+These records are deliberately marked `SUBJECT_ON_DEMAND / ON_DEMAND`. They are useful continuity evidence but are never treated as proof of full-estate coverage.
 
-The database should be thought of as the customer's **KynticAI local data-plane substrate**, not something that must be thrown away because the licence tier changes.
+### Whole-source connector contract
 
-A later tier should add its own schema/tables additively, rebuild its richer derived state from retained source truth, then continue the same compatible connector installations/checkpoints.
+`IUpgradeSourceCaptureConnector` is separate from `IConnectorPlugin.FetchAsync`.
 
-Scout's SQLite mode remains useful for development/smaller local use. It is not currently claimed as the same-database target for the richer tier. A customer on SQLite needs a proven local SQLite -> PostgreSQL migration/import path before the same-database upgrade claim can be made.
+This is intentional:
 
-## Connector continuity requirements
+- `FetchAsync` answers a Scout selector question for a subject;
+- `CaptureBatchAsync` preserves the whole customer-permitted source projection for long-lived Kyntic data continuity.
 
-A Scout connector is upgrade-compatible only when it can prove all relevant points:
+The contract carries raw payload, normalised payload, stable source record ID, operation, exact position, timestamps, schema/payload hashes, redaction policy, history semantics and continuation/high-water state.
 
-1. Stable connector installation ID.
-2. Stable local data-source ID.
-3. Reusable local credential reference; never export/re-upload a credential merely because the tier changed.
-4. Versioned connector definition and capture profile.
-5. Full customer-permitted source payload retained locally.
-6. Stable source namespace/object/record identity.
-7. Create/update/delete/tombstone operation semantics where the source provides them.
-8. Exact provider-native source position/checkpoint, including a minor ordinal/sequence when one major source position can contain multiple changes.
-9. Occurred/source-recorded/ingested timestamps.
-10. Deterministic idempotency key for exact replay.
-11. Schema fingerprint/version so drift can be detected.
-12. Redaction/allow-list policy version.
-13. Known earliest retained upgrade-compatible event so historical guarantees have an honest boundary.
+### Whole-source capture checkpoint / lease
 
-## Material integration gap
+`ConnectorCaptureCheckpoint` is a customer-local durable cursor and ownership record.
 
-The contracts/helpers/service exist, but the new `ConnectorCaptureMetadata` is **not yet wired through every real connector fetch -> source event ingestion path**.
+It tracks:
 
-Next coding session must inspect the normal connector execution path in `ScoutService` / selector execution and:
+- connector installation/data-source ID;
+- capture profile/version;
+- coverage/history classification;
+- continuation token;
+- local source high-water JSON;
+- earliest source boundary;
+- earliest/latest captured times;
+- completed generation count;
+- captured-record count;
+- active lease owner/expiry;
+- last error.
 
-- persist `kynticCapture` beside every live/scheduled connector-sourced event when the connector declares `UpgradeCompatibleCapture`;
-- make each connector offered in Scout populate the metadata correctly;
-- preserve `RawPayloadJson` as the full permitted local payload;
-- ensure preview/dry-run does not accidentally create durable source history unless explicitly intended;
-- expose metrics/health that show capture-profile version and earliest exact upgrade boundary without exposing source values.
+The lease is the future Scout -> Fortress cutover barrier. Two runtimes must not independently advance the same connector.
 
-Until this is done and deployed, historical Scout data should not automatically be labelled lossless-upgrade compatible.
+The corresponding EF configuration and `DbSet` have been authored. **An EF migration has not yet been generated/executed.**
 
-## Relationship / IP boundary
+### Whole-source capture coordinator
 
-Scout's simple relationship engine remains a fallback/open-core capability. Do not copy private richer-tier algorithms into Scout.
+`FullSourceCaptureCoordinator`:
 
-Scout should improve the **quality and continuity of source evidence**. The richer tier can consume that evidence and build its own canonical identity/relationship/temporal state.
+1. enumerates local connector installations;
+2. finds a matching full-source adapter;
+3. acquires the customer-local connector lease;
+4. resolves local credential references without exporting secrets;
+5. captures a bounded batch;
+6. writes idempotent raw source events to the existing local journal;
+7. advances cursor/high-water/capture counters;
+8. marks completed generations;
+9. releases the lease;
+10. records failure locally if needed.
 
-This separation is deliberate: upgrade compatibility is achieved by preserving source truth and provenance, not by making Scout secretly contain the commercial engine.
+It is registered in DI but deliberately **not** started as an automatic hosted worker yet. First generate the migration, compile, add configuration validation and prove lease/restart semantics. Do not make a new background loop own customer connectors merely because the code compiles.
+
+### Whole-source adapters authored
+
+`SqlFullSourceCaptureConnector`
+
+- captures every row in the customer-permitted column set;
+- stable record ID comes from `sourceRecordIdColumn` or the existing user-ID column;
+- supports the existing local/customer-ops/external PostgreSQL modes;
+- pages a source snapshot;
+- stores raw/schema/field hashes and deterministic idempotency;
+- deliberately reports `SNAPSHOT_ONLY` history because generic SQL polling cannot prove inserts/updates/deletes over time.
+
+This is useful for complete **current-state** capture and cutover, but it is not yet a substitute for PostgreSQL CDC/change-table history. Offset pagination is also not an exact moving-source algorithm; for production continuity use a frozen snapshot/barrier, keyset/watermark capture, or source-native CDC.
+
+`RestFullSourceCaptureConnector`
+
+- requires an explicit collection endpoint (`capturePathTemplate`) and stable record-ID path;
+- supports cursor pagination;
+- can read a source-native position/operation when configured;
+- without a native source position it deliberately reports `SNAPSHOT_ONLY`;
+- with a real provider change-feed position it may report `COMPLETE` or `FROM_RETENTION_BOUNDARY` according to the connector definition.
+
+`CsvFullSourceCaptureConnector`
+
+- captures the complete supplied row set;
+- deterministic snapshot/row position and hashes;
+- reports `SNAPSHOT_ONLY` because one CSV file is a state snapshot, not change history.
+
+These adapters are registered as `IUpgradeSourceCaptureConnector` implementations.
+
+## Upgrade manifest scalability fix
+
+The original compatibility service loaded every retained `PayloadJson` and `HeadersJson` into application memory to build the manifest. That would be unacceptable for a large Scout estate.
+
+`ScoutUpgradeCompatibilityService` has been rewritten to use:
+
+- bounded connector-installation metadata;
+- secret references only;
+- `ConnectorCaptureCheckpoint` summaries;
+- database-side source-event count/min/max aggregates;
+- hashes of configuration/high-water state rather than raw values.
+
+It no longer performs an application-level million-row payload scan just to answer "can this installation upgrade safely?".
+
+The manifest does not export the raw high-water source position. It exports a hash/coverage status so control-plane/operator views do not become an accidental customer-data path.
+
+## Same PostgreSQL upgrade decision
+
+For production Scout on PostgreSQL, keep the same customer-local database/cluster where practical.
+
+Think of it as the customer's **Kyntic local data-plane substrate**, not a Scout-owned disposable database.
+
+Fortress should add its own schema/tables additively. Do not drop or rewrite the Scout source journal, connector installations, local credential references or capture checkpoints during cutover.
+
+Preferred cutover:
+
+1. complete a whole-source capture generation;
+2. run local preflight;
+3. acquire/pause connector lease at a recorded high-water barrier;
+4. take a customer-local backup;
+5. install Fortress additively on the same PostgreSQL substrate;
+6. replay retained source truth through Fortress governed ingestion in source order;
+7. build Fortress derived indexes from structured truth;
+8. catch up any source tail after the barrier;
+9. verify counts/hashes/checkpoints/canary queries;
+10. transfer/resume the same connector lease;
+11. switch the product query path to Fortress;
+12. retain Scout source/connector tables for rollback/audit according to policy.
+
+A customer should not have to type connector credentials again merely because their licence tier changed if the same local secret reference is still valid.
+
+## What "no data loss" means
+
+There are two different questions:
+
+**Did the upgrade lose data?**
+
+Target answer: no. Anything present in the retained Scout source journal at the barrier must survive/replay deterministically into Fortress or the cutover fails.
+
+**Did old Scout versions previously collect every source event needed for Fortress history?**
+
+Not necessarily. Old installations may have only selector/on-demand data or snapshots. That is not data lost by the upgrade; it is data Scout never captured. Those customers must be labelled `HISTORY_LIMITED` with an explicit earliest exact boundary.
+
+For new Scout installations, the target is to enable full-source capture from day one so future Fortress upgrades retain all customer-permitted data from the declared retention boundary.
+
+## Connector strategy from here
+
+The long-term clean model is a **tier-neutral local Connector Host** bundled with Scout and Fortress.
+
+The connector host owns source connectivity, full customer-permitted capture, local credential references, checkpoints and the source journal. Scout and Fortress are consumers of that local source truth at different capability levels.
+
+This avoids maintaining one "small Scout connector" and a second unrelated "Fortress connector" for the same customer integration.
+
+For each connector family we still need to decide its strongest honest capture profile:
+
+- PostgreSQL/SQL: initial full snapshot + CDC/change feed or customer change table for exact ongoing history;
+- REST SaaS/CRM: full collection sync + provider cursor/change feed/webhook when available;
+- event/webhook source: exact event ID/sequence + operations/tombstones + local durable journal;
+- CSV/file: full immutable snapshot/file version; temporal history only if versioned files are retained;
+- future enterprise connectors: same full-source contract, provider-specific position semantics.
+
+Fortress can include more connector types than Scout, but any connector type offered in both tiers should use the same capture semantics rather than a deliberately truncated Scout version.
 
 ## Sovereign boundary
 
-Scout local/self-hosted deployments must keep source payloads, credentials, database rows, context, prompts and local model data inside the customer environment unless the customer explicitly authorises an export.
+Strict sovereign/self-contained mode keeps inside the customer environment:
 
-A KynticAI control plane may handle entitlement/licence/subscription/version/update and bounded aggregate operational/billing metadata. It must not require raw source records for this upgrade workflow.
+- raw connector payloads/source journal;
+- connection strings/tokens/private keys/credential values;
+- connector cursors/high-water positions;
+- identity/alias state;
+- relationships/outcomes/temporal/governed facts;
+- vectors/embeddings/LanceDB;
+- prompts/context packets/local-model input/output;
+- backups, dead letters and proof artifacts.
 
-The new upgrade manifest is designed so it can be reviewed/used as continuity metadata without transporting source payloads or secret values.
+KynticAI Cloud may receive only licence/subscription/billing/version/update/installation/support routing and approved aggregate health/usage metadata. It is never the canonical customer data plane.
 
-## Tests authored
+## Remaining implementation work before calling Scout upgrade-ready
 
-`ScoutFortressUpgradeCompatibilityTests.cs` currently covers:
+1. **Compile/fix this branch.** Several directly authored files have not yet been compiled together.
+2. Generate the EF migration for `connector_capture_checkpoints` and prove SQLite + PostgreSQL migrations/rollback.
+3. Add focused tests for lease expiry, duplicate workers, checkpoint restart, idempotent recapture and incomplete generation recovery.
+4. Review `FullSourceCaptureCoordinator` completion logic so mixed/weak history classifications fail closed rather than accidentally upgrading to a stronger history class.
+5. Propagate each adapter's `EarliestAvailableAtUtc` into the checkpoint summary.
+6. Add a controlled local command/admin operation to run/continue full-source capture. Do not start an automatic worker until this command is proven.
+7. Extend connector configuration schemas/validation for the new full-source fields.
+8. Advertise `UpgradeCompatibleCapture` only when the actual full-source adapter/config can support the claimed profile. A subject `FetchAsync` alone is not enough.
+9. Add the event/webhook ingestion equivalent of `kynticCapture` so exact event-stream connectors can be genuinely `COMPLETE`/`FROM_RETENTION_BOUNDARY`.
+10. For SQL/PostgreSQL, add/prove a source-native change stream or explicit customer change-table/watermark profile if exact temporal continuity is required. The current generic SQL adapter is snapshot-only by design.
+11. Add provider-specific REST change-feed/webhook profiles rather than treating arbitrary collection polling as exact history.
+12. Make retention explicit. If customer retention prunes raw source history, update the earliest exact boundary rather than keeping a stale lossless claim.
+13. Add storage-pressure/backpressure behavior: quota, journal retention, disk-low fail-safe, capture pause and operator health without silently dropping records.
+14. Add source schema-drift behavior: detect schema fingerprint changes, persist version, fail closed or continue under approved compatible policy.
+15. Test delete/tombstone semantics for connectors that provide them.
+16. Ensure PII/redaction policy changes create a new capture-policy version and never expose disallowed fields in an upgrade replay.
+17. Run the same-PostgreSQL Scout -> Fortress proof only after both repos are build-green.
 
-- complete PostgreSQL/full-capture state -> derived rebuild without reconnect;
-- legacy retained events without capture metadata -> `HistoryLimited`;
-- missing local credential reference -> `ReconnectRequired`;
-- unsupported connector -> `Unsupported`;
-- exact source position survives the capture envelope and secret-shaped fields are not present.
+## Validation order for OpenCode/Codex
 
-These tests have **not yet been executed** in this direct-GitHub session.
+Do not use a large cloud run to discover compiler errors.
 
-## Required next validation
-
-1. Pull this branch into a clean worktree.
-2. `dotnet restore` / build the normal Scout solution.
-3. Run focused unit tests for the new upgrade code.
-4. Fix compile/test failures in the same package.
-5. Add integration coverage with SQLite for quick deterministic behaviour.
-6. Add PostgreSQL integration coverage for upgrade manifest/provider detection and retained source events.
-7. Wire capture metadata into the actual connector execution path.
-8. Update connector-authoring tests so an `UpgradeCompatibleCapture` connector cannot claim that capability while returning missing/incomplete capture metadata in live mode.
-9. Validate each Scout-shipped connector against the full-permitted envelope.
-10. Run a small synthetic PostgreSQL cutover proof with the private richer-tier repo only after both sides compile.
+1. restore/build Scout;
+2. focused unit tests for new contracts/checkpoint/adapters/decorator/manifest;
+3. EF migration generation + SQLite smoke;
+4. PostgreSQL integration tests;
+5. local whole-source 1k fixture capture/restart;
+6. local Scout -> Fortress same-DB cutover proof;
+7. private disposable GCP 1k then 10k proof;
+8. larger scale only after correctness/continuity is green.
 
 ## Do not do
 
-- Do not place proprietary Fortress scoring/identity algorithms in this public repo.
-- Do not export protected credential values in an upgrade manifest.
-- Do not send customer payloads to KynticAI Cloud to perform a local upgrade.
-- Do not claim all historical Scout data is losslessly upgradeable merely because `PayloadJson` exists; exact source/capture semantics matter too.
-- Do not silently reconnect a source and call it seamless. Report `ReconnectRequired` when continuity cannot be proven.
-- Do not call SQLite a proven same-database production upgrade substrate until that migration path is explicitly built and tested.
+- Do not put proprietary Fortress engine logic in Scout.
+- Do not export protected credential values or source high-water positions to Cloud.
+- Do not call subject-on-demand capture whole-source coverage.
+- Do not call snapshot polling exact temporal history.
+- Do not silently reconnect a source and call the upgrade seamless.
+- Do not delete Scout source/connector tables during Fortress backfill.
+- Do not claim SQLite is a proven same-database Fortress substrate; migrate/import locally to PostgreSQL first.
+- Do not mark this branch runtime-green until builds/tests/migrations actually pass.
