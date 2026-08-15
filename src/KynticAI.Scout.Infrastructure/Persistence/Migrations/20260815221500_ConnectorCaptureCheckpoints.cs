@@ -33,6 +33,7 @@ public sealed class ConnectorCaptureCheckpoints : Migration
                 HistoryCompleteness = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
                 CurrentStateConsistency = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false, defaultValue: "UNKNOWN"),
                 PayloadStorageContract = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false, defaultValue: "legacy-jsonb.v0"),
+                GenerationMembershipContract = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false, defaultValue: "UNKNOWN"),
                 ContinuationToken = table.Column<string>(type: "character varying(8000)", maxLength: 8000, nullable: true),
                 HighWaterMarkJson = table.Column<string>(type: "jsonb", nullable: false),
                 EarliestAvailableAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
