@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -37,24 +36,34 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             .Where(x => x.TenantId == tenant.Id && dataSourceIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-        // Only secret references are used in the manifest. ProtectedValue and SecretKey never leave
-        // the local data plane through this compatibility service.
+        // Secret values are never loaded for an upgrade manifest. Only stable local references
+        // are required to decide whether the already-configured connector can continue in place.
         var credentialReferences = await dbContext.ConnectorCredentials
             .AsNoTracking()
             .Where(x => x.TenantId == tenant.Id && dataSourceIds.Contains(x.DataSourceId))
             .Select(x => new { x.DataSourceId, x.SecretReference })
             .ToListAsync(cancellationToken);
 
-        var events = await dbContext.SourceSystemEvents
+        var checkpoints = await dbContext.ConnectorCaptureCheckpoints
             .AsNoTracking()
             .Where(x => x.TenantId == tenant.Id)
-            .Select(x => new EventProjection(
-                x.DataSourceId,
-                x.SourceSystem,
-                x.ObservedAtUtc,
-                x.PayloadJson,
-                x.HeadersJson))
-            .ToListAsync(cancellationToken);
+            .ToDictionaryAsync(x => x.ConnectorInstallationId, cancellationToken);
+
+        var totalEventCount = await dbContext.SourceSystemEvents
+            .AsNoTracking()
+            .LongCountAsync(x => x.TenantId == tenant.Id, cancellationToken);
+        var earliestEvent = totalEventCount == 0
+            ? null
+            : await dbContext.SourceSystemEvents
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenant.Id)
+                .MinAsync(x => (DateTime?)x.ObservedAtUtc, cancellationToken);
+        var latestEvent = totalEventCount == 0
+            ? null
+            : await dbContext.SourceSystemEvents
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenant.Id)
+                .MaxAsync(x => (DateTime?)x.ObservedAtUtc, cancellationToken);
 
         var storageProvider = dbContext.Database.ProviderName ?? "unknown";
         var isPostgres = storageProvider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);
@@ -64,33 +73,26 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         var descriptors = new List<ScoutConnectorUpgradeDescriptorV1>(installations.Count);
         var allTargetSupported = true;
         var allCredentialReferencesPresent = true;
-        var anyMissingCaptureMetadata = false;
-        var anyMissingFullPayload = false;
+        var allConnectorsHaveCompletedWholeSourceCapture = installations.Count > 0;
+        var allConnectorHistoryIsExactFromDeclaredBoundary = installations.Count > 0;
 
         foreach (var installation in installations)
         {
             dataSources.TryGetValue(installation.DataSourceId, out var dataSource);
-            var connectorEvents = events
-                .Where(x => x.DataSourceId == installation.DataSourceId
-                    || (x.DataSourceId is null
-                        && string.Equals(x.SourceSystem, installation.ConnectorType, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(x => x.ObservedAtUtc)
-                .ToList();
+            checkpoints.TryGetValue(installation.Id, out var checkpoint);
 
-            var parsedCapture = connectorEvents
-                .Select(x => TryReadCaptureMetadata(x.HeadersJson))
-                .ToList();
-            var compatibleCapture = parsedCapture.Where(x => x is { IsUpgradeCompatible: true }).Cast<LocalSourceCaptureMetadataV1>().ToList();
-            var allHaveCapture = connectorEvents.Count == 0 || compatibleCapture.Count == connectorEvents.Count;
-            var fullPermitted = connectorEvents.Count == 0
-                || (compatibleCapture.Count == connectorEvents.Count
-                    && compatibleCapture.All(x => x.FullPermittedPayloadRetained)
-                    && connectorEvents.All(x => HasNonEmptyPayload(x.PayloadJson)));
-
-            if (!allHaveCapture)
-                anyMissingCaptureMetadata = true;
-            if (!fullPermitted)
-                anyMissingFullPayload = true;
+            var connectorEventQuery = dbContext.SourceSystemEvents
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenant.Id
+                    && (x.DataSourceId == installation.DataSourceId
+                        || (x.DataSourceId == null && x.SourceSystem == installation.ConnectorType)));
+            var connectorEventCount = await connectorEventQuery.LongCountAsync(cancellationToken);
+            var connectorEarliest = connectorEventCount == 0
+                ? null
+                : await connectorEventQuery.MinAsync(x => (DateTime?)x.ObservedAtUtc, cancellationToken);
+            var connectorLatest = connectorEventCount == 0
+                ? null
+                : await connectorEventQuery.MaxAsync(x => (DateTime?)x.ObservedAtUtc, cancellationToken);
 
             var refs = credentialReferences
                 .Where(x => x.DataSourceId == installation.DataSourceId)
@@ -106,15 +108,36 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 || targetSupportedConnectorTypes.Contains(installation.ConnectorType);
             allTargetSupported &= targetSupported;
 
+            var hasCompletedWholeSourceCapture = checkpoint is not null
+                && checkpoint.LastFullSourceCompletedAtUtc.HasValue
+                && string.Equals(checkpoint.CoverageScope, LocalDataPlaneContracts.CoverageFullSource, StringComparison.Ordinal)
+                && checkpoint.CapturedRecordCount > 0;
+            var exactHistoryFromDeclaredBoundary = hasCompletedWholeSourceCapture
+                && IsExactHistory(checkpoint!.HistoryCompleteness);
+            var fullPermittedProfile = checkpoint is not null
+                && string.Equals(checkpoint.CaptureProfile, LocalDataPlaneContracts.CaptureProfileFullPermittedV1, StringComparison.Ordinal);
+
+            allConnectorsHaveCompletedWholeSourceCapture &= hasCompletedWholeSourceCapture;
+            allConnectorHistoryIsExactFromDeclaredBoundary &= exactHistoryFromDeclaredBoundary;
+
             var warnings = new List<string>();
             if (!targetSupported)
                 warnings.Add("Target tier does not declare this connector type as reusable.");
             if (refs.Length == 0)
                 warnings.Add("No stable local credential reference was found; reconnect may be required.");
-            if (!allHaveCapture && connectorEvents.Count > 0)
-                warnings.Add("Some retained events pre-date the upgrade-compatible capture contract.");
-            if (!fullPermitted && connectorEvents.Count > 0)
-                warnings.Add("Some retained events cannot prove that the full customer-permitted payload was retained.");
+            if (checkpoint is null)
+                warnings.Add("No whole-source capture checkpoint exists. Subject-on-demand Scout reads do not prove estate-wide upgrade coverage.");
+            else
+            {
+                if (!checkpoint.LastFullSourceCompletedAtUtc.HasValue)
+                    warnings.Add("Whole-source capture has not completed a generation yet.");
+                if (!IsExactHistory(checkpoint.HistoryCompleteness))
+                    warnings.Add($"Connector history is '{checkpoint.HistoryCompleteness}'. Fortress may rebuild current state, but exact pre-boundary history must not be claimed.");
+                if (checkpoint.EarliestAvailableAtUtc.HasValue)
+                    warnings.Add($"Earliest declared source-history boundary is {checkpoint.EarliestAvailableAtUtc.Value:O}.");
+                if (!string.IsNullOrWhiteSpace(checkpoint.LastError))
+                    warnings.Add("The most recent whole-source capture checkpoint records an error; inspect locally before cutover.");
+            }
             if (dataSource is null)
                 warnings.Add("Connector data source record is missing.");
 
@@ -126,36 +149,40 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 installation.Status.ToString(),
                 Sha256(dataSource?.ConnectionConfigJson ?? "{}"),
                 refs,
-                connectorEvents.Count,
-                connectorEvents.FirstOrDefault()?.ObservedAtUtc,
-                connectorEvents.LastOrDefault()?.ObservedAtUtc,
-                compatibleCapture.Count > 0,
-                allHaveCapture,
-                fullPermitted,
-                compatibleCapture.Select(x => x.CaptureProfile).Distinct(StringComparer.Ordinal).OrderBy(x => x).ToArray(),
-                compatibleCapture.Select(x => x.SchemaFingerprintSha256).Distinct(StringComparer.Ordinal).OrderBy(x => x).ToArray(),
-                warnings));
+                connectorEventCount,
+                connectorEarliest,
+                connectorLatest,
+                hasCompletedWholeSourceCapture,
+                hasCompletedWholeSourceCapture,
+                fullPermittedProfile,
+                checkpoint is null ? [] : [checkpoint.CaptureProfile],
+                Array.Empty<string>(),
+                warnings,
+                checkpoint?.CoverageScope ?? LocalDataPlaneContracts.HistoryUnknown,
+                checkpoint?.HistoryCompleteness ?? LocalDataPlaneContracts.HistoryUnknown,
+                checkpoint?.EarliestAvailableAtUtc ?? checkpoint?.EarliestCapturedAtUtc,
+                checkpoint?.LastFullSourceCompletedAtUtc,
+                checkpoint?.Generation ?? 0,
+                checkpoint is null ? string.Empty : Sha256(checkpoint.HighWaterMarkJson)));
         }
 
-        var allEventsHaveMetadata = events.Count == 0 || !anyMissingCaptureMetadata;
-        var allEventsRetainFullPermitted = events.Count == 0 || !anyMissingFullPayload;
-        var historicalCoverageKnownComplete = events.Count == 0
-            || (allEventsHaveMetadata && compatibleCoverageStartsAtFirstRetainedEvent(events));
-
+        // The preflight is intentionally derived from bounded checkpoint/aggregate state. It no
+        // longer loads every PayloadJson/HeadersJson into memory, so a million retained source
+        // events do not turn a compatibility check into a million-row application scan.
         var evidence = new UpgradeCompatibilityEvidence(
             supportedProvider,
             isPostgres,
             installations.Count > 0,
             allCredentialReferencesPresent,
-            events.Count > 0,
-            allEventsHaveMetadata,
-            allEventsRetainFullPermitted,
+            totalEventCount > 0,
+            allConnectorsHaveCompletedWholeSourceCapture,
+            allConnectorsHaveCompletedWholeSourceCapture,
             allTargetSupported,
             RequiresSourceReconnect: false,
-            historicalCoverageKnownComplete);
+            HistoricalCoverageKnownComplete: allConnectorHistoryIsExactFromDeclaredBoundary);
         var readiness = ScoutFortressUpgradePolicy.Classify(evidence);
 
-        var reasons = BuildReasons(readiness, storageProvider, evidence);
+        var reasons = BuildReasons(readiness, storageProvider, evidence, descriptors);
         var requiredActions = BuildActions(readiness, isPostgres);
 
         return new ScoutUpgradeManifestV1(
@@ -166,60 +193,19 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             storageProvider,
             CustomerDataRemainsLocal: true,
             ContainsCredentials: false,
-            events.Count,
-            events.Count == 0 ? null : events.Min(x => x.ObservedAtUtc),
-            events.Count == 0 ? null : events.Max(x => x.ObservedAtUtc),
+            totalEventCount,
+            earliestEvent,
+            latestEvent,
             descriptors,
             readiness,
             reasons,
             requiredActions,
-            "This manifest contains topology, hashes, local secret references and coverage metadata only. Raw source payloads, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
+            "This manifest contains topology, hashes, local secret references and bounded capture-coverage metadata only. Raw source payloads, source high-water positions, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
     }
 
-    private static LocalSourceCaptureMetadataV1? TryReadCaptureMetadata(string headersJson)
-    {
-        if (string.IsNullOrWhiteSpace(headersJson))
-            return null;
-
-        try
-        {
-            using var document = JsonDocument.Parse(headersJson);
-            if (!document.RootElement.TryGetProperty("kynticCapture", out var capture))
-                return null;
-            return capture.Deserialize<LocalSourceCaptureMetadataV1>();
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static bool HasNonEmptyPayload(string payloadJson)
-    {
-        if (string.IsNullOrWhiteSpace(payloadJson))
-            return false;
-        try
-        {
-            using var document = JsonDocument.Parse(payloadJson);
-            return document.RootElement.ValueKind switch
-            {
-                JsonValueKind.Object => document.RootElement.EnumerateObject().Any(),
-                JsonValueKind.Array => document.RootElement.GetArrayLength() > 0,
-                JsonValueKind.Null or JsonValueKind.Undefined => false,
-                _ => true
-            };
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static bool compatibleCoverageStartsAtFirstRetainedEvent(IReadOnlyList<EventProjection> events)
-    {
-        var first = events.OrderBy(x => x.ObservedAtUtc).FirstOrDefault();
-        return first is not null && TryReadCaptureMetadata(first.HeadersJson) is { IsUpgradeCompatible: true };
-    }
+    private static bool IsExactHistory(string historyCompleteness)
+        => string.Equals(historyCompleteness, LocalDataPlaneContracts.HistoryComplete, StringComparison.Ordinal)
+            || string.Equals(historyCompleteness, LocalDataPlaneContracts.HistoryFromRetentionBoundary, StringComparison.Ordinal);
 
     private static string Sha256(string value)
     {
@@ -230,15 +216,26 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
     private static IReadOnlyList<string> BuildReasons(
         LocalUpgradeReadiness readiness,
         string storageProvider,
-        UpgradeCompatibilityEvidence evidence)
+        UpgradeCompatibilityEvidence evidence,
+        IReadOnlyList<ScoutConnectorUpgradeDescriptorV1> connectors)
     {
         var reasons = new List<string> { $"Local Scout provider: {storageProvider}." };
         if (evidence.IsPostgres)
             reasons.Add("PostgreSQL can be retained as the customer-local relational substrate during an additive Fortress upgrade.");
         if (!evidence.AllRetainedEventsHaveCaptureMetadata)
-            reasons.Add("At least one retained source event lacks the v1 upgrade-capture metadata required to prove an exact source position/capture policy.");
+            reasons.Add("At least one connector has not completed a FULL_SOURCE capture generation; on-demand selector history alone is not a lossless estate journal.");
         if (!evidence.AllRetainedEventsRetainFullPermittedPayload)
-            reasons.Add("At least one retained source event cannot prove complete customer-permitted capture.");
+            reasons.Add("At least one connector cannot prove a completed full customer-permitted source capture.");
+        if (!evidence.HistoricalCoverageKnownComplete)
+        {
+            var boundaries = connectors
+                .Where(x => x.EarliestUpgradeCompatibleAtUtc.HasValue)
+                .Select(x => $"{x.ConnectorType}={x.EarliestUpgradeCompatibleAtUtc:O}")
+                .ToArray();
+            reasons.Add(boundaries.Length == 0
+                ? "Exact source-history coverage does not yet have a proven boundary."
+                : $"Exact history is bounded by connector-declared coverage: {string.Join(", ", boundaries)}.");
+        }
         if (!evidence.ConnectorCredentialsReferencedLocally)
             reasons.Add("One or more connector installations do not have a reusable local credential reference.");
         if (!evidence.ConnectorTypesSupportedByTarget)
@@ -252,22 +249,16 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         var actions = new List<string>();
         if (!isPostgres)
             actions.Add("Migrate the local Scout relational store to PostgreSQL before claiming a same-database Fortress upgrade.");
+        actions.Add("Complete and verify a whole-source connector capture generation before the upgrade barrier.");
         actions.Add("Take a customer-local database backup/snapshot before the upgrade barrier.");
-        actions.Add("Pause connector leases at a recorded source high-water mark before switching consumers.");
-        actions.Add("Install Fortress additively; do not delete Scout source-event or connector state during the rebuild.");
+        actions.Add("Pause connector leases at a recorded local source high-water mark before switching capture ownership.");
+        actions.Add("Install Fortress additively; do not delete Scout source-event, connector, credential-reference or checkpoint state during the rebuild.");
         actions.Add("Backfill Fortress governed state locally from the retained Scout source journal before resuming connector leases.");
-        actions.Add("Verify connector IDs, local credential references, high-water marks, source-event counts and deterministic hashes before finalising cutover.");
+        actions.Add("Verify connector IDs, local credential references, high-water hashes, source-event counts and deterministic hashes before finalising cutover.");
         if (readiness == LocalUpgradeReadiness.HistoryLimited)
             actions.Add("Explain the earliest provable historical boundary to the customer; do not fabricate pre-boundary Fortress history.");
         if (readiness is LocalUpgradeReadiness.ReconnectRequired or LocalUpgradeReadiness.Unsupported)
             actions.Add("Stop automatic cutover and require an explicit operator/customer migration decision.");
         return actions;
     }
-
-    private sealed record EventProjection(
-        Guid? DataSourceId,
-        string SourceSystem,
-        DateTime ObservedAtUtc,
-        string PayloadJson,
-        string HeadersJson);
 }
