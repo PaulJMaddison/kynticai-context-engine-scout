@@ -36,8 +36,6 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             .Where(x => x.TenantId == tenant.Id && dataSourceIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-        // Secret values are never loaded for an upgrade manifest. Only stable local references
-        // are required to decide whether the already-configured connector can continue in place.
         var credentialReferences = await dbContext.ConnectorCredentials
             .AsNoTracking()
             .Where(x => x.TenantId == tenant.Id && dataSourceIds.Contains(x.DataSourceId))
@@ -76,6 +74,7 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         var allConnectorsHaveCompletedWholeSourceCapture = installations.Count > 0;
         var allConnectorHistoryIsExactFromDeclaredBoundary = installations.Count > 0;
         var allConnectorPayloadEvidenceIsExact = installations.Count > 0;
+        var allConnectorCurrentStateContinuityKnown = installations.Count > 0;
 
         foreach (var installation in installations)
         {
@@ -109,10 +108,6 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 || targetSupportedConnectorTypes.Contains(installation.ConnectorType);
             allTargetSupported &= targetSupported;
 
-            // A completed generation is authoritative even when the source is genuinely empty.
-            // CapturedRecordCount > 0 is therefore not required: the lease/checkpoint/high-water
-            // transition proves that a whole-source enumeration completed, while the history
-            // classification below decides how much chronology that enumeration can prove.
             var hasCompletedWholeSourceCapture = checkpoint is not null
                 && checkpoint.LastFullSourceCompletedAtUtc.HasValue
                 && checkpoint.Generation > 0
@@ -126,10 +121,13 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                     checkpoint!.PayloadStorageContract,
                     LocalDataPlaneContracts.PayloadStorageExactTextV1,
                     StringComparison.Ordinal);
+            var strongCurrentStateConsistency = hasCompletedWholeSourceCapture
+                && LocalDataPlaneContracts.IsStrongCurrentStateConsistency(checkpoint!.CurrentStateConsistency);
 
             allConnectorsHaveCompletedWholeSourceCapture &= hasCompletedWholeSourceCapture;
             allConnectorHistoryIsExactFromDeclaredBoundary &= exactHistoryFromDeclaredBoundary;
             allConnectorPayloadEvidenceIsExact &= exactPayloadEvidence;
+            allConnectorCurrentStateContinuityKnown &= strongCurrentStateConsistency;
 
             var warnings = new List<string>();
             if (!targetSupported)
@@ -146,6 +144,10 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                     warnings.Add($"Connector history is '{checkpoint.HistoryCompleteness}'. Fortress may rebuild current state, but exact pre-boundary history must not be claimed.");
                 if (!exactPayloadEvidence)
                     warnings.Add($"Completed generation payload storage is '{checkpoint.PayloadStorageContract}'. Run a new full-source generation under exact-text.v1 before claiming byte-verifiable replay continuity.");
+                if (!LocalDataPlaneContracts.IsStrongCurrentStateConsistency(checkpoint.CurrentStateConsistency))
+                {
+                    warnings.Add($"Current-state consistency is '{checkpoint.CurrentStateConsistency}'. A live mutable source may require a final recapture/write freeze or provider-specific change feed before zero mutation-gap cutover can be claimed.");
+                }
                 if (checkpoint.EarliestAvailableAtUtc.HasValue)
                     warnings.Add($"Earliest declared source-history boundary is {checkpoint.EarliestAvailableAtUtc.Value:O}.");
                 if (!string.IsNullOrWhiteSpace(checkpoint.LastError))
@@ -177,12 +179,10 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 checkpoint?.LastFullSourceCompletedAtUtc,
                 checkpoint?.Generation ?? 0,
                 checkpoint is null ? string.Empty : Sha256(checkpoint.HighWaterMarkJson),
-                checkpoint?.PayloadStorageContract ?? LocalDataPlaneContracts.PayloadStorageUnknown));
+                checkpoint?.PayloadStorageContract ?? LocalDataPlaneContracts.PayloadStorageUnknown,
+                checkpoint?.CurrentStateConsistency ?? LocalDataPlaneContracts.CurrentStateUnknown));
         }
 
-        // The preflight is intentionally derived from bounded checkpoint/aggregate state. It no
-        // longer loads every PayloadJson/HeadersJson into memory, so a million retained source
-        // events do not turn a compatibility check into a million-row application scan.
         var evidence = new UpgradeCompatibilityEvidence(
             supportedProvider,
             isPostgres,
@@ -194,7 +194,8 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             allTargetSupported,
             RequiresSourceReconnect: false,
             HistoricalCoverageKnownComplete: allConnectorHistoryIsExactFromDeclaredBoundary,
-            ExactPayloadEvidenceRetained: allConnectorPayloadEvidenceIsExact);
+            ExactPayloadEvidenceRetained: allConnectorPayloadEvidenceIsExact,
+            CurrentStateContinuityKnown: allConnectorCurrentStateContinuityKnown);
         var readiness = ScoutFortressUpgradePolicy.Classify(evidence);
 
         var reasons = BuildReasons(readiness, storageProvider, evidence, descriptors);
@@ -215,7 +216,7 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             readiness,
             reasons,
             requiredActions,
-            "This manifest contains topology, hashes, local secret references and bounded capture-coverage metadata only. Raw source payloads, source high-water positions, exact payload evidence, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
+            "This manifest contains topology, hashes, local secret references and bounded capture-fidelity metadata only. Raw source payloads, source high-water positions, exact payload evidence, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
     }
 
     private static bool IsExactHistory(string historyCompleteness)
@@ -238,11 +239,18 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         if (evidence.IsPostgres)
             reasons.Add("PostgreSQL can be retained as the customer-local relational substrate during an additive Fortress upgrade.");
         if (!evidence.AllRetainedEventsHaveCaptureMetadata)
-            reasons.Add("At least one connector has not completed a FULL_SOURCE capture generation; on-demand selector history alone is not a lossless estate journal.");
+            reasons.Add("At least one connector has not completed a FULL_SOURCE capture generation; on-demand selector history alone is not an estate journal.");
         if (!evidence.AllRetainedEventsRetainFullPermittedPayload)
             reasons.Add("At least one connector cannot prove a completed full customer-permitted source capture.");
         if (!evidence.ExactPayloadEvidenceRetained)
             reasons.Add("At least one connector's last completed generation does not prove exact-text payload evidence. jsonb semantics alone are not byte-verifiable replay evidence.");
+        if (!evidence.CurrentStateContinuityKnown)
+        {
+            var consistency = connectors
+                .Select(x => $"{x.ConnectorType}={x.CurrentStateConsistency}")
+                .ToArray();
+            reasons.Add($"One or more sources cannot prove one coherent current-state snapshot for zero-gap cutover: {string.Join(", ", consistency)}.");
+        }
         if (!evidence.HistoricalCoverageKnownComplete)
         {
             var boundaries = connectors
@@ -267,13 +275,14 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         if (!isPostgres)
             actions.Add("Migrate the local Scout relational store to PostgreSQL before claiming a same-database Fortress upgrade.");
         actions.Add("Complete and verify a whole-source connector capture generation under the exact-text.v1 payload evidence contract before the upgrade barrier.");
+        actions.Add("For LIVE_KEYSET/API_CURSOR/UNKNOWN sources, establish a final recapture, short write freeze, or provider-specific ordered change feed before claiming a zero mutation-gap cutover.");
         actions.Add("Take a customer-local database backup/snapshot before the upgrade barrier.");
         actions.Add("Pause connector leases at a recorded local source high-water mark before switching capture ownership.");
         actions.Add("Install Fortress additively; do not delete Scout source-event, connector, credential-reference, exact-payload-evidence or checkpoint state during the rebuild.");
         actions.Add("Backfill Fortress governed state locally from the retained Scout source journal and exact payload evidence before resuming connector leases.");
-        actions.Add("Verify connector IDs, local credential references, high-water hashes, source-event counts, exact payload hashes and deterministic hashes before finalising cutover.");
+        actions.Add("Verify connector IDs, local credential references, high-water hashes, source-event counts, exact payload hashes, consistency class and deterministic hashes before finalising cutover.");
         if (readiness == LocalUpgradeReadiness.HistoryLimited)
-            actions.Add("Explain the earliest provable historical boundary to the customer; do not fabricate pre-boundary Fortress history.");
+            actions.Add("Explain both the earliest provable historical boundary and current-state snapshot consistency to the customer; do not fabricate stronger continuity.");
         if (readiness is LocalUpgradeReadiness.ReconnectRequired or LocalUpgradeReadiness.Unsupported)
             actions.Add("Stop automatic cutover and require an explicit operator/customer migration decision.");
         return actions;
