@@ -161,18 +161,29 @@ public static class ScoutFortressUpgradePolicy
         if (evidence.RequiresSourceReconnect || !evidence.HasConnectorInstallations)
             return LocalUpgradeReadiness.ReconnectRequired;
 
+        if (!evidence.ConnectorCredentialsReferencedLocally)
+            return LocalUpgradeReadiness.ReconnectRequired;
+
+        // Zero retained rows is not proof that the source is empty. It is safe only when a
+        // completed FULL_SOURCE generation has independently established both capture fidelity
+        // and the historical boundary. This prevents a fresh PostgreSQL Scout installation from
+        // being labelled lossless merely because it has not captured anything yet.
         if (!evidence.HasRetainedEvents)
+        {
             return evidence.IsPostgres
+                && evidence.AllRetainedEventsHaveCaptureMetadata
+                && evidence.AllRetainedEventsRetainFullPermittedPayload
+                && evidence.HistoricalCoverageKnownComplete
                 ? LocalUpgradeReadiness.LosslessDerivedRebuild
-                : LocalUpgradeReadiness.ReconnectRequired;
+                : evidence.IsPostgres
+                    ? LocalUpgradeReadiness.HistoryLimited
+                    : LocalUpgradeReadiness.ReconnectRequired;
+        }
 
         if (!evidence.AllRetainedEventsHaveCaptureMetadata
             || !evidence.AllRetainedEventsRetainFullPermittedPayload
             || !evidence.HistoricalCoverageKnownComplete)
             return LocalUpgradeReadiness.HistoryLimited;
-
-        if (!evidence.ConnectorCredentialsReferencedLocally)
-            return LocalUpgradeReadiness.ReconnectRequired;
 
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
     }
