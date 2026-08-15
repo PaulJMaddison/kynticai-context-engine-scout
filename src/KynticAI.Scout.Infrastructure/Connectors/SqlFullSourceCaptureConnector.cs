@@ -14,16 +14,25 @@ using Npgsql;
 namespace KynticAI.Scout.Infrastructure.Connectors;
 
 /// <summary>
-/// Whole-source companion for the Scout SQL connector. It captures every row in the
-/// customer-permitted column set rather than only subjects selected by Scout context rules.
-/// Generic SQL polling is snapshot semantics unless the customer points the connector at a
-/// change/audit table; therefore this adapter deliberately reports SNAPSHOT_ONLY history and
-/// never pretends to provide source-native CDC deletion history.
+/// Whole-source companion for the Scout SQL connector.
+///
+/// The ordinary Scout selector projection is intentionally NOT reused here. A customer may let
+/// Scout use five columns while authorising the tier-neutral local data plane to retain twenty
+/// columns for later Fortress capability. Whole-source capture therefore requires an explicit
+/// customer-approved <c>captureColumns</c> set and <c>captureFullPermittedPayload=true</c>.
+///
+/// Pagination is keyset based on a stable unique source record ID. OFFSET is deliberately not
+/// used: deletes/inserts before an offset can otherwise make a multi-page enumeration silently
+/// skip or repeat rows. Keyset pagination still does not create a point-in-time database
+/// snapshot; generic SQL therefore remains SNAPSHOT_ONLY and a live cutover may still require a
+/// final write-freeze/recapture or a provider-specific CDC adapter.
 /// </summary>
 internal sealed class SqlFullSourceCaptureConnector(
     ScoutDbContext scoutDbContext,
     CustomerOpsDbContext customerOpsDbContext) : IUpgradeSourceCaptureConnector
 {
+    private const string CursorKind = "sql-keyset-v1";
+
     public string ConnectorType => "sqlDatabase";
 
     public async Task<ConnectorSourceCaptureBatch> CaptureBatchAsync(
@@ -31,22 +40,33 @@ internal sealed class SqlFullSourceCaptureConnector(
         CancellationToken cancellationToken)
     {
         var configuration = request.Configuration;
+        RequireExplicitFullPermittedCapture(configuration);
+
         var tableName = Identifier(configuration, "tableName");
         var recordIdColumn = configuration["sourceRecordIdColumn"]?.GetValue<string>()
-            ?? configuration["userIdColumn"]?.GetValue<string>()
-            ?? throw new InvalidOperationException("SQL full capture requires sourceRecordIdColumn or userIdColumn.");
+            ?? throw new InvalidOperationException(
+                "SQL full capture requires an explicit sourceRecordIdColumn. The selector userIdColumn fallback is not sufficient for upgrade continuity.");
         if (!IsSafeIdentifier(recordIdColumn))
             throw new InvalidOperationException("SQL sourceRecordIdColumn contains unsupported characters.");
 
+        var sourceRecordIdIsUnique = configuration["sourceRecordIdIsUnique"]?.GetValue<bool?>() ?? false;
+        if (!sourceRecordIdIsUnique)
+        {
+            throw new InvalidOperationException(
+                "SQL full capture requires sourceRecordIdIsUnique=true. Keyset continuity cannot be proved from a non-unique record key.");
+        }
+
         var tenantSlugColumn = configuration["tenantSlugColumn"]?.GetValue<string>();
         var observedAtColumn = configuration["observedAtColumn"]?.GetValue<string>();
-        var captureColumns = (configuration["captureColumns"] as JsonArray
-            ?? configuration["columns"] as JsonArray)
+        var captureColumns = (configuration["captureColumns"] as JsonArray)
             ?.Select(x => x?.GetValue<string>() ?? string.Empty)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList()
-            ?? throw new InvalidOperationException("SQL full capture requires captureColumns or columns.");
+            ?? throw new InvalidOperationException(
+                "SQL full capture requires an explicit captureColumns array. The ordinary Scout selector columns are intentionally not used as a fallback.");
+        if (captureColumns.Count == 0)
+            throw new InvalidOperationException("SQL captureColumns cannot be empty.");
         if (!captureColumns.Contains(recordIdColumn, StringComparer.OrdinalIgnoreCase))
             captureColumns.Add(recordIdColumn);
         if (!string.IsNullOrWhiteSpace(observedAtColumn)
@@ -56,9 +76,7 @@ internal sealed class SqlFullSourceCaptureConnector(
             if (!IsSafeIdentifier(column))
                 throw new InvalidOperationException($"SQL capture column '{column}' contains unsupported characters.");
 
-        var offset = int.TryParse(request.ContinuationToken, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
-            ? Math.Max(0, parsed)
-            : 0;
+        var cursor = ParseCursor(request.ContinuationToken, tableName, recordIdColumn);
         var connection = await OpenConnectionAsync(configuration, request.Credentials, cancellationToken);
         var dispose = connection != scoutDbContext.Database.GetDbConnection()
             && connection != customerOpsDbContext.Database.GetDbConnection();
@@ -79,38 +97,49 @@ internal sealed class SqlFullSourceCaptureConnector(
                 command.Parameters.Add(tenantParameter);
             }
 
+            if (cursor is not null)
+            {
+                where.Add($"{Quote(recordIdColumn)} > @afterRecordId");
+                var afterParameter = command.CreateParameter();
+                afterParameter.ParameterName = "@afterRecordId";
+                afterParameter.Value = CursorValue(cursor);
+                command.Parameters.Add(afterParameter);
+            }
+
             var whereSql = where.Count == 0 ? string.Empty : $" where {string.Join(" and ", where)}";
-            command.CommandText = $"select {string.Join(", ", captureColumns.Select(Quote))} from {Quote(tableName)}{whereSql} order by {Quote(recordIdColumn)} limit @limit offset @offset";
+            command.CommandText = $"select {string.Join(", ", captureColumns.Select(Quote))} from {Quote(tableName)}{whereSql} order by {Quote(recordIdColumn)} limit @limit";
             var limitParameter = command.CreateParameter();
             limitParameter.ParameterName = "@limit";
             limitParameter.Value = request.MaxRecords;
             command.Parameters.Add(limitParameter);
-            var offsetParameter = command.CreateParameter();
-            offsetParameter.ParameterName = "@offset";
-            offsetParameter.Value = offset;
-            command.Parameters.Add(offsetParameter);
 
             var records = new List<ConnectorSourceCaptureRecord>(request.MaxRecords);
+            object? lastRecordIdValue = null;
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            var ordinal = 0;
             while (await reader.ReadAsync(cancellationToken))
             {
                 var payload = new JsonObject();
                 string? recordId = null;
                 DateTime? observedAt = null;
+                object? rawRecordId = null;
                 for (var index = 0; index < reader.FieldCount; index++)
                 {
                     var name = reader.GetName(index);
                     var rawValue = reader.IsDBNull(index) ? null : reader.GetValue(index);
                     payload[name] = ToJsonValue(rawValue);
                     if (string.Equals(name, recordIdColumn, StringComparison.OrdinalIgnoreCase))
+                    {
+                        rawRecordId = rawValue;
                         recordId = Convert.ToString(rawValue, CultureInfo.InvariantCulture);
+                    }
                     if (string.Equals(name, observedAtColumn, StringComparison.OrdinalIgnoreCase))
                         observedAt = ToUtc(rawValue);
                 }
 
-                if (string.IsNullOrWhiteSpace(recordId))
+                if (rawRecordId is null || string.IsNullOrWhiteSpace(recordId))
                     throw new InvalidOperationException("SQL full capture encountered a row without a stable source record id.");
+                EnsureSupportedCursorValue(rawRecordId);
+                lastRecordIdValue = rawRecordId;
 
                 var rawJson = payload.ToJsonString();
                 var rawHash = Sha256(rawJson);
@@ -141,28 +170,46 @@ internal sealed class SqlFullSourceCaptureConnector(
                     LocalDataPlaneContracts.HistorySnapshotOnly,
                     null,
                     idempotency));
-                ordinal++;
             }
 
             var isComplete = records.Count < request.MaxRecords;
-            var nextOffset = offset + records.Count;
+            var nextCursor = !isComplete && lastRecordIdValue is not null
+                ? SerializeCursor(tableName, recordIdColumn, lastRecordIdValue)
+                : null;
             return new ConnectorSourceCaptureBatch(
                 records,
-                isComplete ? null : nextOffset.ToString(CultureInfo.InvariantCulture),
+                nextCursor,
                 isComplete,
                 JsonSerializer.Serialize(new
                 {
-                    kind = "sql-snapshot-offset",
+                    kind = CursorKind,
                     tableName,
-                    nextOffset,
+                    recordIdColumn,
+                    after = nextCursor is null ? null : Sha256(nextCursor),
                     completed = isComplete
                 }),
-                JsonSerializer.Serialize(new { offset, returned = records.Count }));
+                JsonSerializer.Serialize(new
+                {
+                    pagination = "keyset",
+                    returned = records.Count,
+                    pointInTimeSnapshot = false,
+                    history = LocalDataPlaneContracts.HistorySnapshotOnly
+                }));
         }
         finally
         {
             if (dispose)
                 await connection.DisposeAsync();
+        }
+    }
+
+    private static void RequireExplicitFullPermittedCapture(JsonObject configuration)
+    {
+        var allowed = configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false;
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                "SQL whole-source capture requires captureFullPermittedPayload=true. Normal Scout query access is not permission to retain the full customer-permitted projection for tier continuity.");
         }
     }
 
@@ -193,6 +240,85 @@ internal sealed class SqlFullSourceCaptureConnector(
         await connection.OpenAsync(cancellationToken);
         return connection;
     }
+
+    private static SqlKeysetCursor? ParseCursor(string? token, string tableName, string recordIdColumn)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+        SqlKeysetCursor cursor;
+        try
+        {
+            cursor = JsonSerializer.Deserialize<SqlKeysetCursor>(token)
+                ?? throw new InvalidOperationException("SQL keyset continuation token is empty.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException("SQL full-source continuation token is invalid JSON.", exception);
+        }
+        if (!string.Equals(cursor.Kind, CursorKind, StringComparison.Ordinal)
+            || !string.Equals(cursor.TableName, tableName, StringComparison.Ordinal)
+            || !string.Equals(cursor.RecordIdColumn, recordIdColumn, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "SQL full-source continuation token does not belong to this table/record-id contract.");
+        }
+        return cursor;
+    }
+
+    private static string SerializeCursor(string tableName, string recordIdColumn, object value)
+    {
+        var (type, text) = CursorText(value);
+        return JsonSerializer.Serialize(new SqlKeysetCursor(
+            CursorKind,
+            tableName,
+            recordIdColumn,
+            type,
+            text));
+    }
+
+    private static object CursorValue(SqlKeysetCursor cursor)
+        => cursor.Type switch
+        {
+            "string" => cursor.Value,
+            "guid" => Guid.ParseExact(cursor.Value, "D"),
+            "int16" => short.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "int32" => int.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "int64" => long.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "uint16" => ushort.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "uint32" => uint.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "uint64" => ulong.Parse(cursor.Value, CultureInfo.InvariantCulture),
+            "decimal" => decimal.Parse(cursor.Value, NumberStyles.Number, CultureInfo.InvariantCulture),
+            "double" => double.Parse(cursor.Value, NumberStyles.Float, CultureInfo.InvariantCulture),
+            "single" => float.Parse(cursor.Value, NumberStyles.Float, CultureInfo.InvariantCulture),
+            "datetime" => DateTime.Parse(cursor.Value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            "datetimeoffset" => DateTimeOffset.Parse(cursor.Value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            _ => throw new InvalidOperationException($"SQL keyset continuation type '{cursor.Type}' is not supported.")
+        };
+
+    private static void EnsureSupportedCursorValue(object value)
+    {
+        _ = CursorText(value);
+    }
+
+    private static (string Type, string Value) CursorText(object value)
+        => value switch
+        {
+            string text => ("string", text),
+            Guid guid => ("guid", guid.ToString("D")),
+            short number => ("int16", number.ToString(CultureInfo.InvariantCulture)),
+            int number => ("int32", number.ToString(CultureInfo.InvariantCulture)),
+            long number => ("int64", number.ToString(CultureInfo.InvariantCulture)),
+            ushort number => ("uint16", number.ToString(CultureInfo.InvariantCulture)),
+            uint number => ("uint32", number.ToString(CultureInfo.InvariantCulture)),
+            ulong number => ("uint64", number.ToString(CultureInfo.InvariantCulture)),
+            decimal number => ("decimal", number.ToString(CultureInfo.InvariantCulture)),
+            double number => ("double", number.ToString("R", CultureInfo.InvariantCulture)),
+            float number => ("single", number.ToString("R", CultureInfo.InvariantCulture)),
+            DateTime dateTime => ("datetime", dateTime.ToString("O", CultureInfo.InvariantCulture)),
+            DateTimeOffset dateTimeOffset => ("datetimeoffset", dateTimeOffset.ToString("O", CultureInfo.InvariantCulture)),
+            _ => throw new InvalidOperationException(
+                $"SQL sourceRecordIdColumn CLR type '{value.GetType().FullName}' is not supported by the portable keyset cursor. Use a stable string/Guid/numeric/time key or a provider-specific capture adapter.")
+        };
 
     private static JsonNode? ToJsonValue(object? value)
         => value is null ? null : JsonSerializer.SerializeToNode(value);
@@ -225,4 +351,11 @@ internal sealed class SqlFullSourceCaptureConnector(
 
     private static string Sha256(string value)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+
+    private sealed record SqlKeysetCursor(
+        string Kind,
+        string TableName,
+        string RecordIdColumn,
+        string Type,
+        string Value);
 }
