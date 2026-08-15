@@ -16,7 +16,7 @@ internal sealed class SourceCapturePayloadEvidenceConfiguration
         builder.Property(x => x.ExactPayloadText).HasColumnType("text").IsRequired();
         builder.Property(x => x.RawPayloadSha256).HasMaxLength(64).IsRequired();
         builder.HasIndex(x => new { x.TenantId, x.SourceSystemEventId }).IsUnique();
-        builder.HasIndex(x => new { x.TenantId, x.ConnectorInstallationId, x.CaptureGeneration });
+        builder.HasIndex(x => new { x.TenantId, x.ConnectorInstallationId });
         builder.HasOne(x => x.SourceSystemEvent)
             .WithOne()
             .HasForeignKey<SourceCapturePayloadEvidence>(x => x.SourceSystemEventId)
