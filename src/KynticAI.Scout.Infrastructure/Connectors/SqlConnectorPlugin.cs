@@ -19,7 +19,7 @@ internal sealed class SqlConnectorPlugin(
 
     public override string DisplayName => "SQL Database Connector";
 
-    public override string Description => "Fetches subject rows from the current context database, customer operations database, or an external PostgreSQL connection.";
+    public override string Description => "Fetches subject rows from the current context database, customer operations database, or an external PostgreSQL connection. Optional explicit whole-source capture settings preserve a broader customer-permitted projection for seamless tier continuity.";
 
     public override IReadOnlyList<string> Aliases => ["sqlTable", "postgresql"];
 
@@ -38,7 +38,33 @@ internal sealed class SqlConnectorPlugin(
                 ["tenantSlugColumn"] = new JsonObject { ["type"] = "string" },
                 ["tenantSlug"] = new JsonObject { ["type"] = "string" },
                 ["observedAtColumn"] = new JsonObject { ["type"] = "string" },
-                ["columns"] = new JsonObject { ["type"] = "array" },
+                ["columns"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["description"] = "Narrow Scout subject/selector projection. This is not reused as the upgrade continuity projection."
+                },
+                ["captureFullPermittedPayload"] = new JsonObject
+                {
+                    ["type"] = "boolean",
+                    ["description"] = "Explicit customer permission to retain the whole-source customer-permitted projection locally for tier continuity."
+                },
+                ["captureColumns"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["description"] = "Explicit customer-approved whole-source projection. Required when captureFullPermittedPayload=true."
+                },
+                ["sourceRecordIdColumn"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Stable source record key used by whole-source capture and Fortress identity continuity."
+                },
+                ["sourceRecordIdIsUnique"] = new JsonObject
+                {
+                    ["type"] = "boolean",
+                    ["description"] = "Must be explicitly true for portable keyset whole-source pagination."
+                },
+                ["sourceObjectType"] = new JsonObject { ["type"] = "string" },
+                ["redactionPolicyVersion"] = new JsonObject { ["type"] = "string" },
                 ["connectionString"] = new JsonObject { ["type"] = "string" },
                 ["credentials"] = new JsonObject { ["type"] = "object" }
             }
@@ -64,7 +90,18 @@ internal sealed class SqlConnectorPlugin(
             ["tenantSlugColumn"] = "tenant_slug",
             ["userIdColumn"] = "external_user_id",
             ["observedAtColumn"] = "observed_at_utc",
-            ["columns"] = new JsonArray("plan_interest_signal", "active_days_30")
+            ["columns"] = new JsonArray("plan_interest_signal", "active_days_30"),
+            ["captureFullPermittedPayload"] = true,
+            ["captureColumns"] = new JsonArray(
+                "external_user_id",
+                "tenant_slug",
+                "observed_at_utc",
+                "plan_interest_signal",
+                "active_days_30"),
+            ["sourceRecordIdColumn"] = "external_user_id",
+            ["sourceRecordIdIsUnique"] = true,
+            ["sourceObjectType"] = "customer_context_rollup",
+            ["redactionPolicyVersion"] = "customer-permitted.v1"
         };
 
     public override async Task<ConnectorConfigurationValidationResult> ValidateConfigurationAsync(
@@ -88,11 +125,28 @@ internal sealed class SqlConnectorPlugin(
         }
         else
         {
-            foreach (var column in columns)
+            ValidateIdentifierArray(columns, "SQL connector columns", errors);
+        }
+
+        var fullCaptureEnabled = request.Configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false;
+        if (fullCaptureEnabled)
+        {
+            var sourceRecordId = request.Configuration["sourceRecordIdColumn"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(sourceRecordId) || !IsSafeIdentifier(sourceRecordId))
             {
-                var columnName = column?.GetValue<string>();
-                if (string.IsNullOrWhiteSpace(columnName) || !IsSafeIdentifier(columnName))
-                    errors.Add("SQL connector columns must contain only letters, numbers, or underscores.");
+                errors.Add("SQL whole-source continuity requires a safe sourceRecordIdColumn.");
+            }
+            if (!(request.Configuration["sourceRecordIdIsUnique"]?.GetValue<bool?>() ?? false))
+            {
+                errors.Add("SQL whole-source continuity requires sourceRecordIdIsUnique=true.");
+            }
+            if (request.Configuration["captureColumns"] is not JsonArray captureColumns || captureColumns.Count == 0)
+            {
+                errors.Add("SQL whole-source continuity requires a non-empty explicit captureColumns array; selector columns are not a full-capture fallback.");
+            }
+            else
+            {
+                ValidateIdentifierArray(captureColumns, "SQL captureColumns", errors);
             }
         }
 
@@ -257,10 +311,13 @@ internal sealed class SqlConnectorPlugin(
         {
             "currentdatabase" => await OpenSharedConnectionAsync(scoutDbContext.Database.GetDbConnection(), cancellationToken),
             "customeropsdatabase" => await OpenSharedConnectionAsync(customerOpsDbContext.Database.GetDbConnection(), cancellationToken),
-            "connectionstring" => await OpenExternalConnectionAsync(configuration["connectionString"]?.GetValue<string>() ?? credentials["connectionString"]?.GetValue<string>(), cancellationToken),
+            "connectionstring" => await OpenExternalConnectionAsync(configuration["connectionString"]?.GetValue<string>() ?? requestCredential(configuration, credentials), cancellationToken),
             _ => throw new InvalidOperationException($"SQL connector mode '{mode}' is not supported.")
         };
     }
+
+    private static string? requestCredential(JsonObject configuration, JsonObject credentials)
+        => credentials["connectionString"]?.GetValue<string>();
 
     private static async Task<DbConnection> OpenSharedConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
     {
@@ -293,6 +350,16 @@ internal sealed class SqlConnectorPlugin(
         }
 
         return value;
+    }
+
+    private static void ValidateIdentifierArray(JsonArray values, string label, List<string> errors)
+    {
+        foreach (var value in values)
+        {
+            var columnName = value?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(columnName) || !IsSafeIdentifier(columnName))
+                errors.Add($"{label} must contain only letters, numbers, or underscores.");
+        }
     }
 
     private static bool IsSafeIdentifier(string value)
