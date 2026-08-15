@@ -165,21 +165,23 @@ internal sealed class FullSourceCaptureCoordinator(
                 batch.Records,
                 continuationBefore,
                 historyBefore,
+                batch.HistoryCompleteness,
                 batch.CurrentStateConsistency,
                 consistencyBefore);
             var earliestAvailable = batch.Records
                 .Where(x => x.EarliestAvailableAtUtc.HasValue)
                 .Select(x => x.EarliestAvailableAtUtc)
                 .Min();
-            if (batch.Records.Count > 0)
-            {
-                checkpoint.ObserveCaptureSemantics(
-                    owner,
-                    batchHistory,
-                    earliestAvailable,
-                    clock.UtcNow,
-                    batch.CurrentStateConsistency);
-            }
+
+            // Batch semantics are authoritative even for a legitimately empty source. A zero-row
+            // FULL_SOURCE generation must be able to prove what was enumerated without inventing
+            // a synthetic source record merely to carry history/consistency metadata.
+            checkpoint.ObserveCaptureSemantics(
+                owner,
+                batchHistory,
+                earliestAvailable,
+                clock.UtcNow,
+                batch.CurrentStateConsistency);
 
             var persisted = 0;
             DateTime? earliest = null;
@@ -215,7 +217,8 @@ internal sealed class FullSourceCaptureCoordinator(
                     batch.HighWaterMarkJson,
                     checkpoint.HistoryCompleteness,
                     clock.UtcNow,
-                    LocalDataPlaneContracts.PayloadStorageExactTextV1);
+                    LocalDataPlaneContracts.PayloadStorageExactTextV1,
+                    LocalDataPlaneContracts.GenerationMembershipV1);
             }
             checkpoint.ReleaseLease(owner, clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -481,10 +484,17 @@ internal sealed class FullSourceCaptureCoordinator(
         IReadOnlyList<ConnectorSourceCaptureRecord> records,
         string? continuationBefore,
         string historyBefore,
+        string batchHistoryCompleteness,
         string currentStateConsistency,
         string consistencyBefore)
     {
         ValidateCurrentStateConsistency(currentStateConsistency);
+        if (!IsKnownHistory(batchHistoryCompleteness))
+        {
+            throw new InvalidOperationException(
+                $"Unknown batch history-completeness value '{batchHistoryCompleteness}'.");
+        }
+
         if (!string.IsNullOrWhiteSpace(continuationBefore)
             && !string.IsNullOrWhiteSpace(consistencyBefore)
             && !string.Equals(consistencyBefore, LocalDataPlaneContracts.CurrentStateUnknown, StringComparison.Ordinal)
@@ -494,11 +504,27 @@ internal sealed class FullSourceCaptureCoordinator(
                 "Whole-source capture changed current-state consistency semantics inside one paged generation.");
         }
 
+        if (!string.IsNullOrWhiteSpace(continuationBefore)
+            && !string.IsNullOrWhiteSpace(historyBefore)
+            && !string.Equals(historyBefore, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal)
+            && !string.Equals(batchHistoryCompleteness, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal)
+            && !string.Equals(historyBefore, batchHistoryCompleteness, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Whole-source capture changed batch history-completeness semantics inside one paged generation.");
+        }
+
+        if (IsGenericSnapshotConnector(connectorType)
+            && !string.Equals(batchHistoryCompleteness, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.Ordinal)
+            && !string.Equals(batchHistoryCompleteness, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Generic connector '{connectorType}' may only claim SNAPSHOT_ONLY or UNKNOWN history. Use a provider-specific capture connector to prove historical completeness.");
+        }
+
         if (records.Count == 0)
         {
-            return string.IsNullOrWhiteSpace(historyBefore)
-                ? LocalDataPlaneContracts.HistoryUnknown
-                : historyBefore;
+            return batchHistoryCompleteness;
         }
 
         var histories = records
@@ -512,6 +538,13 @@ internal sealed class FullSourceCaptureCoordinator(
         }
 
         var incomingHistory = histories[0];
+        if (!string.Equals(batchHistoryCompleteness, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal)
+            && !string.Equals(batchHistoryCompleteness, incomingHistory, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Whole-source capture record history contradicts the batch history contract.");
+        }
+
         if (!string.IsNullOrWhiteSpace(continuationBefore)
             && !string.IsNullOrWhiteSpace(historyBefore)
             && !string.Equals(historyBefore, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal)
