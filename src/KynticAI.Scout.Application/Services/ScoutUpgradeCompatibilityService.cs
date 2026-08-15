@@ -75,6 +75,7 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         var allCredentialReferencesPresent = true;
         var allConnectorsHaveCompletedWholeSourceCapture = installations.Count > 0;
         var allConnectorHistoryIsExactFromDeclaredBoundary = installations.Count > 0;
+        var allConnectorPayloadEvidenceIsExact = installations.Count > 0;
 
         foreach (var installation in installations)
         {
@@ -120,9 +121,15 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 && IsExactHistory(checkpoint!.HistoryCompleteness);
             var fullPermittedProfile = checkpoint is not null
                 && string.Equals(checkpoint.CaptureProfile, LocalDataPlaneContracts.CaptureProfileFullPermittedV1, StringComparison.Ordinal);
+            var exactPayloadEvidence = hasCompletedWholeSourceCapture
+                && string.Equals(
+                    checkpoint!.PayloadStorageContract,
+                    LocalDataPlaneContracts.PayloadStorageExactTextV1,
+                    StringComparison.Ordinal);
 
             allConnectorsHaveCompletedWholeSourceCapture &= hasCompletedWholeSourceCapture;
             allConnectorHistoryIsExactFromDeclaredBoundary &= exactHistoryFromDeclaredBoundary;
+            allConnectorPayloadEvidenceIsExact &= exactPayloadEvidence;
 
             var warnings = new List<string>();
             if (!targetSupported)
@@ -137,6 +144,8 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                     warnings.Add("Whole-source capture has not completed a generation yet.");
                 if (!IsExactHistory(checkpoint.HistoryCompleteness))
                     warnings.Add($"Connector history is '{checkpoint.HistoryCompleteness}'. Fortress may rebuild current state, but exact pre-boundary history must not be claimed.");
+                if (!exactPayloadEvidence)
+                    warnings.Add($"Completed generation payload storage is '{checkpoint.PayloadStorageContract}'. Run a new full-source generation under exact-text.v1 before claiming byte-verifiable replay continuity.");
                 if (checkpoint.EarliestAvailableAtUtc.HasValue)
                     warnings.Add($"Earliest declared source-history boundary is {checkpoint.EarliestAvailableAtUtc.Value:O}.");
                 if (!string.IsNullOrWhiteSpace(checkpoint.LastError))
@@ -167,7 +176,8 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 checkpoint?.EarliestAvailableAtUtc ?? checkpoint?.EarliestCapturedAtUtc,
                 checkpoint?.LastFullSourceCompletedAtUtc,
                 checkpoint?.Generation ?? 0,
-                checkpoint is null ? string.Empty : Sha256(checkpoint.HighWaterMarkJson)));
+                checkpoint is null ? string.Empty : Sha256(checkpoint.HighWaterMarkJson),
+                checkpoint?.PayloadStorageContract ?? LocalDataPlaneContracts.PayloadStorageUnknown));
         }
 
         // The preflight is intentionally derived from bounded checkpoint/aggregate state. It no
@@ -183,7 +193,8 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             allConnectorsHaveCompletedWholeSourceCapture,
             allTargetSupported,
             RequiresSourceReconnect: false,
-            HistoricalCoverageKnownComplete: allConnectorHistoryIsExactFromDeclaredBoundary);
+            HistoricalCoverageKnownComplete: allConnectorHistoryIsExactFromDeclaredBoundary,
+            ExactPayloadEvidenceRetained: allConnectorPayloadEvidenceIsExact);
         var readiness = ScoutFortressUpgradePolicy.Classify(evidence);
 
         var reasons = BuildReasons(readiness, storageProvider, evidence, descriptors);
@@ -204,7 +215,7 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             readiness,
             reasons,
             requiredActions,
-            "This manifest contains topology, hashes, local secret references and bounded capture-coverage metadata only. Raw source payloads, source high-water positions, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
+            "This manifest contains topology, hashes, local secret references and bounded capture-coverage metadata only. Raw source payloads, source high-water positions, exact payload evidence, protected credential values, customer identifiers, context facts and model inputs remain in the customer data plane.");
     }
 
     private static bool IsExactHistory(string historyCompleteness)
@@ -230,6 +241,8 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
             reasons.Add("At least one connector has not completed a FULL_SOURCE capture generation; on-demand selector history alone is not a lossless estate journal.");
         if (!evidence.AllRetainedEventsRetainFullPermittedPayload)
             reasons.Add("At least one connector cannot prove a completed full customer-permitted source capture.");
+        if (!evidence.ExactPayloadEvidenceRetained)
+            reasons.Add("At least one connector's last completed generation does not prove exact-text payload evidence. jsonb semantics alone are not byte-verifiable replay evidence.");
         if (!evidence.HistoricalCoverageKnownComplete)
         {
             var boundaries = connectors
@@ -253,12 +266,12 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
         var actions = new List<string>();
         if (!isPostgres)
             actions.Add("Migrate the local Scout relational store to PostgreSQL before claiming a same-database Fortress upgrade.");
-        actions.Add("Complete and verify a whole-source connector capture generation before the upgrade barrier.");
+        actions.Add("Complete and verify a whole-source connector capture generation under the exact-text.v1 payload evidence contract before the upgrade barrier.");
         actions.Add("Take a customer-local database backup/snapshot before the upgrade barrier.");
         actions.Add("Pause connector leases at a recorded local source high-water mark before switching capture ownership.");
-        actions.Add("Install Fortress additively; do not delete Scout source-event, connector, credential-reference or checkpoint state during the rebuild.");
-        actions.Add("Backfill Fortress governed state locally from the retained Scout source journal before resuming connector leases.");
-        actions.Add("Verify connector IDs, local credential references, high-water hashes, source-event counts and deterministic hashes before finalising cutover.");
+        actions.Add("Install Fortress additively; do not delete Scout source-event, connector, credential-reference, exact-payload-evidence or checkpoint state during the rebuild.");
+        actions.Add("Backfill Fortress governed state locally from the retained Scout source journal and exact payload evidence before resuming connector leases.");
+        actions.Add("Verify connector IDs, local credential references, high-water hashes, source-event counts, exact payload hashes and deterministic hashes before finalising cutover.");
         if (readiness == LocalUpgradeReadiness.HistoryLimited)
             actions.Add("Explain the earliest provable historical boundary to the customer; do not fabricate pre-boundary Fortress history.");
         if (readiness is LocalUpgradeReadiness.ReconnectRequired or LocalUpgradeReadiness.Unsupported)
