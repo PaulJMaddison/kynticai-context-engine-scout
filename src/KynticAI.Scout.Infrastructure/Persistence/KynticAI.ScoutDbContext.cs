@@ -14,35 +14,20 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     : DbContext(options), IScoutDbContext
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
-
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
-
     public DbSet<OperatorAccount> OperatorAccounts => Set<OperatorAccount>();
-
     public DbSet<DataSource> DataSources => Set<DataSource>();
-
     public DbSet<SemanticAttributeDefinition> SemanticAttributeDefinitions => Set<SemanticAttributeDefinition>();
-
     public DbSet<SelectorDefinition> SelectorDefinitions => Set<SelectorDefinition>();
-
     public DbSet<SelectorExecution> SelectorExecutions => Set<SelectorExecution>();
-
     public DbSet<ContextSnapshot> ContextSnapshots => Set<ContextSnapshot>();
-
     public DbSet<ContextFact> ContextFacts => Set<ContextFact>();
-
     public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
-
     public DbSet<AgentRun> AgentRuns => Set<AgentRun>();
-
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
-
     public DbSet<RecomputeJob> RecomputeJobs => Set<RecomputeJob>();
-
     public DbSet<ProvenanceMetadata> ProvenanceMetadata => Set<ProvenanceMetadata>();
-
     public DbSet<ConnectorCredential> ConnectorCredentials => Set<ConnectorCredential>();
-
     public DbSet<SourceSystemEvent> SourceSystemEvents => Set<SourceSystemEvent>();
 
     /// <summary>
@@ -53,39 +38,22 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     public DbSet<SourceCapturePayloadEvidence> SourceCapturePayloadEvidenceRecords => Set<SourceCapturePayloadEvidence>();
 
     public DbSet<UserSignal> UserSignals => Set<UserSignal>();
-
     public DbSet<Workspace> Workspaces => Set<Workspace>();
-
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
-
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
-
     public DbSet<BillingPlan> BillingPlans => Set<BillingPlan>();
-
     public DbSet<BillingPlanLimit> BillingPlanLimits => Set<BillingPlanLimit>();
-
     public DbSet<ApiClient> ApiClients => Set<ApiClient>();
-
     public DbSet<WebhookSigningSecret> WebhookSigningSecrets => Set<WebhookSigningSecret>();
-
     public DbSet<ConnectorInstallation> ConnectorInstallations => Set<ConnectorInstallation>();
-
     public DbSet<ConnectorCaptureCheckpoint> ConnectorCaptureCheckpoints => Set<ConnectorCaptureCheckpoint>();
-
     public DbSet<ConnectorCatalogueEntry> ConnectorCatalogueEntries => Set<ConnectorCatalogueEntry>();
-
     public DbSet<ContextPackage> ContextPackages => Set<ContextPackage>();
-
     public DbSet<BillingUsageRecord> BillingUsageRecords => Set<BillingUsageRecord>();
-
     public DbSet<OnboardingState> OnboardingStates => Set<OnboardingState>();
-
     public DbSet<OnboardingApplication> OnboardingApplications => Set<OnboardingApplication>();
-
     public DbSet<BlueprintImport> BlueprintImports => Set<BlueprintImport>();
-
     public DbSet<PiiRule> PiiRules => Set<PiiRule>();
-
     public DbSet<AuditPolicy> AuditPolicies => Set<AuditPolicy>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -178,9 +146,6 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
                     $"Capture event '{sourceEvent.EventId}' raw payload SHA-256 does not match the exact retained payload text.");
             }
 
-            // The capture constructor is intentionally allowed to remain product-neutral. The
-            // persistence layer owns the stronger storage claim because only this layer can prove
-            // that a byte-preserving sidecar is entering the same local database transaction.
             capture["PayloadStorageContract"] = LocalDataPlaneContracts.PayloadStorageExactTextV1;
             entry.Property(x => x.HeadersJson).CurrentValue = headers.ToJsonString();
 
@@ -193,16 +158,16 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
                 continue;
             }
 
-            SourceCapturePayloadEvidenceRecords.Add(KynticAI.Scout.Domain.Entities.SourceCapturePayloadEvidence.Create(
-                sourceEvent.TenantId,
-                sourceEvent.Id,
-                connectorInstallationId,
-                LocalDataPlaneContracts.PayloadStorageExactTextV1,
-                coverageScope,
-                captureGeneration: 0,
-                sourceEvent.PayloadJson,
-                actualHash,
-                sourceEvent.ReceivedAtUtc));
+            SourceCapturePayloadEvidenceRecords.Add(
+                KynticAI.Scout.Domain.Entities.SourceCapturePayloadEvidence.Create(
+                    sourceEvent.TenantId,
+                    sourceEvent.Id,
+                    connectorInstallationId,
+                    LocalDataPlaneContracts.PayloadStorageExactTextV1,
+                    coverageScope,
+                    sourceEvent.PayloadJson,
+                    actualHash,
+                    sourceEvent.ReceivedAtUtc));
         }
     }
 
