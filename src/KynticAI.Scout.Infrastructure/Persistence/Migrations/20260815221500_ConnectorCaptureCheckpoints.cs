@@ -61,7 +61,6 @@ public sealed class ConnectorCaptureCheckpoints : Migration
                 ConnectorInstallationId = table.Column<Guid>(type: "uuid", nullable: false),
                 StorageContract = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
                 CoverageScope = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
-                CaptureGeneration = table.Column<long>(type: "bigint", nullable: false),
                 ExactPayloadText = table.Column<string>(type: "text", nullable: false),
                 RawPayloadSha256 = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                 CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -101,9 +100,9 @@ public sealed class ConnectorCaptureCheckpoints : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
-            name: "IX_source_capture_payload_evidence_TenantId_ConnectorInstallationId_CaptureGeneration",
+            name: "IX_source_capture_payload_evidence_TenantId_ConnectorInstallationId",
             table: "source_capture_payload_evidence",
-            columns: new[] { "TenantId", "ConnectorInstallationId", "CaptureGeneration" });
+            columns: new[] { "TenantId", "ConnectorInstallationId" });
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
