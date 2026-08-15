@@ -70,7 +70,8 @@ public enum ConnectorCapability
     EventTriggeredRecompute = 5,
     HealthCheck = 6,
     ConfigurationValidation = 7,
-    SecureCredentialStorage = 8
+    SecureCredentialStorage = 8,
+    UpgradeCompatibleCapture = 9
 }
 
 public enum ConnectorRunMode
@@ -190,13 +191,36 @@ public sealed record ConnectorFetchRequest(
     ConnectorRunMode Mode,
     ConnectorExecutionTrigger Trigger);
 
+/// <summary>
+/// Provider-native source position and capture semantics for continuity across KynticAI tiers.
+/// SourcePositionJson is intentionally provider-specific and opaque to Scout; the target tier
+/// validates it using the connector type. No secret values belong in this metadata.
+/// </summary>
+public sealed record ConnectorCaptureMetadata(
+    Guid ConnectorInstanceId,
+    string ConnectorDefinitionVersion,
+    string CaptureProfile,
+    string CaptureProfileVersion,
+    string? SourceNamespace,
+    string SourceObjectType,
+    string SourceRecordId,
+    string Operation,
+    string SourcePositionJson,
+    DateTime OccurredAtUtc,
+    DateTime? SourceRecordedAtUtc,
+    string SchemaFingerprintSha256,
+    string RedactionPolicyVersion,
+    bool FullPermittedPayloadRetained,
+    string IdempotencyKey);
+
 public sealed record ConnectorFetchResult(
     string RawPayloadJson,
     JsonObject NormalizedPayload,
     string ProvenanceJson,
     DateTime ObservedAtUtc,
     DateTime? FreshUntilUtc,
-    string DiagnosticsJson);
+    string DiagnosticsJson,
+    ConnectorCaptureMetadata? CaptureMetadata = null);
 
 public sealed record ConnectorExecutionTrigger(
     string Kind,
