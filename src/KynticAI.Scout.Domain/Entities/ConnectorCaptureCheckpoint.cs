@@ -20,6 +20,14 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
     public string HistoryCompleteness { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Whether one completed FULL_SOURCE generation represented a coherent current-state view.
+    /// This is intentionally independent from HistoryCompleteness. A source can have no change
+    /// history yet still provide an immutable point-in-time snapshot, or enumerate all rows from
+    /// a live table/API without being a point-in-time view.
+    /// </summary>
+    public string CurrentStateConsistency { get; private set; } = "UNKNOWN";
+
+    /// <summary>
     /// Storage contract of the last completed full-source generation. Legacy Scout rows were
     /// retained in jsonb only and therefore cannot prove byte-identical replay after a database
     /// round trip. New generations set this to exact-text.v1 only after every retained capture
@@ -49,7 +57,8 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         string historyCompleteness,
         DateTime? earliestAvailableAtUtc,
         DateTime utcNow,
-        string payloadStorageContract = "legacy-jsonb.v0")
+        string payloadStorageContract = "legacy-jsonb.v0",
+        string currentStateConsistency = "UNKNOWN")
     {
         var checkpoint = new ConnectorCaptureCheckpoint
         {
@@ -60,6 +69,9 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
             CaptureProfileVersion = captureProfileVersion.Trim(),
             CoverageScope = coverageScope.Trim(),
             HistoryCompleteness = historyCompleteness.Trim(),
+            CurrentStateConsistency = string.IsNullOrWhiteSpace(currentStateConsistency)
+                ? "UNKNOWN"
+                : currentStateConsistency.Trim(),
             PayloadStorageContract = string.IsNullOrWhiteSpace(payloadStorageContract)
                 ? "legacy-jsonb.v0"
                 : payloadStorageContract.Trim(),
@@ -93,19 +105,23 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
 
     /// <summary>
     /// Persist the semantic contract observed on a non-empty page so an empty terminal page
-    /// cannot erase it. The coordinator is responsible for rejecting contradictory semantics
-    /// inside one paged generation before calling this method.
+    /// cannot erase it. The coordinator rejects contradictory page semantics inside one
+    /// generation before calling this method.
     /// </summary>
     public void ObserveCaptureSemantics(
         string owner,
         string historyCompleteness,
+        string currentStateConsistency,
         DateTime? earliestAvailableAtUtc,
         DateTime utcNow)
     {
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
+        if (string.IsNullOrWhiteSpace(currentStateConsistency))
+            throw new ArgumentException("Current-state consistency is required.", nameof(currentStateConsistency));
         HistoryCompleteness = historyCompleteness.Trim();
+        CurrentStateConsistency = currentStateConsistency.Trim();
         EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
         SetAuditTimestamps(utcNow);
     }
@@ -148,6 +164,9 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
+        if (string.IsNullOrWhiteSpace(CurrentStateConsistency)
+            || string.Equals(CurrentStateConsistency, "UNKNOWN", StringComparison.Ordinal))
+            throw new InvalidOperationException("A completed FULL_SOURCE generation must declare current-state consistency.");
         if (string.IsNullOrWhiteSpace(payloadStorageContract))
             throw new ArgumentException("Payload storage contract is required.", nameof(payloadStorageContract));
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
