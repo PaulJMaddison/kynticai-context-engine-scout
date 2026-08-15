@@ -37,6 +37,13 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     /// </summary>
     public DbSet<SourceCapturePayloadEvidence> SourceCapturePayloadEvidenceRecords => Set<SourceCapturePayloadEvidence>();
 
+    /// <summary>
+    /// Membership of retained source events in one FULL_SOURCE capture generation. This is what
+    /// lets snapshot-only connectors rebuild current state from the latest completed generation
+    /// without resurrecting records that existed only in an older snapshot.
+    /// </summary>
+    public DbSet<SourceCaptureGenerationMember> SourceCaptureGenerationMembers => Set<SourceCaptureGenerationMember>();
+
     public DbSet<UserSignal> UserSignals => Set<UserSignal>();
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
@@ -159,7 +166,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
             }
 
             SourceCapturePayloadEvidenceRecords.Add(
-                KynticAI.Scout.Domain.Entities.SourceCapturePayloadEvidence.Create(
+                SourceCapturePayloadEvidence.Create(
                     sourceEvent.TenantId,
                     sourceEvent.Id,
                     connectorInstallationId,
