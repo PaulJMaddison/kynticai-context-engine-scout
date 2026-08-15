@@ -108,10 +108,14 @@ public sealed class ScoutUpgradeCompatibilityService(IScoutDbContext dbContext)
                 || targetSupportedConnectorTypes.Contains(installation.ConnectorType);
             allTargetSupported &= targetSupported;
 
+            // A completed generation is authoritative even when the source is genuinely empty.
+            // CapturedRecordCount > 0 is therefore not required: the lease/checkpoint/high-water
+            // transition proves that a whole-source enumeration completed, while the history
+            // classification below decides how much chronology that enumeration can prove.
             var hasCompletedWholeSourceCapture = checkpoint is not null
                 && checkpoint.LastFullSourceCompletedAtUtc.HasValue
-                && string.Equals(checkpoint.CoverageScope, LocalDataPlaneContracts.CoverageFullSource, StringComparison.Ordinal)
-                && checkpoint.CapturedRecordCount > 0;
+                && checkpoint.Generation > 0
+                && string.Equals(checkpoint.CoverageScope, LocalDataPlaneContracts.CoverageFullSource, StringComparison.Ordinal);
             var exactHistoryFromDeclaredBoundary = hasCompletedWholeSourceCapture
                 && IsExactHistory(checkpoint!.HistoryCompleteness);
             var fullPermittedProfile = checkpoint is not null
