@@ -85,11 +85,6 @@ public sealed record LocalSourceCaptureMetadataV1(
         && !string.IsNullOrWhiteSpace(HistoryCompleteness)
         && !string.IsNullOrWhiteSpace(RawPayloadSha256);
 
-    /// <summary>
-    /// Strong upgrade-compatible means this event belongs to a whole-source capture stream,
-    /// not merely an on-demand subject read. This prevents an upgrade preflight from turning
-    /// "we saved everything we happened to ask for" into a false "we saved the whole estate" claim.
-    /// </summary>
     [JsonIgnore]
     public bool IsUpgradeCompatible =>
         HasStructurallyValidCaptureMetadata
@@ -115,7 +110,13 @@ public sealed record ScoutConnectorUpgradeDescriptorV1(
     bool FullPermittedPayloadRetained,
     IReadOnlyList<string> CaptureProfiles,
     IReadOnlyList<string> SchemaFingerprints,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    string CoverageScope = LocalDataPlaneContracts.HistoryUnknown,
+    string HistoryCompleteness = LocalDataPlaneContracts.HistoryUnknown,
+    DateTime? EarliestUpgradeCompatibleAtUtc = null,
+    DateTime? LastFullSourceCompletedAtUtc = null,
+    long CompletedCaptureGeneration = 0,
+    string HighWaterMarkSha256 = "");
 
 public sealed record ScoutUpgradeManifestV1(
     string Contract,
@@ -173,9 +174,6 @@ public static class ScoutFortressUpgradePolicy
         if (!evidence.ConnectorCredentialsReferencedLocally)
             return LocalUpgradeReadiness.ReconnectRequired;
 
-        // Scout context facts and fallback relationship outputs are derivatives. Fortress should
-        // rebuild its richer governed state locally from the retained source journal rather than
-        // treating Scout's derived facts as canonical truth.
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
     }
 }
