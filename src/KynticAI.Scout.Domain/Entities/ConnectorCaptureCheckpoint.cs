@@ -21,18 +21,11 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
 
     /// <summary>
     /// Whether one completed FULL_SOURCE generation represented a coherent current-state view.
-    /// This is intentionally independent from HistoryCompleteness. A source can have no change
-    /// history yet still provide an immutable point-in-time snapshot, or enumerate all rows from
-    /// a live table/API without being a point-in-time view.
+    /// This is intentionally independent from HistoryCompleteness. UNKNOWN is conservative and
+    /// can never qualify for the strongest continuity classification.
     /// </summary>
     public string CurrentStateConsistency { get; private set; } = "UNKNOWN";
 
-    /// <summary>
-    /// Storage contract of the last completed full-source generation. Legacy Scout rows were
-    /// retained in jsonb only and therefore cannot prove byte-identical replay after a database
-    /// round trip. New generations set this to exact-text.v1 only after every retained capture
-    /// record has an exact local payload-evidence sidecar.
-    /// </summary>
     public string PayloadStorageContract { get; private set; } = "legacy-jsonb.v0";
 
     public string? ContinuationToken { get; private set; }
@@ -104,24 +97,24 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
     }
 
     /// <summary>
-    /// Persist the semantic contract observed on a non-empty page so an empty terminal page
-    /// cannot erase it. The coordinator rejects contradictory page semantics inside one
-    /// generation before calling this method.
+    /// Old callers remain source-compatible while CurrentStateConsistency is threaded through
+    /// the capture coordinator. Omitting the value records UNKNOWN and therefore fails
+    /// conservatively at upgrade-readiness time rather than inventing a consistency guarantee.
     /// </summary>
     public void ObserveCaptureSemantics(
         string owner,
         string historyCompleteness,
-        string currentStateConsistency,
         DateTime? earliestAvailableAtUtc,
-        DateTime utcNow)
+        DateTime utcNow,
+        string currentStateConsistency = "UNKNOWN")
     {
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
-        if (string.IsNullOrWhiteSpace(currentStateConsistency))
-            throw new ArgumentException("Current-state consistency is required.", nameof(currentStateConsistency));
         HistoryCompleteness = historyCompleteness.Trim();
-        CurrentStateConsistency = currentStateConsistency.Trim();
+        CurrentStateConsistency = string.IsNullOrWhiteSpace(currentStateConsistency)
+            ? "UNKNOWN"
+            : currentStateConsistency.Trim();
         EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
         SetAuditTimestamps(utcNow);
     }
@@ -164,9 +157,6 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
-        if (string.IsNullOrWhiteSpace(CurrentStateConsistency)
-            || string.Equals(CurrentStateConsistency, "UNKNOWN", StringComparison.Ordinal))
-            throw new InvalidOperationException("A completed FULL_SOURCE generation must declare current-state consistency.");
         if (string.IsNullOrWhiteSpace(payloadStorageContract))
             throw new ArgumentException("Payload storage contract is required.", nameof(payloadStorageContract));
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
