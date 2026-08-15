@@ -3,15 +3,26 @@ using System.Text.Json.Serialization;
 namespace KynticAI.Scout.Application.Contracts;
 
 /// <summary>
-/// Public, product-neutral contract for preserving a connector capture so a later
-/// KynticAI tier can rebuild richer local projections without reconnecting to the source.
-/// It deliberately contains no credentials and no proprietary Fortress semantics.
+/// Public, product-neutral contracts for retaining source capture locally so a later
+/// KynticAI tier can rebuild richer governed projections without reconnecting to the source.
+/// These contracts describe capture fidelity; they never grant permission to collect fields
+/// the customer has not authorised.
 /// </summary>
 public static class LocalDataPlaneContracts
 {
     public const string CaptureMetadataV1 = "kyntic-local-source-capture.v1";
     public const string UpgradeManifestV1 = "kyntic-scout-upgrade-manifest.v1";
     public const string CaptureProfileFullPermittedV1 = "full-permitted.v1";
+
+    public const string CoverageFullSource = "FULL_SOURCE";
+    public const string CoverageSubjectOnDemand = "SUBJECT_ON_DEMAND";
+    public const string CoverageSnapshotImport = "SNAPSHOT_IMPORT";
+
+    public const string HistoryComplete = "COMPLETE";
+    public const string HistoryFromRetentionBoundary = "FROM_RETENTION_BOUNDARY";
+    public const string HistoryOnDemand = "ON_DEMAND";
+    public const string HistorySnapshotOnly = "SNAPSHOT_ONLY";
+    public const string HistoryUnknown = "UNKNOWN";
 }
 
 public enum LocalUpgradeReadiness
@@ -25,8 +36,13 @@ public enum LocalUpgradeReadiness
 
 /// <summary>
 /// Metadata attached to a locally retained source event. "Full permitted" means the
-/// complete source payload the customer has authorised this connector to collect, after
-/// configured redaction/allow-list policy. It never means bypassing customer policy.
+/// complete source payload the customer authorised this connector to collect, after the
+/// configured redaction/allow-list policy. It does not mean "all fields in the source".
+///
+/// CoverageScope is deliberately separate from FullPermittedPayloadRetained. A subject
+/// lookup can retain its complete permitted payload and still not prove that Scout has
+/// captured the whole source estate. Lossless Scout -> Fortress claims require FULL_SOURCE
+/// coverage plus an explicit history completeness statement.
 /// </summary>
 public sealed record LocalSourceCaptureMetadataV1(
     string Contract,
@@ -46,9 +62,15 @@ public sealed record LocalSourceCaptureMetadataV1(
     string SchemaFingerprintSha256,
     string RedactionPolicyVersion,
     bool FullPermittedPayloadRetained,
-    string IdempotencyKey)
+    string IdempotencyKey,
+    string CoverageScope = LocalDataPlaneContracts.CoverageSubjectOnDemand,
+    string HistoryCompleteness = LocalDataPlaneContracts.HistoryUnknown,
+    DateTime? EarliestAvailableAtUtc = null,
+    string RawPayloadSha256 = "",
+    string PermittedFieldSetSha256 = "")
 {
-    public bool IsUpgradeCompatible =>
+    [JsonIgnore]
+    public bool HasStructurallyValidCaptureMetadata =>
         string.Equals(Contract, LocalDataPlaneContracts.CaptureMetadataV1, StringComparison.Ordinal)
         && ConnectorInstanceId != Guid.Empty
         && !string.IsNullOrWhiteSpace(ConnectorType)
@@ -58,8 +80,23 @@ public sealed record LocalSourceCaptureMetadataV1(
         && !string.IsNullOrWhiteSpace(Operation)
         && !string.IsNullOrWhiteSpace(SourcePositionJson)
         && !string.IsNullOrWhiteSpace(SchemaFingerprintSha256)
+        && !string.IsNullOrWhiteSpace(IdempotencyKey)
+        && !string.IsNullOrWhiteSpace(CoverageScope)
+        && !string.IsNullOrWhiteSpace(HistoryCompleteness)
+        && !string.IsNullOrWhiteSpace(RawPayloadSha256);
+
+    /// <summary>
+    /// Strong upgrade-compatible means this event belongs to a whole-source capture stream,
+    /// not merely an on-demand subject read. This prevents an upgrade preflight from turning
+    /// "we saved everything we happened to ask for" into a false "we saved the whole estate" claim.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsUpgradeCompatible =>
+        HasStructurallyValidCaptureMetadata
         && FullPermittedPayloadRetained
-        && !string.IsNullOrWhiteSpace(IdempotencyKey);
+        && string.Equals(CoverageScope, LocalDataPlaneContracts.CoverageFullSource, StringComparison.Ordinal)
+        && (string.Equals(HistoryCompleteness, LocalDataPlaneContracts.HistoryComplete, StringComparison.Ordinal)
+            || string.Equals(HistoryCompleteness, LocalDataPlaneContracts.HistoryFromRetentionBoundary, StringComparison.Ordinal));
 }
 
 public sealed record ScoutConnectorUpgradeDescriptorV1(
@@ -136,8 +173,9 @@ public static class ScoutFortressUpgradePolicy
         if (!evidence.ConnectorCredentialsReferencedLocally)
             return LocalUpgradeReadiness.ReconnectRequired;
 
-        // Scout's context facts/relationship fallback are derivatives. A Fortress upgrade
-        // is expected to rebuild richer governed state locally from the retained source journal.
+        // Scout context facts and fallback relationship outputs are derivatives. Fortress should
+        // rebuild its richer governed state locally from the retained source journal rather than
+        // treating Scout's derived facts as canonical truth.
         return LocalUpgradeReadiness.LosslessDerivedRebuild;
     }
 }
