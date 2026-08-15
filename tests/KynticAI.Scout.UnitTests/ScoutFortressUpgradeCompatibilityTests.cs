@@ -2,6 +2,7 @@ using System.Text.Json;
 using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Application.Services;
+using KynticAI.Scout.Domain.Entities;
 
 namespace KynticAI.Scout.UnitTests;
 
@@ -16,6 +17,42 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
             HasConnectorInstallations: true,
             ConnectorCredentialsReferencedLocally: true,
             HasRetainedEvents: true,
+            AllRetainedEventsHaveCaptureMetadata: true,
+            AllRetainedEventsRetainFullPermittedPayload: true,
+            ConnectorTypesSupportedByTarget: true,
+            RequiresSourceReconnect: false,
+            HistoricalCoverageKnownComplete: true));
+
+        Assert.Equal(LocalUpgradeReadiness.LosslessDerivedRebuild, readiness);
+    }
+
+    [Fact]
+    public void FreshPostgresWithNoCapture_IsHistoryLimitedNotLossless()
+    {
+        var readiness = ScoutFortressUpgradePolicy.Classify(new UpgradeCompatibilityEvidence(
+            SupportedRelationalProvider: true,
+            IsPostgres: true,
+            HasConnectorInstallations: true,
+            ConnectorCredentialsReferencedLocally: true,
+            HasRetainedEvents: false,
+            AllRetainedEventsHaveCaptureMetadata: false,
+            AllRetainedEventsRetainFullPermittedPayload: false,
+            ConnectorTypesSupportedByTarget: true,
+            RequiresSourceReconnect: false,
+            HistoricalCoverageKnownComplete: false));
+
+        Assert.Equal(LocalUpgradeReadiness.HistoryLimited, readiness);
+    }
+
+    [Fact]
+    public void ProvenEmptyPostgresSource_CanBeLosslessDerivedRebuild()
+    {
+        var readiness = ScoutFortressUpgradePolicy.Classify(new UpgradeCompatibilityEvidence(
+            SupportedRelationalProvider: true,
+            IsPostgres: true,
+            HasConnectorInstallations: true,
+            ConnectorCredentialsReferencedLocally: true,
+            HasRetainedEvents: false,
             AllRetainedEventsHaveCaptureMetadata: true,
             AllRetainedEventsRetainFullPermittedPayload: true,
             ConnectorTypesSupportedByTarget: true,
@@ -98,6 +135,57 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
 
         Assert.True(capture.HasStructurallyValidCaptureMetadata);
         Assert.False(capture.IsUpgradeCompatible);
+    }
+
+    [Fact]
+    public void CheckpointKeepsLastNonEmptyPageHistoryAcrossEmptyTerminalPage()
+    {
+        var now = DateTime.SpecifyKind(new DateTime(2026, 8, 15, 19, 0, 0), DateTimeKind.Utc);
+        var checkpoint = ConnectorCaptureCheckpoint.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            LocalDataPlaneContracts.CaptureProfileFullPermittedV1,
+            "1",
+            LocalDataPlaneContracts.CoverageFullSource,
+            LocalDataPlaneContracts.HistoryUnknown,
+            null,
+            now);
+
+        Assert.True(checkpoint.TryAcquireLease("test-owner", TimeSpan.FromMinutes(5), now));
+        checkpoint.ObserveCaptureSemantics(
+            "test-owner",
+            LocalDataPlaneContracts.HistorySnapshotOnly,
+            now.AddDays(-7),
+            now.AddSeconds(1));
+        checkpoint.Advance(
+            "test-owner",
+            "next-page",
+            "{\"page\":1}",
+            100,
+            now.AddDays(-7),
+            now,
+            now.AddSeconds(2));
+
+        // The final page is empty. Completion must use the prior non-empty page semantics rather
+        // than silently reverting history to UNKNOWN.
+        checkpoint.Advance(
+            "test-owner",
+            null,
+            "{\"page\":2}",
+            0,
+            null,
+            null,
+            now.AddSeconds(3));
+        checkpoint.CompleteFullSourceGeneration(
+            "test-owner",
+            "{\"page\":2}",
+            checkpoint.HistoryCompleteness,
+            now.AddSeconds(4));
+
+        Assert.Equal(LocalDataPlaneContracts.HistorySnapshotOnly, checkpoint.HistoryCompleteness);
+        Assert.Equal(now.AddDays(-7), checkpoint.EarliestAvailableAtUtc);
+        Assert.Equal(1, checkpoint.Generation);
     }
 
     [Fact]
