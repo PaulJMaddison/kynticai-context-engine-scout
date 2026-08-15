@@ -11,6 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddScoutApplication(this IServiceCollection services)
     {
         services.AddScoped<IScoutService, ScoutService>();
+        services.AddScoped<IScoutUpgradeCompatibilityService, ScoutUpgradeCompatibilityService>();
         services.AddScoped<BasicRelationshipEngine>();
         services.AddScoped<EnterpriseRelationshipEngineHandoff>();
         services.AddScoped<INextActionIntelligenceService, NextActionIntelligenceService>();
