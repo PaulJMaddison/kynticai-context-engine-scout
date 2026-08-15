@@ -48,9 +48,10 @@ public sealed record ConnectorSourceCaptureRecord(
     string IdempotencyKey);
 
 /// <summary>
-/// CurrentStateConsistency is deliberately independent from HistoryCompleteness.
-/// A connector can enumerate every permitted current row while still lacking a coherent
-/// point-in-time snapshot or source-native historical mutations.
+/// CurrentStateConsistency and HistoryCompleteness are batch-level guarantees as well as record
+/// semantics. Keeping them on the batch is essential for a genuinely empty source: zero records
+/// must still be able to prove that a complete enumeration occurred and what that enumeration
+/// means, rather than being forced to invent a row merely to carry metadata.
 /// </summary>
 public sealed record ConnectorSourceCaptureBatch(
     IReadOnlyList<ConnectorSourceCaptureRecord> Records,
@@ -58,4 +59,5 @@ public sealed record ConnectorSourceCaptureBatch(
     bool IsComplete,
     string HighWaterMarkJson,
     string DiagnosticsJson,
-    string CurrentStateConsistency = "UNKNOWN");
+    string CurrentStateConsistency = "UNKNOWN",
+    string HistoryCompleteness = "UNKNOWN");
