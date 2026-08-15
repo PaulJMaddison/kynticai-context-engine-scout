@@ -113,7 +113,9 @@ internal sealed class CsvFullSourceCaptureConnector : IUpgradeSourceCaptureConne
                 total = rows.Count,
                 pointInTimeSnapshot = true,
                 history = LocalDataPlaneContracts.HistorySnapshotOnly
-            })));
+            }),
+            LocalDataPlaneContracts.CurrentStateImmutableSnapshot,
+            LocalDataPlaneContracts.HistorySnapshotOnly));
     }
 
     private static int ParseCursor(string? token, string currentSnapshotHash)
