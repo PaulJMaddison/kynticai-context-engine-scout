@@ -11,7 +11,7 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
 
     public override string DisplayName => "CSV Upload Connector";
 
-    public override string Description => "Accepts safe, local demo rows shaped like uploaded CSV records without storing or processing arbitrary files.";
+    public override string Description => "Accepts safe, local parsed CSV rows. Optional explicit continuity settings retain the complete supplied snapshot for later Fortress reconstruction without turning the file into fake change history.";
 
     public override IReadOnlyList<string> Aliases => ["csv", "spreadsheetUpload"];
 
@@ -32,7 +32,20 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
                 {
                     ["type"] = "array",
                     ["description"] = "Demo-safe parsed rows. Production file storage belongs behind a separate storage abstraction."
-                }
+                },
+                ["captureFullPermittedPayload"] = new JsonObject
+                {
+                    ["type"] = "boolean",
+                    ["description"] = "Explicit permission to retain every supplied row/field in the customer-local continuity journal."
+                },
+                ["sourceRecordIdColumn"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Stable unique row key for whole-source replay."
+                },
+                ["sourceRecordIdIsUnique"] = new JsonObject { ["type"] = "boolean" },
+                ["sourceObjectType"] = new JsonObject { ["type"] = "string" },
+                ["redactionPolicyVersion"] = new JsonObject { ["type"] = "string" }
             }
         };
 
@@ -42,6 +55,11 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
             ["externalUserIdColumn"] = "externalUserId",
             ["observedAtColumn"] = "observedAtUtc",
             ["delimiter"] = ",",
+            ["captureFullPermittedPayload"] = true,
+            ["sourceRecordIdColumn"] = "externalUserId",
+            ["sourceRecordIdIsUnique"] = true,
+            ["sourceObjectType"] = "customer_snapshot_row",
+            ["redactionPolicyVersion"] = "customer-permitted.v1",
             ["rows"] = new JsonArray
             {
                 new JsonObject
@@ -78,6 +96,32 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
                 if (string.IsNullOrWhiteSpace(row[externalUserIdColumn]?.GetValue<string>()))
                 {
                     errors.Add($"CSV upload connector rows[{index}] requires '{externalUserIdColumn}'.");
+                }
+            }
+
+            if (request.Configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false)
+            {
+                var recordIdColumn = request.Configuration["sourceRecordIdColumn"]?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(recordIdColumn))
+                    errors.Add("CSV whole-source continuity requires sourceRecordIdColumn.");
+                if (!(request.Configuration["sourceRecordIdIsUnique"]?.GetValue<bool?>() ?? false))
+                    errors.Add("CSV whole-source continuity requires sourceRecordIdIsUnique=true.");
+                if (!string.IsNullOrWhiteSpace(recordIdColumn))
+                {
+                    var seen = new HashSet<string>(StringComparer.Ordinal);
+                    for (var index = 0; index < rows.Count; index++)
+                    {
+                        if (rows[index] is not JsonObject row)
+                            continue;
+                        var recordId = row[recordIdColumn]?.ToString();
+                        if (string.IsNullOrWhiteSpace(recordId))
+                        {
+                            errors.Add($"CSV whole-source continuity rows[{index}] requires '{recordIdColumn}'.");
+                            continue;
+                        }
+                        if (!seen.Add(recordId))
+                            errors.Add($"CSV whole-source continuity source record id '{recordId}' is duplicated.");
+                    }
                 }
             }
         }
