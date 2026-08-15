@@ -180,7 +180,9 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
                 hasNativePosition = !string.IsNullOrWhiteSpace(sourcePositionPath),
                 history = LocalDataPlaneContracts.HistorySnapshotOnly,
                 exactNativeOrderingClaimed = false
-            }));
+            }),
+            LocalDataPlaneContracts.CurrentStateApiCursor,
+            LocalDataPlaneContracts.HistorySnapshotOnly);
     }
 
     private static string BuildUri(
