@@ -9,9 +9,6 @@ const string CaptureContract = "kyntic-local-source-capture.v1";
 const string FullSource = "FULL_SOURCE";
 const string ExactTextV1 = "exact-text.v1";
 const string GenerationMembershipV1 = "generation-membership.v1";
-const string HistorySnapshotOnly = "SNAPSHOT_ONLY";
-const string HistoryUnknown = "UNKNOWN";
-const string CurrentStateUnknown = "UNKNOWN";
 
 try
 {
@@ -116,6 +113,9 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         var sourceNamespace = reader.GetString(4);
         var sourceObjectType = reader.GetString(5);
         var sourceRecordId = reader.GetString(6);
+        var rowTenantId = reader.GetGuid(7);
+        if (rowTenantId != tenantId)
+            throw new InvalidOperationException($"Export row {rowCount + 1} tenant does not match the selected Scout tenant.");
         var exactPayload = reader.GetString(13);
         var headersJson = reader.GetString(14);
         var evidenceHash = reader.GetString(17);
@@ -142,7 +142,7 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             sourceNamespace,
             sourceObjectType,
             sourceRecordId,
-            reader.GetGuid(7),
+            rowTenantId,
             reader.IsDBNull(8) ? null : reader.GetGuid(8),
             reader.GetString(9),
             sourceSystem,
@@ -177,6 +177,7 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
 
     var exportManifest = new ScoutJournalExportManifest(
         ExportContract,
+        tenantId,
         options.TenantSlug,
         DateTime.UtcNow,
         rowCount,
@@ -201,6 +202,7 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
     Console.WriteLine(JsonSerializer.Serialize(new
     {
         contract = ExportContract,
+        tenantId,
         tenant = options.TenantSlug,
         rows = rowCount,
         sha256 = fileSha256,
@@ -458,6 +460,7 @@ sealed record ScoutSnapshotExportSelection(
 
 sealed record ScoutJournalExportManifest(
     string Contract,
+    Guid TenantId,
     string TenantSlug,
     DateTime GeneratedAtUtc,
     long Rows,
