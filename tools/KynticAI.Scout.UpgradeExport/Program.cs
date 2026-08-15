@@ -4,10 +4,14 @@ using System.Text;
 using System.Text.Json;
 using Npgsql;
 
-const string ExportContract = "kyntic-scout-source-journal-export.v1";
+const string ExportContract = "kyntic-scout-source-journal-export.v2";
 const string CaptureContract = "kyntic-local-source-capture.v1";
 const string FullSource = "FULL_SOURCE";
 const string ExactTextV1 = "exact-text.v1";
+const string GenerationMembershipV1 = "generation-membership.v1";
+const string HistorySnapshotOnly = "SNAPSHOT_ONLY";
+const string HistoryUnknown = "UNKNOWN";
+const string CurrentStateUnknown = "UNKNOWN";
 
 try
 {
@@ -28,7 +32,8 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
 
     var tenantId = await ResolveTenantIdAsync(connection, options.TenantSlug, cancellationToken);
     await AssertConnectorBarrierReadyAsync(connection, tenantId, cancellationToken);
-    await AssertNoMissingExactEvidenceAsync(connection, tenantId, cancellationToken);
+    var selections = await LoadSnapshotSelectionsAsync(connection, tenantId, cancellationToken);
+    await AssertSelectedGenerationEvidenceAsync(connection, tenantId, cancellationToken);
 
     var outputPath = Path.GetFullPath(options.OutputPath);
     var outputDirectory = Path.GetDirectoryName(outputPath)
@@ -48,8 +53,18 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         options: FileOptions.SequentialScan | FileOptions.Asynchronous);
     using var exportHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
+    // Snapshot-only sources are reconstructed from the latest COMPLETED generation only. Older
+    // generations remain in Scout for bounded audit/history but are not replayed as current state.
+    // This prevents a record deleted between generations from being resurrected by Fortress.
     const string sql = """
         select
+            c."ConnectorInstallationId",
+            c."Generation",
+            c."HistoryCompleteness",
+            c."CurrentStateConsistency",
+            gm."SourceNamespace",
+            gm."SourceObjectType",
+            gm."SourceRecordId",
             e."TenantId",
             e."WorkspaceId",
             e."EventId",
@@ -61,14 +76,26 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             e."ReceivedAtUtc",
             e."ObservedAtUtc",
             p."RawPayloadSha256"
-        from source_system_events e
+        from connector_capture_checkpoints c
+        inner join source_capture_generation_members gm
+            on gm."TenantId" = c."TenantId"
+            and gm."ConnectorInstallationId" = c."ConnectorInstallationId"
+            and gm."Generation" = c."Generation"
+        inner join source_system_events e
+            on e."TenantId" = gm."TenantId"
+            and e."Id" = gm."SourceSystemEventId"
         inner join source_capture_payload_evidence p
             on p."TenantId" = e."TenantId"
             and p."SourceSystemEventId" = e."Id"
-        where e."TenantId" = @tenantId
+        where c."TenantId" = @tenantId
+          and c."LastFullSourceCompletedAtUtc" is not null
+          and c."Generation" > 0
+          and c."CoverageScope" = 'FULL_SOURCE'
+          and c."GenerationMembershipContract" = 'generation-membership.v1'
+          and c."HistoryCompleteness" in ('SNAPSHOT_ONLY', 'UNKNOWN')
           and p."CoverageScope" = 'FULL_SOURCE'
           and p."StorageContract" = 'exact-text.v1'
-        order by e."ReceivedAtUtc", e."Id"
+        order by c."ConnectorInstallationId", gm."SourceObjectType", gm."SourceRecordId", e."Id"
         """;
 
     await using var command = new NpgsqlCommand(sql, connection)
@@ -82,28 +109,49 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
     await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
     while (await reader.ReadAsync(cancellationToken))
     {
-        var exactPayload = reader.GetString(6);
-        var headersJson = reader.GetString(7);
-        var evidenceHash = reader.GetString(10);
+        var connectorInstallationId = reader.GetGuid(0);
+        var generation = reader.GetInt64(1);
+        var historyCompleteness = reader.GetString(2);
+        var currentStateConsistency = reader.GetString(3);
+        var sourceNamespace = reader.GetString(4);
+        var sourceObjectType = reader.GetString(5);
+        var sourceRecordId = reader.GetString(6);
+        var exactPayload = reader.GetString(13);
+        var headersJson = reader.GetString(14);
+        var evidenceHash = reader.GetString(17);
         var actualHash = Sha256(exactPayload);
         if (!string.Equals(actualHash, evidenceHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Exact payload evidence hash mismatch at exported row {rowCount + 1}.");
 
-        ValidateCaptureEnvelope(headersJson, actualHash, rowCount + 1);
+        ValidateCaptureEnvelope(
+            headersJson,
+            actualHash,
+            rowCount + 1,
+            connectorInstallationId,
+            sourceNamespace,
+            sourceObjectType,
+            sourceRecordId);
 
-        var sourceSystem = reader.GetString(3);
+        var sourceSystem = reader.GetString(10);
         connectorTypes.Add(sourceSystem);
         var row = new ScoutJournalExportRow(
-            reader.GetGuid(0),
-            reader.IsDBNull(1) ? null : reader.GetGuid(1),
-            reader.GetString(2),
+            connectorInstallationId,
+            generation,
+            historyCompleteness,
+            currentStateConsistency,
+            sourceNamespace,
+            sourceObjectType,
+            sourceRecordId,
+            reader.GetGuid(7),
+            reader.IsDBNull(8) ? null : reader.GetGuid(8),
+            reader.GetString(9),
             sourceSystem,
-            reader.GetString(4),
-            reader.IsDBNull(5) ? null : reader.GetGuid(5),
+            reader.GetString(11),
+            reader.IsDBNull(12) ? null : reader.GetGuid(12),
             exactPayload,
             headersJson,
-            reader.GetDateTime(8),
-            reader.GetDateTime(9));
+            reader.GetDateTime(15),
+            reader.GetDateTime(16));
 
         var json = JsonSerializer.Serialize(row);
         var bytes = Encoding.UTF8.GetBytes(json + "\n");
@@ -116,6 +164,13 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
     output.Flush(flushToDisk: true);
     var fileSha256 = Convert.ToHexString(exportHash.GetHashAndReset()).ToLowerInvariant();
 
+    var expectedRows = selections.Sum(x => x.MemberCount);
+    if (rowCount != expectedRows)
+    {
+        throw new InvalidOperationException(
+            $"Selected generation membership contains {expectedRows} row(s) but the exact-evidence export produced {rowCount}. Refusing a partial handoff.");
+    }
+
     var manifestPath = outputPath + ".manifest.json";
     if (!options.Overwrite && File.Exists(manifestPath))
         throw new InvalidOperationException($"Export manifest already exists: {manifestPath}. Pass --overwrite to replace it.");
@@ -127,11 +182,14 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         rowCount,
         fileSha256,
         ExactTextV1,
+        GenerationMembershipV1,
         connectorTypes.ToArray(),
+        selections,
         CustomerDataRemainsLocal: true,
         ContainsCredentialValues: false,
         ContainsProtectedCredentialReferences: false,
         ContainsExactCustomerPayloads: true,
+        SelectionRule: "SNAPSHOT_ONLY/UNKNOWN connectors export only source_capture_generation_members for the latest completed checkpoint generation. Older snapshot rows are retained locally but are not current-state replay input.",
         Purpose: "Customer-local Scout -> Fortress governed-state rebuild only. Do not upload this file to KynticAI Cloud.");
 
     await File.WriteAllTextAsync(
@@ -147,7 +205,17 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         rows = rowCount,
         sha256 = fileSha256,
         payloadStorageContract = ExactTextV1,
+        generationMembershipContract = GenerationMembershipV1,
         connectorTypes,
+        connectorSelections = selections.Select(x => new
+        {
+            x.ConnectorInstallationId,
+            x.ConnectorType,
+            x.Generation,
+            x.HistoryCompleteness,
+            x.CurrentStateConsistency,
+            x.MemberCount
+        }),
         customerPayloadsPrinted = false,
         customerDataRemainsLocal = true,
         output = outputPath,
@@ -195,6 +263,9 @@ static async Task AssertConnectorBarrierReadyAsync(
              or c."Generation" <= 0
              or c."CoverageScope" <> 'FULL_SOURCE'
              or c."PayloadStorageContract" <> 'exact-text.v1'
+             or c."GenerationMembershipContract" <> 'generation-membership.v1'
+             or c."CurrentStateConsistency" = 'UNKNOWN'
+             or c."HistoryCompleteness" not in ('SNAPSHOT_ONLY', 'UNKNOWN')
           )
         """;
     await using var command = new NpgsqlCommand(unsafeCheckpointSql, connection);
@@ -203,29 +274,86 @@ static async Task AssertConnectorBarrierReadyAsync(
     if (unsafeCount != 0)
     {
         throw new InvalidOperationException(
-            $"{unsafeCount} connector installation(s) do not have a completed FULL_SOURCE exact-text.v1 generation. Run/repair Scout full-source capture before export.");
+            $"{unsafeCount} connector installation(s) do not have a completed snapshot-source FULL_SOURCE generation under exact-text.v1 + generation-membership.v1 with declared current-state consistency. Run/repair Scout full-source capture before export. Provider-specific exact-history connectors require their own ordered-history export contract.");
     }
 }
 
-static async Task AssertNoMissingExactEvidenceAsync(
+static async Task<IReadOnlyList<ScoutSnapshotExportSelection>> LoadSnapshotSelectionsAsync(
     NpgsqlConnection connection,
     Guid tenantId,
     CancellationToken cancellationToken)
 {
-    // HeadersJson is semantic jsonb and is safe to use for metadata classification. The payload
-    // itself is never recovered from jsonb for replay; exact text comes only from the sidecar.
+    const string sql = """
+        select
+            i."Id",
+            i."ConnectorType",
+            c."Generation",
+            c."HistoryCompleteness",
+            c."CurrentStateConsistency",
+            c."GenerationMembershipContract",
+            count(gm."Id")
+        from connector_installations i
+        inner join connector_capture_checkpoints c
+          on c."TenantId" = i."TenantId"
+         and c."ConnectorInstallationId" = i."Id"
+        left join source_capture_generation_members gm
+          on gm."TenantId" = c."TenantId"
+         and gm."ConnectorInstallationId" = c."ConnectorInstallationId"
+         and gm."Generation" = c."Generation"
+        where i."TenantId" = @tenantId
+        group by
+            i."Id",
+            i."ConnectorType",
+            c."Generation",
+            c."HistoryCompleteness",
+            c."CurrentStateConsistency",
+            c."GenerationMembershipContract"
+        order by i."Id"
+        """;
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("tenantId", tenantId);
+
+    var selections = new List<ScoutSnapshotExportSelection>();
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    while (await reader.ReadAsync(cancellationToken))
+    {
+        selections.Add(new ScoutSnapshotExportSelection(
+            reader.GetGuid(0),
+            reader.GetString(1),
+            reader.GetInt64(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetInt64(6)));
+    }
+    return selections;
+}
+
+static async Task AssertSelectedGenerationEvidenceAsync(
+    NpgsqlConnection connection,
+    Guid tenantId,
+    CancellationToken cancellationToken)
+{
+    // Check only the generation selected for current-state reconstruction. Old snapshot rows may
+    // remain as bounded audit evidence and do not have to be promoted into current replay input.
     const string sql = """
         select count(*)
-        from source_system_events e
+        from connector_capture_checkpoints c
+        inner join source_capture_generation_members gm
+          on gm."TenantId" = c."TenantId"
+         and gm."ConnectorInstallationId" = c."ConnectorInstallationId"
+         and gm."Generation" = c."Generation"
+        inner join source_system_events e
+          on e."TenantId" = gm."TenantId"
+         and e."Id" = gm."SourceSystemEventId"
         left join source_capture_payload_evidence p
           on p."TenantId" = e."TenantId"
          and p."SourceSystemEventId" = e."Id"
-        where e."TenantId" = @tenantId
-          and e."HeadersJson" -> 'kynticCapture' ->> 'Contract' = 'kyntic-local-source-capture.v1'
-          and e."HeadersJson" -> 'kynticCapture' ->> 'CoverageScope' = 'FULL_SOURCE'
+        where c."TenantId" = @tenantId
           and (
                 p."Id" is null
              or p."StorageContract" <> 'exact-text.v1'
+             or p."CoverageScope" <> 'FULL_SOURCE'
              or p."RawPayloadSha256" is null
           )
         """;
@@ -235,11 +363,18 @@ static async Task AssertNoMissingExactEvidenceAsync(
     if (missing != 0)
     {
         throw new InvalidOperationException(
-            $"{missing} retained FULL_SOURCE event(s) do not have exact customer-local payload evidence. Refusing a partial export.");
+            $"{missing} latest-generation member(s) do not have exact customer-local payload evidence. Refusing a partial export.");
     }
 }
 
-static void ValidateCaptureEnvelope(string headersJson, string exactPayloadHash, long rowNumber)
+static void ValidateCaptureEnvelope(
+    string headersJson,
+    string exactPayloadHash,
+    long rowNumber,
+    Guid connectorInstallationId,
+    string sourceNamespace,
+    string sourceObjectType,
+    string sourceRecordId)
 {
     using var document = JsonDocument.Parse(headersJson);
     var root = document.RootElement;
@@ -261,6 +396,22 @@ static void ValidateCaptureEnvelope(string headersJson, string exactPayloadHash,
     var declaredHash = RequiredString(capture, "RawPayloadSha256", rowNumber);
     if (!string.Equals(declaredHash, exactPayloadHash, StringComparison.OrdinalIgnoreCase))
         throw new InvalidOperationException($"Export row {rowNumber} capture metadata hash does not match exact payload evidence.");
+
+    var declaredConnector = RequiredString(capture, "ConnectorInstanceId", rowNumber);
+    if (!Guid.TryParse(declaredConnector, out var parsedConnector) || parsedConnector != connectorInstallationId)
+        throw new InvalidOperationException($"Export row {rowNumber} connector installation does not match generation membership.");
+
+    var declaredNamespace = RequiredString(capture, "SourceNamespace", rowNumber);
+    if (!string.Equals(declaredNamespace, sourceNamespace, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Export row {rowNumber} source namespace does not match generation membership.");
+
+    var declaredObjectType = RequiredString(capture, "SourceObjectType", rowNumber);
+    if (!string.Equals(declaredObjectType, sourceObjectType, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Export row {rowNumber} source object type does not match generation membership.");
+
+    var declaredRecordId = RequiredString(capture, "SourceRecordId", rowNumber);
+    if (!string.Equals(declaredRecordId, sourceRecordId, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Export row {rowNumber} source record id does not match generation membership.");
 }
 
 static string RequiredString(JsonElement parent, string propertyName, long rowNumber)
@@ -278,6 +429,13 @@ static string Sha256(string value)
     => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
 sealed record ScoutJournalExportRow(
+    Guid ConnectorInstallationId,
+    long CaptureGeneration,
+    string HistoryCompleteness,
+    string CurrentStateConsistency,
+    string SourceNamespace,
+    string SourceObjectType,
+    string SourceRecordId,
     Guid TenantId,
     Guid? WorkspaceId,
     string EventId,
@@ -289,6 +447,15 @@ sealed record ScoutJournalExportRow(
     DateTime ReceivedAtUtc,
     DateTime ObservedAtUtc);
 
+sealed record ScoutSnapshotExportSelection(
+    Guid ConnectorInstallationId,
+    string ConnectorType,
+    long Generation,
+    string HistoryCompleteness,
+    string CurrentStateConsistency,
+    string GenerationMembershipContract,
+    long MemberCount);
+
 sealed record ScoutJournalExportManifest(
     string Contract,
     string TenantSlug,
@@ -296,11 +463,14 @@ sealed record ScoutJournalExportManifest(
     long Rows,
     string JournalSha256,
     string PayloadStorageContract,
+    string GenerationMembershipContract,
     IReadOnlyList<string> ConnectorTypes,
+    IReadOnlyList<ScoutSnapshotExportSelection> ConnectorSelections,
     bool CustomerDataRemainsLocal,
     bool ContainsCredentialValues,
     bool ContainsProtectedCredentialReferences,
     bool ContainsExactCustomerPayloads,
+    string SelectionRule,
     string Purpose);
 
 sealed record Options(
