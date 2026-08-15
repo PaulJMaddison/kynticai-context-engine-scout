@@ -31,6 +31,7 @@ public sealed class ConnectorCaptureCheckpoints : Migration
                 CaptureProfileVersion = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
                 CoverageScope = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
                 HistoryCompleteness = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
+                CurrentStateConsistency = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false, defaultValue: "UNKNOWN"),
                 PayloadStorageContract = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false, defaultValue: "legacy-jsonb.v0"),
                 ContinuationToken = table.Column<string>(type: "character varying(8000)", maxLength: 8000, nullable: true),
                 HighWaterMarkJson = table.Column<string>(type: "jsonb", nullable: false),
