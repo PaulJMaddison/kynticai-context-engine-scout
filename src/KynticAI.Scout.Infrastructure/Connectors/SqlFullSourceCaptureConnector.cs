@@ -194,7 +194,9 @@ internal sealed class SqlFullSourceCaptureConnector(
                     returned = records.Count,
                     pointInTimeSnapshot = false,
                     history = LocalDataPlaneContracts.HistorySnapshotOnly
-                }));
+                }),
+                LocalDataPlaneContracts.CurrentStateLiveKeyset,
+                LocalDataPlaneContracts.HistorySnapshotOnly);
         }
         finally
         {
