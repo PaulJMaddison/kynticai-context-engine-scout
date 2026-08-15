@@ -90,6 +90,7 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         string? continuationToken,
         string highWaterMarkJson,
         long capturedRecords,
+        DateTime? earliestAvailableAtUtc,
         DateTime? earliestCapturedAtUtc,
         DateTime? latestCapturedAtUtc,
         DateTime utcNow)
@@ -101,6 +102,7 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         ContinuationToken = string.IsNullOrWhiteSpace(continuationToken) ? null : continuationToken;
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
         CapturedRecordCount = checked(CapturedRecordCount + capturedRecords);
+        EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
         EarliestCapturedAtUtc = Min(EarliestCapturedAtUtc, earliestCapturedAtUtc);
         LatestCapturedAtUtc = Max(LatestCapturedAtUtc, latestCapturedAtUtc);
         LastError = null;
