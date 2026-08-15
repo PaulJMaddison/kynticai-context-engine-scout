@@ -10,9 +10,7 @@ namespace KynticAI.Scout.Domain.Entities;
 /// </summary>
 public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
 {
-    private ConnectorCaptureCheckpoint()
-    {
-    }
+    private ConnectorCaptureCheckpoint() { }
 
     public Guid ConnectorInstallationId { get; private set; }
     public Guid DataSourceId { get; private set; }
@@ -64,14 +62,9 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         if (duration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(duration));
-
-        if (LeaseExpiresAtUtc.HasValue
-            && LeaseExpiresAtUtc.Value > utcNow
+        if (LeaseExpiresAtUtc.HasValue && LeaseExpiresAtUtc.Value > utcNow
             && !string.Equals(LeaseOwner, owner, StringComparison.Ordinal))
-        {
             return false;
-        }
-
         LeaseOwner = owner.Trim();
         LeaseExpiresAtUtc = utcNow.Add(duration);
         SetAuditTimestamps(utcNow);
@@ -85,12 +78,18 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         SetAuditTimestamps(utcNow);
     }
 
+    public void ObserveEarliestAvailable(string owner, DateTime? earliestAvailableAtUtc, DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
+        SetAuditTimestamps(utcNow);
+    }
+
     public void Advance(
         string owner,
         string? continuationToken,
         string highWaterMarkJson,
         long capturedRecords,
-        DateTime? earliestAvailableAtUtc,
         DateTime? earliestCapturedAtUtc,
         DateTime? latestCapturedAtUtc,
         DateTime utcNow)
@@ -98,22 +97,16 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         EnsureLeaseOwner(owner, utcNow);
         if (capturedRecords < 0)
             throw new ArgumentOutOfRangeException(nameof(capturedRecords));
-
         ContinuationToken = string.IsNullOrWhiteSpace(continuationToken) ? null : continuationToken;
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
         CapturedRecordCount = checked(CapturedRecordCount + capturedRecords);
-        EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
         EarliestCapturedAtUtc = Min(EarliestCapturedAtUtc, earliestCapturedAtUtc);
         LatestCapturedAtUtc = Max(LatestCapturedAtUtc, latestCapturedAtUtc);
         LastError = null;
         SetAuditTimestamps(utcNow);
     }
 
-    public void CompleteFullSourceGeneration(
-        string owner,
-        string highWaterMarkJson,
-        string historyCompleteness,
-        DateTime utcNow)
+    public void CompleteFullSourceGeneration(string owner, string highWaterMarkJson, string historyCompleteness, DateTime utcNow)
     {
         EnsureLeaseOwner(owner, utcNow);
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
@@ -134,8 +127,7 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
 
     public void ReleaseLease(string owner, DateTime utcNow)
     {
-        if (!string.Equals(LeaseOwner, owner, StringComparison.Ordinal))
-            return;
+        if (!string.Equals(LeaseOwner, owner, StringComparison.Ordinal)) return;
         LeaseOwner = null;
         LeaseExpiresAtUtc = null;
         SetAuditTimestamps(utcNow);
@@ -144,16 +136,12 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
     private void EnsureLeaseOwner(string owner, DateTime utcNow)
     {
         if (!string.Equals(LeaseOwner, owner, StringComparison.Ordinal)
-            || !LeaseExpiresAtUtc.HasValue
-            || LeaseExpiresAtUtc.Value <= utcNow)
-        {
+            || !LeaseExpiresAtUtc.HasValue || LeaseExpiresAtUtc.Value <= utcNow)
             throw new InvalidOperationException("Connector capture checkpoint is not leased by this worker.");
-        }
     }
 
     private static DateTime? Min(DateTime? left, DateTime? right)
         => left is null ? right : right is null ? left : left <= right ? left : right;
-
     private static DateTime? Max(DateTime? left, DateTime? right)
         => left is null ? right : right is null ? left : left >= right ? left : right;
 }
