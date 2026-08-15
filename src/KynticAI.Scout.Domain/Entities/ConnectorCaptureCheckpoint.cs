@@ -78,6 +78,25 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         SetAuditTimestamps(utcNow);
     }
 
+    /// <summary>
+    /// Persist the semantic contract observed on a non-empty page so an empty terminal page
+    /// cannot erase it. The coordinator is responsible for rejecting contradictory semantics
+    /// inside one paged generation before calling this method.
+    /// </summary>
+    public void ObserveCaptureSemantics(
+        string owner,
+        string historyCompleteness,
+        DateTime? earliestAvailableAtUtc,
+        DateTime utcNow)
+    {
+        EnsureLeaseOwner(owner, utcNow);
+        if (string.IsNullOrWhiteSpace(historyCompleteness))
+            throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
+        HistoryCompleteness = historyCompleteness.Trim();
+        EarliestAvailableAtUtc = Min(EarliestAvailableAtUtc, earliestAvailableAtUtc);
+        SetAuditTimestamps(utcNow);
+    }
+
     public void ObserveEarliestAvailable(string owner, DateTime? earliestAvailableAtUtc, DateTime utcNow)
     {
         EnsureLeaseOwner(owner, utcNow);
@@ -109,6 +128,8 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
     public void CompleteFullSourceGeneration(string owner, string highWaterMarkJson, string historyCompleteness, DateTime utcNow)
     {
         EnsureLeaseOwner(owner, utcNow);
+        if (string.IsNullOrWhiteSpace(historyCompleteness))
+            throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
         HistoryCompleteness = historyCompleteness.Trim();
         ContinuationToken = null;
