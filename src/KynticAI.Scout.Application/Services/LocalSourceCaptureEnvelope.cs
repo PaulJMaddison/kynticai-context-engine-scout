@@ -42,10 +42,17 @@ public static class LocalSourceCaptureEnvelope
             metadata.SchemaFingerprintSha256.Trim().ToLowerInvariant(),
             metadata.RedactionPolicyVersion.Trim(),
             metadata.FullPermittedPayloadRetained,
-            metadata.IdempotencyKey.Trim());
+            metadata.IdempotencyKey.Trim(),
+            metadata.CoverageScope.Trim(),
+            metadata.HistoryCompleteness.Trim(),
+            metadata.EarliestAvailableAtUtc is null
+                ? null
+                : EnsureUtc(metadata.EarliestAvailableAtUtc.Value, nameof(metadata.EarliestAvailableAtUtc)),
+            metadata.RawPayloadSha256.Trim().ToLowerInvariant(),
+            metadata.PermittedFieldSetSha256.Trim().ToLowerInvariant());
 
         if (!result.IsUpgradeCompatible)
-            throw new InvalidOperationException("Connector capture metadata is incomplete for upgrade-compatible capture.");
+            throw new InvalidOperationException("Connector capture metadata is incomplete for whole-source upgrade-compatible capture.");
         return result;
     }
 
@@ -53,7 +60,7 @@ public static class LocalSourceCaptureEnvelope
     {
         ArgumentNullException.ThrowIfNull(capture);
         if (!capture.IsUpgradeCompatible)
-            throw new InvalidOperationException("Capture metadata is not upgrade compatible.");
+            throw new InvalidOperationException("Capture metadata is not whole-source upgrade compatible.");
 
         var root = string.IsNullOrWhiteSpace(existingHeadersJson)
             ? new Dictionary<string, object?>()
