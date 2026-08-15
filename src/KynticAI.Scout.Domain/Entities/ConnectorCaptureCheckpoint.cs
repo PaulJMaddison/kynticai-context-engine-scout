@@ -28,6 +28,13 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
 
     public string PayloadStorageContract { get; private set; } = "legacy-jsonb.v0";
 
+    /// <summary>
+    /// Versioned proof that source_capture_generation_members was populated by the runtime for
+    /// the completed generation. This prevents an old pre-membership checkpoint with zero rows
+    /// from being misread as a genuinely empty current-state snapshot.
+    /// </summary>
+    public string GenerationMembershipContract { get; private set; } = "UNKNOWN";
+
     public string? ContinuationToken { get; private set; }
     public string HighWaterMarkJson { get; private set; } = "{}";
     public DateTime? EarliestAvailableAtUtc { get; private set; }
@@ -51,7 +58,8 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         DateTime? earliestAvailableAtUtc,
         DateTime utcNow,
         string payloadStorageContract = "legacy-jsonb.v0",
-        string currentStateConsistency = "UNKNOWN")
+        string currentStateConsistency = "UNKNOWN",
+        string generationMembershipContract = "UNKNOWN")
     {
         var checkpoint = new ConnectorCaptureCheckpoint
         {
@@ -68,6 +76,9 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
             PayloadStorageContract = string.IsNullOrWhiteSpace(payloadStorageContract)
                 ? "legacy-jsonb.v0"
                 : payloadStorageContract.Trim(),
+            GenerationMembershipContract = string.IsNullOrWhiteSpace(generationMembershipContract)
+                ? "UNKNOWN"
+                : generationMembershipContract.Trim(),
             EarliestAvailableAtUtc = earliestAvailableAtUtc,
             HighWaterMarkJson = "{}"
         };
@@ -152,16 +163,20 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         string highWaterMarkJson,
         string historyCompleteness,
         DateTime utcNow,
-        string payloadStorageContract = "exact-text.v1")
+        string payloadStorageContract = "exact-text.v1",
+        string generationMembershipContract = "generation-membership.v1")
     {
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
             throw new ArgumentException("History completeness is required.", nameof(historyCompleteness));
         if (string.IsNullOrWhiteSpace(payloadStorageContract))
             throw new ArgumentException("Payload storage contract is required.", nameof(payloadStorageContract));
+        if (string.IsNullOrWhiteSpace(generationMembershipContract))
+            throw new ArgumentException("Generation membership contract is required.", nameof(generationMembershipContract));
         HighWaterMarkJson = string.IsNullOrWhiteSpace(highWaterMarkJson) ? "{}" : highWaterMarkJson;
         HistoryCompleteness = historyCompleteness.Trim();
         PayloadStorageContract = payloadStorageContract.Trim();
+        GenerationMembershipContract = generationMembershipContract.Trim();
         ContinuationToken = null;
         LastFullSourceCompletedAtUtc = utcNow;
         Generation = checked(Generation + 1);
