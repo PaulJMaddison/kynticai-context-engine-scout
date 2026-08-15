@@ -151,8 +151,6 @@ internal sealed class FullSourceCaptureCoordinator(
                     now),
                 cancellationToken);
 
-            // A connector call may block on the source. Do not write any captured records if our
-            // lease expired while waiting; reacquiring would hide an overlapping capture owner.
             checkpoint.RenewLease(owner, LeaseDuration, clock.UtcNow);
 
             var batchHistory = ValidateBatchSemantics(
@@ -197,14 +195,12 @@ internal sealed class FullSourceCaptureCoordinator(
                 clock.UtcNow);
             if (batch.IsComplete)
             {
-                // The checkpoint carries the last non-empty page's semantics. This matters when
-                // the source size is an exact multiple of the batch size and the terminal page is
-                // empty: an empty page must not silently revert history to UNKNOWN.
                 checkpoint.CompleteFullSourceGeneration(
                     owner,
                     batch.HighWaterMarkJson,
                     checkpoint.HistoryCompleteness,
-                    clock.UtcNow);
+                    clock.UtcNow,
+                    LocalDataPlaneContracts.PayloadStorageExactTextV1);
             }
             checkpoint.ReleaseLease(owner, clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -251,14 +247,19 @@ internal sealed class FullSourceCaptureCoordinator(
         CancellationToken cancellationToken)
     {
         var eventId = $"capture:{record.IdempotencyKey}";
-        var duplicate = await dbContext.SourceSystemEvents
-            .AsNoTracking()
-            .AnyAsync(x => x.TenantId == installation.TenantId
+        var existing = await dbContext.SourceSystemEvents
+            .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
                 && x.SourceSystem == installation.ConnectorType
                 && x.EventId == eventId,
                 cancellationToken);
-        if (duplicate)
+        if (existing is not null)
         {
+            await RepairExactEvidenceForDuplicateAsync(
+                installation,
+                dataSource,
+                existing,
+                record,
+                cancellationToken);
             return false;
         }
 
@@ -285,7 +286,8 @@ internal sealed class FullSourceCaptureCoordinator(
             record.HistoryCompleteness,
             record.EarliestAvailableAtUtc,
             record.RawPayloadSha256,
-            record.PermittedFieldSetSha256);
+            record.PermittedFieldSetSha256,
+            LocalDataPlaneContracts.PayloadStorageUnknown);
         if (!capture.HasStructurallyValidCaptureMetadata)
         {
             throw new InvalidOperationException("Whole-source connector returned incomplete capture metadata.");
@@ -323,6 +325,87 @@ internal sealed class FullSourceCaptureCoordinator(
         return true;
     }
 
+    /// <summary>
+    /// A deterministic recapture may encounter a SourceSystemEvent that was written by the
+    /// earlier jsonb-only continuity code before exact payload evidence existed. Do not insert a
+    /// duplicate and do not hash the jsonb round-trip text. The recaptured connector payload is
+    /// the exact evidence for the same idempotency key; attach it to the existing event locally.
+    /// </summary>
+    private async Task RepairExactEvidenceForDuplicateAsync(
+        ConnectorInstallation installation,
+        DataSource dataSource,
+        SourceSystemEvent existing,
+        ConnectorSourceCaptureRecord record,
+        CancellationToken cancellationToken)
+    {
+        var actualHash = Sha256(record.RawPayloadJson);
+        if (!string.Equals(actualHash, record.RawPayloadSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Deterministic recapture payload does not match its declared raw payload hash.");
+        }
+
+        var evidence = await dbContext.SourceCapturePayloadEvidenceRecords
+            .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
+                && x.SourceSystemEventId == existing.Id,
+                cancellationToken);
+        if (evidence is not null)
+        {
+            if (!string.Equals(evidence.StorageContract, LocalDataPlaneContracts.PayloadStorageExactTextV1, StringComparison.Ordinal)
+                || !string.Equals(evidence.RawPayloadSha256, actualHash, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Existing exact payload evidence contradicts the deterministic recapture; refusing to overwrite evidence.");
+            }
+            StampExistingCaptureExact(existing, installation, dataSource, record, actualHash);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        StampExistingCaptureExact(existing, installation, dataSource, record, actualHash);
+        dbContext.SourceCapturePayloadEvidenceRecords.Add(SourceCapturePayloadEvidence.Create(
+            installation.TenantId,
+            existing.Id,
+            installation.Id,
+            LocalDataPlaneContracts.PayloadStorageExactTextV1,
+            LocalDataPlaneContracts.CoverageFullSource,
+            record.RawPayloadJson,
+            actualHash,
+            clock.UtcNow));
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private void StampExistingCaptureExact(
+        SourceSystemEvent existing,
+        ConnectorInstallation installation,
+        DataSource dataSource,
+        ConnectorSourceCaptureRecord record,
+        string actualHash)
+    {
+        var headers = JsonNode.Parse(existing.HeadersJson) as JsonObject
+            ?? throw new InvalidOperationException("Existing deterministic capture has invalid HeadersJson.");
+        var capture = headers["kynticCapture"] as JsonObject
+            ?? throw new InvalidOperationException("Existing deterministic capture has no kynticCapture envelope.");
+
+        var contract = capture["Contract"]?.GetValue<string>();
+        var connectorId = capture["ConnectorInstanceId"]?.GetValue<string>();
+        var idempotency = capture["IdempotencyKey"]?.GetValue<string>();
+        var rawHash = capture["RawPayloadSha256"]?.GetValue<string>();
+        if (!string.Equals(contract, LocalDataPlaneContracts.CaptureMetadataV1, StringComparison.Ordinal)
+            || !Guid.TryParse(connectorId, out var parsedConnectorId)
+            || parsedConnectorId != installation.Id
+            || !string.Equals(idempotency, record.IdempotencyKey, StringComparison.Ordinal)
+            || !string.Equals(rawHash, actualHash, StringComparison.OrdinalIgnoreCase)
+            || existing.DataSourceId != dataSource.Id)
+        {
+            throw new InvalidOperationException(
+                "Existing capture metadata does not match the deterministic recapture; refusing evidence repair.");
+        }
+
+        capture["PayloadStorageContract"] = LocalDataPlaneContracts.PayloadStorageExactTextV1;
+        dbContext.Entry(existing).Property(x => x.HeadersJson).CurrentValue = headers.ToJsonString();
+    }
+
     private static string ValidateBatchSemantics(
         string connectorType,
         IReadOnlyList<ConnectorSourceCaptureRecord> records,
@@ -356,10 +439,6 @@ internal sealed class FullSourceCaptureCoordinator(
                 "Whole-source capture changed history-completeness semantics inside one paged generation.");
         }
 
-        // The two generic Scout enumerators prove a bounded current source snapshot, not an
-        // immutable historical event log. Provider-specific connectors may later prove stronger
-        // retention semantics, but generic SQL/REST configuration cannot promote itself to
-        // COMPLETE/FROM_RETENTION_BOUNDARY merely by changing a string setting.
         if (IsGenericSnapshotConnector(connectorType)
             && !string.Equals(incomingHistory, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.Ordinal)
             && !string.Equals(incomingHistory, LocalDataPlaneContracts.HistoryUnknown, StringComparison.Ordinal))
