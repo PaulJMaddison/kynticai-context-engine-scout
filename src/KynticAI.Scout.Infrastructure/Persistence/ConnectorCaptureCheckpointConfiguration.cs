@@ -16,7 +16,8 @@ internal sealed class ConnectorCaptureCheckpointConfiguration : IEntityTypeConfi
         builder.Property(x => x.HistoryCompleteness).HasMaxLength(80).IsRequired();
         builder.Property(x => x.ContinuationToken).HasMaxLength(8_000);
         builder.Property(x => x.HighWaterMarkJson).HasColumnType("jsonb").IsRequired();
-        builder.Property(x => x.LeaseOwner).HasMaxLength(200);
+        builder.Property(x => x.LeaseOwner).HasMaxLength(200).IsConcurrencyToken();
+        builder.Property(x => x.LeaseExpiresAtUtc).IsConcurrencyToken();
         builder.Property(x => x.LastError).HasMaxLength(4_000);
         builder.HasIndex(x => new { x.TenantId, x.ConnectorInstallationId }).IsUnique();
         builder.HasIndex(x => new { x.TenantId, x.LeaseExpiresAtUtc });
