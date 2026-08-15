@@ -14,6 +14,7 @@ internal sealed class ConnectorCaptureCheckpointConfiguration : IEntityTypeConfi
         builder.Property(x => x.CaptureProfileVersion).HasMaxLength(80).IsRequired();
         builder.Property(x => x.CoverageScope).HasMaxLength(80).IsRequired();
         builder.Property(x => x.HistoryCompleteness).HasMaxLength(80).IsRequired();
+        builder.Property(x => x.CurrentStateConsistency).HasMaxLength(80).IsRequired();
         builder.Property(x => x.PayloadStorageContract).HasMaxLength(80).IsRequired();
         builder.Property(x => x.ContinuationToken).HasMaxLength(8_000);
         builder.Property(x => x.HighWaterMarkJson).HasColumnType("jsonb").IsRequired();
