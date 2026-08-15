@@ -143,7 +143,7 @@ public sealed class ConnectorCaptureCheckpoint : AuditedTenantEntity
         string highWaterMarkJson,
         string historyCompleteness,
         DateTime utcNow,
-        string payloadStorageContract = "legacy-jsonb.v0")
+        string payloadStorageContract = "exact-text.v1")
     {
         EnsureLeaseOwner(owner, utcNow);
         if (string.IsNullOrWhiteSpace(historyCompleteness))
