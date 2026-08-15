@@ -41,6 +41,10 @@ public interface IScoutDbContext
 
     DbSet<SourceSystemEvent> SourceSystemEvents { get; }
 
+    DbSet<SourceCapturePayloadEvidence> SourceCapturePayloadEvidenceRecords { get; }
+
+    DbSet<SourceCaptureGenerationMember> SourceCaptureGenerationMembers { get; }
+
     DbSet<UserSignal> UserSignals { get; }
 
     DbSet<Workspace> Workspaces { get; }
