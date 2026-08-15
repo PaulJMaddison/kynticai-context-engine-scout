@@ -10,9 +10,11 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 
 /// <summary>
 /// Whole-source companion for the generic REST connector. The customer/connector definition
-/// must provide an explicit collection endpoint and source-record ID path. History is only
-/// marked complete when the connector definition explicitly declares a source-native history
-/// contract; ordinary paginated list APIs remain SNAPSHOT_ONLY.
+/// must provide an explicitly authorised collection endpoint and stable source-record ID path.
+///
+/// Generic list/cursor APIs are deliberately SNAPSHOT_ONLY. A cursor/token may be retained as
+/// provenance, but this adapter never upgrades it into an exact temporal ordering contract. A
+/// provider-specific connector is required for COMPLETE/FROM_RETENTION_BOUNDARY history.
 /// </summary>
 internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClientFactory)
     : IUpgradeSourceCaptureConnector
@@ -24,6 +26,17 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
         CancellationToken cancellationToken)
     {
         var configuration = request.Configuration;
+        if (!(configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false))
+        {
+            throw new InvalidOperationException(
+                "REST whole-source capture requires captureFullPermittedPayload=true. Ordinary API access is not permission to retain the entire collection for tier continuity.");
+        }
+        if (!(configuration["retainEntireResponseObject"]?.GetValue<bool?>() ?? false))
+        {
+            throw new InvalidOperationException(
+                "REST whole-source capture requires retainEntireResponseObject=true after customer allow-list/redaction review.");
+        }
+
         var baseUrl = configuration["baseUrl"]?.GetValue<string>()
             ?? throw new InvalidOperationException("REST full capture requires baseUrl.");
         var capturePath = configuration["capturePathTemplate"]?.GetValue<string>()
@@ -38,10 +51,17 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
         var observedAtPath = configuration["captureObservedAtPath"]?.GetValue<string>()
             ?? configuration["observedAtPath"]?.GetValue<string>();
         var operationPath = configuration["captureOperationPath"]?.GetValue<string>();
-        var sourceObjectType = configuration["sourceObjectType"]?.GetValue<string>() ?? "rest_record";
+        var sourceObjectType = configuration["sourceObjectType"]?.GetValue<string>()
+            ?? throw new InvalidOperationException("REST full capture requires sourceObjectType.");
+
         var declaredHistory = configuration["captureHistoryCompleteness"]?.GetValue<string>()
             ?? LocalDataPlaneContracts.HistorySnapshotOnly;
-        var earliestAvailable = ParseUtc(configuration["captureEarliestAvailableAtUtc"]);
+        if (!string.Equals(declaredHistory, LocalDataPlaneContracts.HistorySnapshotOnly, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(declaredHistory, LocalDataPlaneContracts.HistoryUnknown, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Generic REST whole-source capture cannot claim exact historical coverage. Use a provider-specific ordered change-feed connector.");
+        }
 
         var uri = BuildUri(baseUrl, capturePath, cursorParameter, request.ContinuationToken, limitParameter, request.MaxRecords);
         var client = httpClientFactory.CreateClient("scout-connectors");
@@ -62,6 +82,7 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
         };
 
         var records = new List<ConnectorSourceCaptureRecord>(items.Count);
+        var pageIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < items.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -70,13 +91,20 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
             var recordId = ScalarText(ResolvePath(item, recordIdPath));
             if (string.IsNullOrWhiteSpace(recordId))
                 throw new InvalidOperationException($"REST full capture item {index} has no stable source record ID at '{recordIdPath}'.");
+            if (!pageIds.Add(recordId))
+            {
+                throw new InvalidOperationException(
+                    $"REST full capture page contains duplicate source record id '{recordId}'. A stable record identity is required for continuity replay.");
+            }
 
             var observedAt = ParseUtc(ResolvePath(item, observedAtPath)) ?? request.RequestedAtUtc;
-            var operation = ScalarText(ResolvePath(item, operationPath));
+            var nativePosition = ScalarText(ResolvePath(item, sourcePositionPath));
+            var operation = string.IsNullOrWhiteSpace(nativePosition)
+                ? "snapshot"
+                : ScalarText(ResolvePath(item, operationPath));
             operation = string.IsNullOrWhiteSpace(operation) ? "snapshot" : operation.Trim().ToLowerInvariant();
             var itemJson = item.ToJsonString();
             var rawHash = Sha256(itemJson);
-            var nativePosition = ScalarText(ResolvePath(item, sourcePositionPath));
             var position = string.IsNullOrWhiteSpace(nativePosition)
                 ? JsonSerializer.Serialize(new
                 {
@@ -92,9 +120,11 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
                     kind = "rest-native-position",
                     value = nativePosition
                 });
-            var effectiveHistory = string.IsNullOrWhiteSpace(nativePosition)
-                ? LocalDataPlaneContracts.HistorySnapshotOnly
-                : NormalizeHistory(declaredHistory);
+
+            // Even when the API exposes an opaque/native token, this generic adapter does not
+            // know whether that token is globally monotonic or whether pagination represents one
+            // stable source snapshot. Preserve it as provenance but keep temporal fidelity honest.
+            var effectiveHistory = LocalDataPlaneContracts.HistorySnapshotOnly;
             var idempotency = Sha256($"{request.Installation.Id:D}|{sourceObjectType}|{recordId}|{operation}|{position}|{rawHash}");
             records.Add(new ConnectorSourceCaptureRecord(
                 sourceObjectType,
@@ -112,7 +142,7 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
                 LocalDataPlaneContracts.CaptureProfileFullPermittedV1,
                 "1",
                 effectiveHistory,
-                earliestAvailable,
+                null,
                 idempotency));
         }
 
@@ -122,6 +152,13 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
         {
             nextCursor = headerValues.FirstOrDefault();
         }
+        if (!string.IsNullOrWhiteSpace(nextCursor)
+            && string.Equals(nextCursor, request.ContinuationToken, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "REST full-source pagination returned the same continuation cursor. Refusing an infinite/ambiguous capture generation.");
+        }
+
         var complete = string.IsNullOrWhiteSpace(nextCursor);
         return new ConnectorSourceCaptureBatch(
             records,
@@ -132,13 +169,17 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
                 kind = "rest-cursor",
                 nextCursor,
                 completed = complete,
-                responseEtag = response.Headers.ETag?.Tag
+                responseEtag = response.Headers.ETag?.Tag,
+                consistency = "api-defined-best-effort",
+                pointInTimeSnapshot = false
             }),
             JsonSerializer.Serialize(new
             {
                 statusCode = (int)response.StatusCode,
                 returned = records.Count,
-                hasNativePosition = !string.IsNullOrWhiteSpace(sourcePositionPath)
+                hasNativePosition = !string.IsNullOrWhiteSpace(sourcePositionPath),
+                history = LocalDataPlaneContracts.HistorySnapshotOnly,
+                exactNativeOrderingClaimed = false
             }));
     }
 
@@ -212,14 +253,6 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
         var text = ScalarText(node);
         return DateTimeOffset.TryParse(text, out var parsed) ? parsed.UtcDateTime : null;
     }
-
-    private static string NormalizeHistory(string value)
-        => value.Trim().ToUpperInvariant() switch
-        {
-            LocalDataPlaneContracts.HistoryComplete => LocalDataPlaneContracts.HistoryComplete,
-            LocalDataPlaneContracts.HistoryFromRetentionBoundary => LocalDataPlaneContracts.HistoryFromRetentionBoundary,
-            _ => LocalDataPlaneContracts.HistorySnapshotOnly
-        };
 
     private static string SchemaFingerprint(JsonObject payload)
         => Sha256(string.Join('|', payload.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key}:{x.Value?.GetValueKind()}")));
