@@ -7,11 +7,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace KynticAI.Scout.Infrastructure.Persistence.Migrations;
 
 /// <summary>
-/// Persists customer-local whole-source capture cursor/lease state and byte-preserving payload
-/// evidence used by the Scout -> Fortress additive upgrade barrier. This migration is
-/// deliberately self-contained because the branch has not been declared runtime-green or
-/// deployed; the model snapshot must still be regenerated/reconciled by the normal EF tooling
-/// before merge.
+/// Persists customer-local whole-source capture cursor/lease state, byte-preserving payload
+/// evidence and snapshot-generation membership used by the Scout -> Fortress additive upgrade
+/// barrier. This migration is deliberately self-contained because the branch has not been
+/// declared runtime-green or deployed; the model snapshot must still be regenerated/reconciled
+/// by the normal EF tooling before merge.
 /// </summary>
 [DbContext(typeof(ScoutDbContext))]
 [Migration("20260815221500_ConnectorCaptureCheckpoints")]
@@ -78,6 +78,32 @@ public sealed class ConnectorCaptureCheckpoints : Migration
                     onDelete: ReferentialAction.Cascade);
             });
 
+        migrationBuilder.CreateTable(
+            name: "source_capture_generation_members",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "uuid", nullable: false),
+                TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                ConnectorInstallationId = table.Column<Guid>(type: "uuid", nullable: false),
+                Generation = table.Column<long>(type: "bigint", nullable: false),
+                SourceSystemEventId = table.Column<Guid>(type: "uuid", nullable: false),
+                SourceNamespace = table.Column<string>(type: "character varying(160)", maxLength: 160, nullable: false),
+                SourceObjectType = table.Column<string>(type: "character varying(160)", maxLength: 160, nullable: false),
+                SourceRecordId = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                UpdatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_source_capture_generation_members", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_source_capture_generation_members_source_system_events_SourceSystemEventId",
+                    column: x => x.SourceSystemEventId,
+                    principalTable: "source_system_events",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
         migrationBuilder.CreateIndex(
             name: "IX_connector_capture_checkpoints_TenantId_ConnectorInstallationId",
             table: "connector_capture_checkpoints",
@@ -104,10 +130,27 @@ public sealed class ConnectorCaptureCheckpoints : Migration
             name: "IX_source_capture_payload_evidence_TenantId_ConnectorInstallationId",
             table: "source_capture_payload_evidence",
             columns: new[] { "TenantId", "ConnectorInstallationId" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_source_capture_generation_members_TenantId_SourceSystemEventId",
+            table: "source_capture_generation_members",
+            columns: new[] { "TenantId", "SourceSystemEventId" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_source_capture_generation_members_TenantId_ConnectorInstallationId_Generation",
+            table: "source_capture_generation_members",
+            columns: new[] { "TenantId", "ConnectorInstallationId", "Generation" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_source_capture_generation_members_TenantId_ConnectorInstallationId_Generation_SourceObjectType_SourceRecordId",
+            table: "source_capture_generation_members",
+            columns: new[] { "TenantId", "ConnectorInstallationId", "Generation", "SourceObjectType", "SourceRecordId" },
+            unique: true);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropTable(name: "source_capture_generation_members");
         migrationBuilder.DropTable(name: "source_capture_payload_evidence");
         migrationBuilder.DropTable(name: "connector_capture_checkpoints");
     }
