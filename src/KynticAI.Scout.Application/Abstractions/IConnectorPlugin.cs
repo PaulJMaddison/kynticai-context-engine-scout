@@ -194,7 +194,7 @@ public sealed record ConnectorFetchRequest(
 /// <summary>
 /// Provider-native source position and capture semantics for continuity across KynticAI tiers.
 /// SourcePositionJson is intentionally provider-specific and opaque to Scout; the target tier
-/// validates it using the connector type. No secret values belong in this metadata.
+/// validates it using connector type. No secret values belong in this metadata.
 /// </summary>
 public sealed record ConnectorCaptureMetadata(
     Guid ConnectorInstanceId,
@@ -211,7 +211,12 @@ public sealed record ConnectorCaptureMetadata(
     string SchemaFingerprintSha256,
     string RedactionPolicyVersion,
     bool FullPermittedPayloadRetained,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    string CoverageScope = "FULL_SOURCE",
+    string HistoryCompleteness = "FROM_RETENTION_BOUNDARY",
+    DateTime? EarliestAvailableAtUtc = null,
+    string RawPayloadSha256 = "",
+    string PermittedFieldSetSha256 = "");
 
 public sealed record ConnectorFetchResult(
     string RawPayloadJson,
