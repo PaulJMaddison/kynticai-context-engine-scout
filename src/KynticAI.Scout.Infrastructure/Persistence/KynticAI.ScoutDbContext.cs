@@ -58,6 +58,8 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
 
     public DbSet<ConnectorInstallation> ConnectorInstallations => Set<ConnectorInstallation>();
 
+    public DbSet<ConnectorCaptureCheckpoint> ConnectorCaptureCheckpoints => Set<ConnectorCaptureCheckpoint>();
+
     public DbSet<ConnectorCatalogueEntry> ConnectorCatalogueEntries => Set<ConnectorCatalogueEntry>();
 
     public DbSet<ContextPackage> ContextPackages => Set<ContextPackage>();
