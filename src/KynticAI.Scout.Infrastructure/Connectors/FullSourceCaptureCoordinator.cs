@@ -13,12 +13,17 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 
 /// <summary>
 /// Runs whole-source capture connectors into Scout's existing local SourceSystemEvent journal.
-/// This is the path required for a genuinely lossless Scout -> Fortress upgrade. Selector reads
-/// are useful evidence but do not prove estate-wide coverage.
+/// This is the path required for upgrade-compatible source continuity. Selector reads are useful
+/// evidence but do not prove estate-wide coverage.
 ///
 /// Capture ownership is leased in the customer-local database. During a tier cutover the same
-/// lease/checkpoint is the barrier that prevents Scout and Fortress from independently polling
-/// the same source.
+/// lease/checkpoint is the barrier that prevents Scout/Fortress from independently polling the
+/// same source.
+///
+/// SourceNamespace is deliberately tier-neutral and connector-installation scoped. Connector
+/// type alone is not unique: two different CRMs can both contain contact/123. Preserving the
+/// connector installation GUID gives Scout backfill and later Fortress live capture the same
+/// exact source namespace without false exact-key collisions.
 /// </summary>
 internal sealed class FullSourceCaptureCoordinator(
     ScoutDbContext dbContext,
@@ -139,6 +144,7 @@ internal sealed class FullSourceCaptureCoordinator(
             var credentials = resolved["credentials"] as JsonObject ?? new JsonObject();
             var continuationBefore = checkpoint.ContinuationToken;
             var historyBefore = checkpoint.HistoryCompleteness;
+            var consistencyBefore = checkpoint.CurrentStateConsistency;
 
             var batch = await connector.CaptureBatchAsync(
                 new ConnectorSourceCaptureRequest(
@@ -157,7 +163,9 @@ internal sealed class FullSourceCaptureCoordinator(
                 connector.ConnectorType,
                 batch.Records,
                 continuationBefore,
-                historyBefore);
+                historyBefore,
+                batch.CurrentStateConsistency,
+                consistencyBefore);
             var earliestAvailable = batch.Records
                 .Where(x => x.EarliestAvailableAtUtc.HasValue)
                 .Select(x => x.EarliestAvailableAtUtc)
@@ -168,7 +176,8 @@ internal sealed class FullSourceCaptureCoordinator(
                     owner,
                     batchHistory,
                     earliestAvailable,
-                    clock.UtcNow);
+                    clock.UtcNow,
+                    batch.CurrentStateConsistency);
             }
 
             var persisted = 0;
@@ -263,6 +272,7 @@ internal sealed class FullSourceCaptureCoordinator(
             return false;
         }
 
+        var sourceNamespace = BuildSourceNamespace(installation.Id);
         var capture = new LocalSourceCaptureMetadataV1(
             LocalDataPlaneContracts.CaptureMetadataV1,
             installation.Id,
@@ -270,7 +280,7 @@ internal sealed class FullSourceCaptureCoordinator(
             $"{installation.ConnectorType}.full-source.v1",
             record.CaptureProfile,
             record.CaptureProfileVersion,
-            installation.ConnectorType,
+            sourceNamespace,
             record.SourceObjectType,
             record.SourceRecordId,
             record.Operation,
@@ -402,6 +412,7 @@ internal sealed class FullSourceCaptureCoordinator(
                 "Existing capture metadata does not match the deterministic recapture; refusing evidence repair.");
         }
 
+        capture["SourceNamespace"] = BuildSourceNamespace(installation.Id);
         capture["PayloadStorageContract"] = LocalDataPlaneContracts.PayloadStorageExactTextV1;
         dbContext.Entry(existing).Property(x => x.HeadersJson).CurrentValue = headers.ToJsonString();
     }
@@ -410,8 +421,20 @@ internal sealed class FullSourceCaptureCoordinator(
         string connectorType,
         IReadOnlyList<ConnectorSourceCaptureRecord> records,
         string? continuationBefore,
-        string historyBefore)
+        string historyBefore,
+        string currentStateConsistency,
+        string consistencyBefore)
     {
+        ValidateCurrentStateConsistency(currentStateConsistency);
+        if (!string.IsNullOrWhiteSpace(continuationBefore)
+            && !string.IsNullOrWhiteSpace(consistencyBefore)
+            && !string.Equals(consistencyBefore, LocalDataPlaneContracts.CurrentStateUnknown, StringComparison.Ordinal)
+            && !string.Equals(consistencyBefore, currentStateConsistency, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Whole-source capture changed current-state consistency semantics inside one paged generation.");
+        }
+
         if (records.Count == 0)
         {
             return string.IsNullOrWhiteSpace(historyBefore)
@@ -448,6 +471,21 @@ internal sealed class FullSourceCaptureCoordinator(
         }
 
         return incomingHistory;
+    }
+
+    private static void ValidateCurrentStateConsistency(string value)
+    {
+        var known = string.Equals(value, LocalDataPlaneContracts.CurrentStateImmutableSnapshot, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.CurrentStatePointInTime, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.CurrentStateSourceNativeOrdered, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.CurrentStateLiveKeyset, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.CurrentStateApiCursor, StringComparison.Ordinal)
+            || string.Equals(value, LocalDataPlaneContracts.CurrentStateUnknown, StringComparison.Ordinal);
+        if (!known)
+        {
+            throw new InvalidOperationException(
+                $"Unknown current-state consistency value '{value}'.");
+        }
     }
 
     private static void ValidateRecord(string connectorType, ConnectorSourceCaptureRecord record)
@@ -523,24 +561,29 @@ internal sealed class FullSourceCaptureCoordinator(
 
     private static void ValidateCapturePermission(string connectorType, JsonObject configuration)
     {
-        if (!string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var explicitlyRetainEntireObject = configuration["retainEntireResponseObject"] is JsonValue value
-            && value.TryGetValue<bool>(out var retain)
-            && retain;
-        if (!explicitlyRetainEntireObject)
+        if (!(configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false))
         {
             throw new InvalidOperationException(
-                "Generic REST whole-source capture requires retainEntireResponseObject=true. This is an explicit customer-permitted retention decision; selector/API access alone is not permission to journal every returned field.");
+                $"Whole-source connector '{connectorType}' requires captureFullPermittedPayload=true. Normal Scout read access is not permission to retain the full continuity projection.");
+        }
+
+        if (string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase))
+        {
+            var explicitlyRetainEntireObject = configuration["retainEntireResponseObject"] is JsonValue value
+                && value.TryGetValue<bool>(out var retain)
+                && retain;
+            if (!explicitlyRetainEntireObject)
+            {
+                throw new InvalidOperationException(
+                    "Generic REST whole-source capture requires retainEntireResponseObject=true. This is an explicit customer-permitted retention decision; selector/API access alone is not permission to journal every returned field.");
+            }
         }
     }
 
     private static bool IsGenericSnapshotConnector(string connectorType)
         => string.Equals(connectorType, "sqlDatabase", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(connectorType, "restApi", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(connectorType, "csvUpload", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsKnownHistory(string value)
         => string.Equals(value, LocalDataPlaneContracts.HistoryComplete, StringComparison.Ordinal)
@@ -580,6 +623,9 @@ internal sealed class FullSourceCaptureCoordinator(
             DateTimeKind.Local => value.ToUniversalTime(),
             _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
         };
+
+    private static string BuildSourceNamespace(Guid connectorInstallationId)
+        => $"kyntic-connector:{connectorInstallationId:D}";
 
     private static DateTime? Min(DateTime? left, DateTime? right)
         => left is null ? right : right is null ? left : left <= right ? left : right;
