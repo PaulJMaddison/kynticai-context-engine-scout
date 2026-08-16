@@ -220,6 +220,7 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             x.ConnectorInstallationId,
             x.ConnectorType,
             x.Generation,
+            x.LastFullSourceCompletedAtUtc,
             x.HistoryCompleteness,
             x.CurrentStateConsistency,
             x.MemberCount
@@ -296,6 +297,7 @@ static async Task<IReadOnlyList<ScoutSnapshotExportSelection>> LoadSnapshotSelec
             i."Id",
             i."ConnectorType",
             c."Generation",
+            c."LastFullSourceCompletedAtUtc",
             c."HistoryCompleteness",
             c."CurrentStateConsistency",
             c."GenerationMembershipContract",
@@ -309,10 +311,12 @@ static async Task<IReadOnlyList<ScoutSnapshotExportSelection>> LoadSnapshotSelec
          and gm."ConnectorInstallationId" = c."ConnectorInstallationId"
          and gm."Generation" = c."Generation"
         where i."TenantId" = @tenantId
+          and c."LastFullSourceCompletedAtUtc" is not null
         group by
             i."Id",
             i."ConnectorType",
             c."Generation",
+            c."LastFullSourceCompletedAtUtc",
             c."HistoryCompleteness",
             c."CurrentStateConsistency",
             c."GenerationMembershipContract"
@@ -329,10 +333,11 @@ static async Task<IReadOnlyList<ScoutSnapshotExportSelection>> LoadSnapshotSelec
             reader.GetGuid(0),
             reader.GetString(1),
             reader.GetInt64(2),
-            reader.GetString(3),
+            reader.GetDateTime(3),
             reader.GetString(4),
             reader.GetString(5),
-            reader.GetInt64(6)));
+            reader.GetString(6),
+            reader.GetInt64(7)));
     }
     return selections;
 }
@@ -459,6 +464,7 @@ sealed record ScoutSnapshotExportSelection(
     Guid ConnectorInstallationId,
     string ConnectorType,
     long Generation,
+    DateTime LastFullSourceCompletedAtUtc,
     string HistoryCompleteness,
     string CurrentStateConsistency,
     string GenerationMembershipContract,
