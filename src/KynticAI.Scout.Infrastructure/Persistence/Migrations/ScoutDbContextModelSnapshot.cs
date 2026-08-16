@@ -265,6 +265,68 @@ namespace KynticAI.Scout.Infrastructure.Persistence.Migrations
                     b.ToTable("connector_capture_checkpoints", (string)null);
                 });
 
+            modelBuilder.Entity("KynticAI.Scout.Domain.Entities.ConnectorCaptureOwnership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConnectorInstallationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CutoverEpoch")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CutoverTokenSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("FortressOwnedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HighWaterMarkSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("ScoutPausedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("SelectedGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("SnapshotCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ConnectorInstallationId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "CutoverEpoch");
+
+                    b.HasIndex("TenantId", "State");
+
+                    b.ToTable("connector_capture_ownership", (string)null);
+                });
+
             modelBuilder.Entity("KynticAI.Scout.Domain.Entities.ConnectorCredential", b =>
                 {
                     b.Property<Guid>("Id")

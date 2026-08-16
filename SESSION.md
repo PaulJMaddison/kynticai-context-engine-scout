@@ -1,19 +1,19 @@
 # KynticAI Scout Engineering Session
 
-## Last Updated
+## Last updated
 
-2026-08-16 — exact local capture + latest-generation snapshot continuity into Fortress.
+2026-08-16 — pre-cloud static review, durable Scout -> Fortress ownership cutover, bounded GCP validation design.
 
 ## Current branch truth
 
 - Repository: `PaulJMaddison/kynticai-context-engine-scout`
-- Branch: `chatgpt/fortress-upgrade-compatible-capture`
-- Baseline `main`: `49f352bfded6452f5ede6c49a1996282368dacae`
-- Current authored branch head before this documentation commit: `8ab918832a4e08cda124b4ec33b69db8c5935451`
-- Compare state: **94 commits ahead / 0 behind** baseline.
-- Status: **AUTHORED / NOT RUNTIME-GREEN** until local .NET build/tests/EF/PostgreSQL proof passes.
+- Branch: `chatgpt/precloud-static-fixes-20260816`
+- Pull request: #38 into `main`
+- Status: **STATIC REVIEW/FIXES COMPLETE FOR THE CUTOVER PATH; EXECUTABLE VALIDATION STILL REQUIRED**.
+- The direct-GitHub environment used for this review could not complete a real .NET build/test. Local Git/DNS access was unavailable and a temporary GitHub Actions validation job received no runner and executed zero steps. The temporary workflow was removed; no CI configuration change remains.
+- The required executable proof is now specified in `LOCAL_VALIDATION.md` and `docs/testing/gcp-precloud-validation.md`.
 
-Code/runtime truth wins. Read this with the matching Fortress `SESSION.md`, `LOCAL_VALIDATION.md`, and the latest continuity note in `PaulJMaddison/kyntic-ucl-local-aidocs`.
+Code/runtime truth wins. Do not call the branch runtime-green until the local or disposable GCP build/test/EF/PostgreSQL gates pass.
 
 ## Product boundary
 
@@ -37,7 +37,7 @@ Do not migrate Scout secrets into Rust merely because the licence tier changes. 
 
 Raw source rows, exact payload evidence, customer identifiers, source positions, connector credential values, governed state, vectors, prompts and model traffic stay local. The Scout upgrade JSONL is customer data and must never become a Cloud/support upload artefact.
 
-## Capture fidelity is three separate things
+## Capture fidelity remains three separate things
 
 ### Coverage
 
@@ -64,220 +64,251 @@ Raw source rows, exact payload evidence, customer identifiers, source positions,
 
 `FULL_SOURCE` does not mean exact history or one coherent point in time.
 
-## Exact payload evidence
+## Exact payload and generation evidence
 
-`SourceSystemEvent.PayloadJson` remains Scout semantic JSON/jsonb. PostgreSQL jsonb can normalise text, so exact replay evidence lives separately in `SourceCapturePayloadEvidence.ExactPayloadText` + SHA-256 under `exact-text.v1`.
+`SourceSystemEvent.PayloadJson` remains semantic JSON/jsonb. Exact replay evidence is retained separately as `SourceCapturePayloadEvidence.ExactPayloadText` + SHA-256 under `exact-text.v1`.
 
-`ScoutDbContext` validates/stamps exact capture evidence and inserts the exact-text sidecar in the same SaveChanges transaction.
+Whole-source current-state membership is retained as `SourceCaptureGenerationMember` under `generation-membership.v1`.
 
-Deterministic recapture can repair an older jsonb-only retained event without duplicating it only when connector/data-source/idempotency/hash evidence agrees. Contradiction fails closed.
-
-## Tier-neutral source namespace
-
-Whole-source capture uses:
-
-`kyntic-connector:<connector-installation-guid>`
-
-Never use connector type alone as exact source namespace. Two different systems can both contain `contact/123`.
-
-## Public whole-source connector semantics
-
-### SQL
-
-- explicit `captureFullPermittedPayload=true`;
-- explicit broader `captureColumns`; no fallback to normal selector columns;
-- explicit unique `sourceRecordIdColumn`;
-- typed keyset pagination, no OFFSET;
-- history `SNAPSHOT_ONLY`;
-- consistency `LIVE_KEYSET`.
-
-### REST
-
-- explicit full retention + `retainEntireResponseObject=true`;
-- explicit collection endpoint + stable record ID;
-- cursor-loop protection;
-- generic REST always `SNAPSHOT_ONLY` regardless of opaque provider token;
-- consistency `API_CURSOR`.
-
-### CSV
-
-- explicit full retention + unique source ID;
-- row-set SHA pinned across pages;
-- changing rows between pages fails the generation;
-- history `SNAPSHOT_ONLY`;
-- consistency `IMMUTABLE_SNAPSHOT`.
-
-Only SQL/REST/CSV are registered as whole-source continuity connectors on this branch.
-
-## Anti-resurrection rule
-
-Example:
+This prevents the anti-resurrection failure:
 
 ```text
 generation 1: A, B
 generation 2: A
 ```
 
-B may have disappeared at source. Scout retains generation-1 evidence, but Fortress must not replay B as current state.
+Fortress rebuild input for generation 2 must contain only A. Older generation evidence remains local history/audit evidence but is not current-state replay input.
 
-New table/entity:
+A genuinely empty source is valid only when a completed generation has `generation-membership.v1` and zero members. An old checkpoint with no membership evidence is not proof of an empty source.
 
-`SourceCaptureGenerationMember` / `source_capture_generation_members`
+## Durable connector ownership barrier
 
-It records tenant, connector installation, positive generation, retained event ID, source namespace/object/record.
-
-Unique key inside one generation:
+The reviewed branch now persists connector ownership in:
 
 ```text
-Tenant + ConnectorInstallation + Generation + SourceObjectType + SourceRecordId
+connector_capture_ownership
 ```
 
-The same unchanged event may belong to multiple generations. Contradictory events claiming the same source key in one generation fail closed.
+State progression:
 
-In-flight generation is `checkpoint.Generation + 1`; it becomes authoritative only when the checkpoint completes.
+```text
+ScoutActive -> ScoutPausedForCutover -> FortressOwned
+```
 
-Completed checkpoints stamp:
+The binding records:
 
-`generation-membership.v1`
+- tenant and connector installation;
+- selected completed generation;
+- snapshot completion timestamp;
+- SHA-256 of the selected high-water mark;
+- cutover epoch;
+- SHA-256 of the cutover token;
+- Scout paused timestamp;
+- Fortress owned timestamp.
 
-An old checkpoint with zero membership rows and no membership marker is not a proven empty source.
+`State` and `CutoverEpoch` are EF concurrency tokens. Checkpoint `LeaseOwner` and `LeaseExpiresAtUtc` remain concurrency tokens as well.
 
-## Empty source correctness
+### Concurrency reasoning verified in this review
 
-`ConnectorSourceCaptureBatch` carries batch-level HistoryCompleteness + CurrentStateConsistency, so a correctly empty source can complete a real generation without inventing a fake row.
+The normal capture path checks ownership before attempting a checkpoint lease and checks it again after durable lease acquisition.
 
-Zero members mean `proven empty generation N` only with a completed `generation-membership.v1` checkpoint.
+That second check is important. A worker that was waiting behind the export pause transaction may acquire a lease after the pause commits, but it then sees `ScoutPausedForCutover`, releases the lease and exits before credential retrieval or source I/O.
 
-## Upgrade readiness
+Two processes cannot both successfully acquire the same checkpoint lease because the lease fields participate in EF optimistic concurrency and the coordinator handles `DbUpdateConcurrencyException` as a failed acquisition.
 
-Scout metadata preflight now considers completed FULL_SOURCE capture, full-permitted profile, exact-text evidence, history, current-state consistency, generation membership, target support and local connector/credential continuity.
+## Export race found and fixed
 
-Weak/unknown current-state consistency or missing membership cannot reach strongest readiness. Snapshot-only history remains honestly history-limited.
+The original PR could select/export a completed checkpoint without proving that the same generation was the one later bound into the persistent ownership transfer.
 
-## Official local export v2
+That left a race:
+
+```text
+export reads generation N
+capture completes generation N+1
+ownership transfer binds N+1
+Fortress receives a validly hashed but stale generation N export
+```
+
+`tools/KynticAI.Scout.UpgradeExport` now closes this race.
+
+Before reading export selection it:
+
+1. opens a PostgreSQL transaction;
+2. locks every installed connector checkpoint with `FOR UPDATE`;
+3. refuses an active/unexpired capture lease;
+4. requires every connector to have a completed generation with no in-flight continuation/error;
+5. persists/updates `ScoutPausedForCutover` for the supplied cutover epoch and token hash;
+6. commits the pause barrier;
+7. reads export selection by joining through those persisted ownership rows.
+
+The JSONL and manifest are therefore bound to the same persisted selected generation later used for ownership handoff.
+
+If export fails after pause, Scout intentionally remains paused. Retry with the same epoch/token is deterministic and does not silently move to a newer generation. A different paused binding or `FortressOwned` binding cannot be overwritten.
+
+## Upgrade export v2 invocation
 
 Tool:
 
-`tools/KynticAI.Scout.UpgradeExport`
+```text
+tools/KynticAI.Scout.UpgradeExport
+```
 
 Contract:
 
-`kyntic-scout-source-journal-export.v2`
-
-V2 exports only each connector's **latest completed generation membership**:
-
 ```text
-checkpoint.Generation
- -> generation member
- -> retained source event
- -> exact-text.v1 evidence
+kyntic-scout-source-journal-export.v2
 ```
 
-Older snapshot generations remain local audit/history evidence and are not current-state replay input.
+Required cutover inputs now include:
 
-The v2 manifest is now bound to both:
+- `--cutover-epoch <non-empty-guid>`;
+- cutover token via `--cutover-token` or `SCOUT_CUTOVER_TOKEN`;
+- token minimum 32 characters;
+- only the token SHA-256 is persisted/output in metadata.
 
-- Scout `TenantId`;
-- tenant slug.
+Example:
 
-Every emitted row must match that Scout TenantId.
+```powershell
+$env:SCOUT_CUTOVER_TOKEN = '<local-secret-at-least-32-characters>'
+$epoch = [guid]::NewGuid().ToString()
 
-Per connector the manifest contains ID/type, selected generation, history class, current-state consistency, generation-membership contract and member count. A correctly empty connector remains present with `memberCount=0`.
+dotnet run --project .\tools\KynticAI.Scout.UpgradeExport\KynticAI.Scout.UpgradeExport.csproj -- `
+  --connection-string "$env:SCOUT_UPGRADE_CONNECTION_STRING" `
+  --tenant demo-tenant `
+  --cutover-epoch $epoch `
+  --output .\artifacts\upgrade\demo-tenant.scout-source.jsonl
+```
 
-Current v2 deliberately supports `SNAPSHOT_ONLY/UNKNOWN` only. Provider-specific exact ordered history needs a separate explicit handoff contract.
+The manifest records the cutover epoch and token hash, selected generation per connector, row/member counts, history/current-state classes, whole-file SHA-256 and sovereign-data flags.
 
-## Fortress target status
+## EF migration status
 
-The matching Fortress branch now has:
+The ownership model is now represented in all runtime migration-critical places:
 
-- reusable `snapshot_v2` validation library;
-- `scout-snapshot-validate`;
-- first-class `CommercialIngress::process_snapshot_source(...)` using existing `SourceOperation::Snapshot`;
-- shared CDC/Snapshot commercial mutation path;
-- `scout-snapshot-backfill` proof executor.
+- `ConnectorCaptureOwnership` entity;
+- `ConnectorCaptureOwnershipConfiguration`;
+- `ScoutDbContext.ConnectorCaptureOwnerships`;
+- migration `20260816115800_ConnectorCaptureOwnership`;
+- `ScoutDbContextModelSnapshot` ownership block.
 
-The backfill validates the entire handoff before mutation, requires an explicit live Fortress `tenant-layer`, allows only a fresh target or same-generation interrupted resume, revalidates before mutation, and applies every selected row as `SourceOperation::Snapshot` through normal governed persistence/outbox.
+The stale model snapshot found during review was fixed. The snapshot change was checked at commit level and contains only the expected ownership entity block, including `State` and `CutoverEpoch` concurrency tokens.
 
-Scout TenantId/slug remain validated provenance. They are **not** silently used as Fortress canonical tenant identity because live Fortress uses configured `pipeline.tenant_layer`.
+The ownership migration was authored directly through GitHub rather than generated by local `dotnet ef`; unlike the repository's older generated migrations, it currently has no generated `.Designer.cs`. That is not being hidden by a mutable/dynamic designer. The executable validation gate must run normal EF tooling and confirm migration scripting/up/down behaviour before production use. If local EF generation produces a static designer/metadata delta, commit that generated output rather than hand-maintaining historical target model code.
 
-The executor refuses an older populated target when the newest Scout snapshot omits an existing source key. Explicit absence reconciliation is still required; do not invent source-native delete time.
+## Cloud validation now designed and checked in
+
+Runbook:
+
+```text
+docs/testing/gcp-precloud-validation.md
+```
+
+Scripts:
+
+```text
+scripts/cloud-tests/gcp-precloud-budget.sh
+scripts/cloud-tests/gcp-precloud-setup.sh
+scripts/cloud-tests/gcp-precloud-run.sh
+scripts/cloud-tests/gcp-precloud-teardown.sh
+```
+
+Default proof environment:
+
+- Google Cloud `europe-west2` / `europe-west2-b`;
+- one `e2-standard-4` VM (4 vCPU / 16 GB);
+- optional `e2-standard-8` only for 1m-row scale proof;
+- 50 GB balanced boot disk;
+- no GPU/TPU;
+- no Cloud SQL;
+- two-hour maximum VM runtime;
+- automatic instance deletion at the runtime limit;
+- 25 billing-account currency-unit alerting budget at 50/80/100%;
+- no public Scout application firewall port.
+
+The budget is an alert, not the hard cutoff. The real containment controls are the machine whitelist, one-VM design, no GPU/managed DB, two-hour automatic delete and explicit teardown.
+
+Core cloud test uses the mock LLM provider. The Scout -> Fortress source-continuity proof is deterministic and should not pay for or depend on model inference.
+
+## Required cloud acceptance matrix
+
+Before production cutover, prove all of the following with synthetic data:
+
+1. Release build with warnings as errors.
+2. Full deterministic .NET tests.
+3. EF `has-pending-model-changes` passes.
+4. PostgreSQL `MigrateAsync` succeeds and creates ownership table/indexes.
+5. Scout starts/readiness passes against PostgreSQL.
+6. Exact payload evidence and generation membership reconcile.
+7. gen1 `{A,B}` then gen2 `{A}` exports only A.
+8. incomplete gen3 cannot move the export boundary.
+9. 8 and then 32 concurrent capture workers cannot overlap a committed pause.
+10. wrong cutover epoch/token fails closed; same binding retries deterministically.
+11. `FortressOwned` cannot be reclaimed.
+12. tenant/generation/member-count/hash/namespace tampering fails export.
+13. restart/crash around lease, pause and export preserves safe ownership state.
+14. required 100,000-row capture/export row-count + SHA reconciliation passes.
+15. optional 1,000,000-row pass on `e2-standard-8` if wanted.
+16. VM/resource teardown and actual spend are checked.
+
+## Validation performed in this direct-GitHub review
+
+Performed:
+
+- full live PR diff/code-path review of the cutover branch;
+- checkpoint lease/concurrency trace;
+- ownership state-machine trace;
+- export selection/ownership race analysis;
+- direct fixes for the race, migration and snapshot;
+- commit-diff verification that snapshot change is isolated;
+- GCP test harness and runbook authoring.
+
+Not performed successfully in this environment:
+
+- real `dotnet restore/build/test`;
+- real EF command execution;
+- PostgreSQL migration execution;
+- Docker run;
+- GCP run;
+- Fortress cross-repo replay execution.
+
+These remain explicit executable gates, not assumed passes.
 
 ## Same-PostgreSQL cutover target
 
 1. existing local connector/data plane runs normally;
 2. fresh full-source generation under `exact-text.v1 + generation-membership.v1`;
-3. for SQL/REST mutable enumeration, establish final recapture/write freeze or provider-specific ordered barrier;
-4. pause connector ownership;
-5. customer-local PostgreSQL backup;
-6. additive Fortress state install;
-7. create Scout v2 export;
-8. Fortress v2 validate;
-9. governed Snapshot import;
-10. absence reconciliation where needed;
-11. derived-index drain/rebuild;
-12. restart/hash/count/outbox/canary proof;
-13. resume the same compatible connector installation/config/credential path.
+3. run upgrade export with a fresh cutover epoch/token — exporter establishes the persistent pause barrier first;
+4. customer-local PostgreSQL backup;
+5. additive Fortress state install;
+6. Fortress v2 validate;
+7. governed Snapshot import;
+8. absence reconciliation where needed;
+9. derived-index drain/rebuild;
+10. restart/hash/count/outbox/canary proof;
+11. transfer durable state to `FortressOwned`;
+12. resume the same compatible connector installation/config/credential path under Fortress ownership.
 
-## Pending migration
+## Remaining work after this branch
 
-`20260815221500_ConnectorCaptureCheckpoints.cs` now contains:
-
-- connector capture checkpoints;
-- current-state consistency;
-- exact payload storage contract;
-- generation-membership contract;
-- exact payload evidence table;
-- generation-membership table/indexes/FK.
-
-It is not green until normal EF tooling regenerates/reconciles `ScoutDbContextModelSnapshot.cs` and PostgreSQL + supported SQLite behavior are proved. Do not create compensating migrations for this unreleased branch before that validation.
-
-## Focused tests authored
-
-`ScoutUpgradeGenerationMembershipTests` covers generation > 0, same retained event across later generation, missing membership fails readiness, empty estate also needs membership proof, and LIVE_KEYSET/API_CURSOR are not strong point-in-time claims.
-
-## Immediate local validation
-
-```powershell
-dotnet restore .\KynticAI.Scout.slnx
-dotnet build .\KynticAI.Scout.slnx
-dotnet test .\tests\KynticAI.Scout.UnitTests\KynticAI.Scout.UnitTests.csproj
-dotnet test .\tests\KynticAI.Scout.Sdk.Tests\KynticAI.Scout.Sdk.Tests.csproj
-```
-
-Then:
-
-- build/run `tools/KynticAI.Scout.UpgradeExport`;
-- reconcile EF migration/model snapshot;
-- prove PostgreSQL migration/up/down + supported SQLite model path;
-- tiny SQL/REST/CSV fixtures including a genuinely empty source;
-- gen1 `{A,B}` then gen2 `{A}` -> v2 exports only A;
-- incomplete gen3 must not affect export while checkpoint.Generation remains 2;
-- old membership contract UNKNOWN rejects v2 export;
-- tamper TenantId/generation/member-count/hash/namespace -> fail closed;
-- hand v2 output to Fortress validator/backfill.
-
-No GitHub Actions, Qwen, cloud or large-scale run to discover compiler errors.
-
-## Remaining gaps
-
-- local .NET compiler/test repair;
-- EF snapshot/migration proof;
-- persistent connector-host production scheduling/tail/change-feed behavior;
-- abandoned in-flight generation reset semantics;
-- credential-free connector readiness semantics;
-- provider-specific exact-history contracts;
-- executable lease/barrier/rollback/canary tooling;
-- retention/schema-drift/egress proof;
-- one accidental REST health diagnostic regression remains to restore during local compile repair: health details currently return `{}` instead of the prior serialized HTTP status code. Do not change continuity semantics while fixing it.
+- run local or GCP executable validation and commit any genuinely generated EF metadata required by that run;
+- merge PR #38 once the reviewed branch is acceptable;
+- perform the requested full code-only review of the resulting `main` branch and fix any remaining code issues directly on `main`;
+- execute the 100k synthetic cloud proof before production cutover;
+- run the matching Fortress validation/backfill proof;
+- keep provider-specific exact-history/change-feed contracts separate from snapshot continuity.
 
 ## Do not regress
 
-- never replay all retained snapshot events;
+- never replay all retained snapshot events as current state;
+- never export before establishing the durable Scout pause binding;
+- never allow capture source I/O after a committed paused/Fortress-owned state;
 - never infer source-native delete time from snapshot absence;
 - never call FULL_SOURCE exact history;
 - never call LIVE_KEYSET/API_CURSOR point-in-time consistency;
 - never use jsonb round-trip text as exact evidence;
-- never use connector type as source namespace;
+- never use connector type as exact source namespace;
+- never store or log the raw cutover token;
+- never overwrite a different paused/Fortress ownership binding;
 - never migrate Scout secrets into Rust merely for licence transition;
 - never send upgrade JSONL/raw payloads/IDs/credentials/vectors/governed state to Cloud;
-- never call authored code runtime-green before local compiler/migration/proof passes.
+- never call authored/static-reviewed code runtime-green before executable compiler/migration/proof passes.

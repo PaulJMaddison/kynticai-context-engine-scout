@@ -65,6 +65,8 @@ public interface IScoutDbContext
 
     DbSet<ConnectorCaptureCheckpoint> ConnectorCaptureCheckpoints { get; }
 
+    DbSet<ConnectorCaptureOwnership> ConnectorCaptureOwnerships { get; }
+
     DbSet<ConnectorCatalogueEntry> ConnectorCatalogueEntries { get; }
 
     DbSet<ContextPackage> ContextPackages { get; }

@@ -81,7 +81,10 @@ internal sealed class LocalSourceCaptureJournal(
             ?? observedAtUtc;
         var redactionPolicyVersion = configuration["redactionPolicyVersion"]?.GetValue<string>()
             ?? "customer-permitted.v1";
-        var fullPermittedPayload = configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? true;
+
+        // Subject reads are useful local evidence, but ordinary connector access is not implicit
+        // permission to claim that the complete customer-permitted payload was retained.
+        var fullPermittedPayload = configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false;
         var permittedFieldSetSha = Sha256(BuildPermittedFieldSet(normalizedNode));
         var sourcePosition = JsonSerializer.Serialize(new
         {
@@ -194,11 +197,22 @@ internal sealed class LocalSourceCaptureJournal(
         var path = configuration["sourceRecordIdPath"]?.GetValue<string>()
             ?? configuration["sourceRecordIdColumn"]?.GetValue<string>();
         if (!string.IsNullOrWhiteSpace(path)
-            && TryResolvePath(payload, path) is JsonValue value
-            && value.TryGetValue<string>(out var stringValue)
-            && !string.IsNullOrWhiteSpace(stringValue))
+            && TryResolvePath(payload, path) is JsonValue value)
         {
-            return stringValue.Trim();
+            if (value.TryGetValue<string>(out var stringValue)
+                && !string.IsNullOrWhiteSpace(stringValue))
+            {
+                return stringValue.Trim();
+            }
+
+            // Stable source IDs are frequently numeric. Preserve their JSON scalar text rather
+            // than silently falling back to the Scout user's external id.
+            var scalarValue = value.ToJsonString().Trim('"');
+            if (!string.IsNullOrWhiteSpace(scalarValue)
+                && !string.Equals(scalarValue, "null", StringComparison.OrdinalIgnoreCase))
+            {
+                return scalarValue.Trim();
+            }
         }
 
         return fallback.Trim();

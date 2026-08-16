@@ -44,8 +44,17 @@ internal sealed class CsvFullSourceCaptureConnector : IUpgradeSourceCaptureConne
         var sourceObjectType = request.Configuration["sourceObjectType"]?.GetValue<string>() ?? "csv_row";
         var snapshotHash = Sha256(rows.ToJsonString());
         var offset = ParseCursor(request.ContinuationToken, snapshotHash);
+        if (offset > rows.Count)
+        {
+            throw new InvalidOperationException(
+                "CSV snapshot continuation token points beyond the pinned row set. Refusing a truncated generation.");
+        }
 
-        ValidateUniqueRecordIds(rows, recordIdColumn);
+        // The first page proves uniqueness for the complete pinned row set. Later pages carry the
+        // SHA-256 of that exact row set, so rescanning every row on every page is unnecessary and
+        // becomes quadratic for large cloud fixtures.
+        if (offset == 0)
+            ValidateUniqueRecordIds(rows, recordIdColumn, cancellationToken);
 
         var end = Math.Min(rows.Count, offset + request.MaxRecords);
         var records = new List<ConnectorSourceCaptureRecord>(Math.Max(0, end - offset));
@@ -143,11 +152,15 @@ internal sealed class CsvFullSourceCaptureConnector : IUpgradeSourceCaptureConne
         return cursor.NextRow;
     }
 
-    private static void ValidateUniqueRecordIds(JsonArray rows, string recordIdColumn)
+    private static void ValidateUniqueRecordIds(
+        JsonArray rows,
+        string recordIdColumn,
+        CancellationToken cancellationToken)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < rows.Count; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (rows[index] is not JsonObject row)
                 throw new InvalidOperationException($"CSV rows[{index}] must be an object.");
             var recordId = row[recordIdColumn]?.ToString();
@@ -166,7 +179,14 @@ internal sealed class CsvFullSourceCaptureConnector : IUpgradeSourceCaptureConne
         if (node is not JsonValue value)
             return null;
         if (value.TryGetValue<DateTime>(out var dateTime))
-            return dateTime.Kind == DateTimeKind.Utc ? dateTime : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+        {
+            return dateTime.Kind switch
+            {
+                DateTimeKind.Utc => dateTime,
+                DateTimeKind.Local => dateTime.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+            };
+        }
         if (value.TryGetValue<string>(out var text) && DateTimeOffset.TryParse(text, out var parsed))
             return parsed.UtcDateTime;
         return null;
