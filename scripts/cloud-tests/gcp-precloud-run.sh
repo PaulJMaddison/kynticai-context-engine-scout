@@ -73,13 +73,23 @@ for i in $(seq 1 60); do
   fi
 done
 
-# Exercise the real PostgreSQL migration path used by ApplicationBootstrapper/MigrateAsync.
-sudo -E docker compose -f deploy/docker-compose.yml --profile postgres run --rm \
-  -e ASPNETCORE_ENVIRONMENT=Development \
-  -e Bootstrap__SeedDemoData=false \
-  scout-api-pg migrate
+# Bring the real API up. PostgreSQL migrations are applied by ApplicationBootstrapper/MigrateAsync
+# during normal startup; there is deliberately no synthetic "migrate" CLI path in Scout.
+sudo -E docker compose -f deploy/docker-compose.yml --profile postgres up -d scout-api-pg
+for i in $(seq 1 60); do
+  if curl -fsS http://127.0.0.1:8080/health/ready >/tmp/scout-ready.json 2>/dev/null; then
+    break
+  fi
+  sleep 2
+  if [[ "$i" == "60" ]]; then
+    sudo -E docker compose -f deploy/docker-compose.yml --profile postgres logs --no-color scout-api-pg >&2
+    echo "Scout API did not become ready after applying PostgreSQL migrations." >&2
+    exit 11
+  fi
+done
+cat /tmp/scout-ready.json
 
-# The ownership table and expected indexes must exist after migration.
+# The ownership table and expected indexes must exist after the API's normal migration/startup path.
 sudo -E docker compose -f deploy/docker-compose.yml --profile postgres exec -T postgres \
   psql -v ON_ERROR_STOP=1 -U postgres -d scout_context_db <<'SQL'
 DO $$
@@ -95,22 +105,6 @@ WHERE schemaname = 'public'
   AND tablename = 'connector_capture_ownership'
 ORDER BY indexname;
 SQL
-
-# Bring the API up against PostgreSQL and require readiness. LLM remains mock: this suite validates
-# capture/storage/cutover correctness rather than model quality.
-sudo -E docker compose -f deploy/docker-compose.yml --profile postgres up -d scout-api-pg
-for i in $(seq 1 60); do
-  if curl -fsS http://127.0.0.1:8080/health/ready >/tmp/scout-ready.json 2>/dev/null; then
-    break
-  fi
-  sleep 2
-  if [[ "$i" == "60" ]]; then
-    sudo -E docker compose -f deploy/docker-compose.yml --profile postgres logs --no-color scout-api-pg >&2
-    echo "Scout API did not become ready." >&2
-    exit 11
-  fi
-done
-cat /tmp/scout-ready.json
 
 # Deterministic ownership/export tests already live in the .NET test suite. Run the focused tests
 # again after the real PostgreSQL migration/startup gate so failures are easy to attribute.
