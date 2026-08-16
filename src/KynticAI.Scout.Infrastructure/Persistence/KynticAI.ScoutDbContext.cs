@@ -54,6 +54,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     public DbSet<WebhookSigningSecret> WebhookSigningSecrets => Set<WebhookSigningSecret>();
     public DbSet<ConnectorInstallation> ConnectorInstallations => Set<ConnectorInstallation>();
     public DbSet<ConnectorCaptureCheckpoint> ConnectorCaptureCheckpoints => Set<ConnectorCaptureCheckpoint>();
+    public DbSet<ConnectorCaptureOwnership> ConnectorCaptureOwnerships => Set<ConnectorCaptureOwnership>();
     public DbSet<ConnectorCatalogueEntry> ConnectorCatalogueEntries => Set<ConnectorCatalogueEntry>();
     public DbSet<ContextPackage> ContextPackages => Set<ContextPackage>();
     public DbSet<BillingUsageRecord> BillingUsageRecords => Set<BillingUsageRecord>();
