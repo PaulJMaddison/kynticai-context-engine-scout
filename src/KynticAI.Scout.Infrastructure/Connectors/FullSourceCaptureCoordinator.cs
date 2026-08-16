@@ -17,9 +17,10 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 /// This is the path required for upgrade-compatible source continuity. Selector reads are useful
 /// evidence but do not prove estate-wide coverage.
 ///
-/// Capture ownership is leased in the customer-local database. During a tier cutover the same
-/// lease/checkpoint is the barrier that prevents Scout/Fortress from independently polling the
-/// same source.
+/// Capture ownership is leased in the customer-local database. During a tier cutover the
+/// persistent ConnectorCaptureOwnership state is checked before lease acquisition and again after
+/// the lease is durably acquired but before any connector credentials are resolved or source call
+/// is made. Paused/Fortress-owned connectors therefore fail closed on the Scout polling path.
 ///
 /// SourceNamespace is deliberately tier-neutral and connector-installation scoped. Connector
 /// type alone is not unique: two different CRMs can both contain contact/123. Preserving the
@@ -93,6 +94,12 @@ internal sealed class FullSourceCaptureCoordinator(
         int maxRecords,
         CancellationToken cancellationToken)
     {
+        var ownership = await LoadCaptureOwnershipAsync(installation, cancellationToken);
+        if (ownership is not null && !ownership.ScoutMayCapture)
+        {
+            return OwnershipBlockedResult(installation, ownership);
+        }
+
         var now = clock.UtcNow;
         var checkpoint = await dbContext.ConnectorCaptureCheckpoints
             .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
@@ -131,6 +138,17 @@ internal sealed class FullSourceCaptureCoordinator(
             return new FullSourceCaptureRunResult(
                 installation.Id, installation.ConnectorType, false, 0, false,
                 "Capture lease was acquired concurrently by another local worker.");
+        }
+
+        // Re-read ownership after the lease commit. A cutover coordinator must not transfer
+        // ownership while this lease is active; this second check also closes the ordinary race
+        // where a pause was persisted after our first read but before lease acquisition completed.
+        ownership = await LoadCaptureOwnershipAsync(installation, cancellationToken);
+        if (ownership is not null && !ownership.ScoutMayCapture)
+        {
+            checkpoint.ReleaseLease(owner, clock.UtcNow);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return OwnershipBlockedResult(installation, ownership);
         }
 
         try
@@ -258,6 +276,26 @@ internal sealed class FullSourceCaptureCoordinator(
                 exception.Message);
         }
     }
+
+    private async Task<ConnectorCaptureOwnership?> LoadCaptureOwnershipAsync(
+        ConnectorInstallation installation,
+        CancellationToken cancellationToken)
+        => await dbContext.ConnectorCaptureOwnerships
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.TenantId == installation.TenantId
+                && x.ConnectorInstallationId == installation.Id,
+                cancellationToken);
+
+    private static FullSourceCaptureRunResult OwnershipBlockedResult(
+        ConnectorInstallation installation,
+        ConnectorCaptureOwnership ownership)
+        => new(
+            installation.Id,
+            installation.ConnectorType,
+            false,
+            0,
+            false,
+            $"Scout capture is blocked by persisted cutover ownership state {ownership.State} for epoch {ownership.CutoverEpoch:D}.");
 
     private async Task<bool> PersistRecordAsync(
         ConnectorInstallation installation,
