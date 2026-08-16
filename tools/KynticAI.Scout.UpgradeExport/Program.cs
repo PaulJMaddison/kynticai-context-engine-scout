@@ -45,7 +45,7 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
     var cutoverTokenSha256 = Sha256(options.CutoverToken);
 
     // Establish the durable ownership barrier before reading any export selection. This transaction
-    // locks every connector checkpoint, refuses an active worker lease, and persists the exact
+    // locks every connector checkpoint, refuses a worker-owned lease, and persists the exact
     // generation/high-water binding for the supplied epoch/token. Once committed, normal Scout
     // capture fails closed on the ownership row and the export cannot drift to a newer generation.
     await PauseScoutForCutoverAsync(
@@ -56,6 +56,12 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         cancellationToken);
 
     await AssertConnectorBarrierReadyAsync(
+        connection,
+        tenantId,
+        options.CutoverEpoch,
+        cutoverTokenSha256,
+        cancellationToken);
+    await AssertHighWaterBindingsAsync(
         connection,
         tenantId,
         options.CutoverEpoch,
@@ -73,6 +79,11 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         options.CutoverEpoch,
         cutoverTokenSha256,
         cancellationToken);
+
+    var selectionsByConnector = selections.ToDictionary(x => x.ConnectorInstallationId);
+    var connectorTypes = new SortedSet<string>(
+        selections.Select(x => x.ConnectorType),
+        StringComparer.Ordinal);
 
     var fileMode = options.Overwrite ? FileMode.Create : FileMode.CreateNew;
     await using var output = new FileStream(
@@ -142,7 +153,6 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
     command.Parameters.AddWithValue("cutoverTokenSha256", cutoverTokenSha256);
 
     var rowCount = 0L;
-    var connectorTypes = new SortedSet<string>(StringComparer.Ordinal);
     await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
     while (await reader.ReadAsync(cancellationToken))
     {
@@ -166,6 +176,14 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         var receivedAtUtc = reader.GetDateTime(15);
         var observedAtUtc = reader.GetDateTime(16);
         var evidenceHash = reader.GetString(17);
+
+        if (!selectionsByConnector.TryGetValue(connectorInstallationId, out var selection))
+            throw new InvalidOperationException($"Export row {rowCount + 1} has no paused connector selection.");
+        if (selection.Generation != generation)
+            throw new InvalidOperationException($"Export row {rowCount + 1} generation does not match the paused connector selection.");
+        if (!string.Equals(selection.ConnectorType, sourceSystem, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Export row {rowCount + 1} source system does not match its connector installation.");
+
         var actualHash = Sha256(exactPayload);
         if (!string.Equals(actualHash, evidenceHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Exact payload evidence hash mismatch at exported row {rowCount + 1}.");
@@ -179,7 +197,6 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             sourceObjectType,
             sourceRecordId);
 
-        connectorTypes.Add(sourceSystem);
         var row = new ScoutJournalExportRow(
             connectorInstallationId,
             generation,
@@ -355,11 +372,15 @@ static async Task PauseScoutForCutoverAsync(
             throw new InvalidOperationException($"Connector {checkpoint.ConnectorInstallationId} has an in-flight paged generation.");
         if (!string.IsNullOrWhiteSpace(checkpoint.LastError))
             throw new InvalidOperationException($"Connector {checkpoint.ConnectorInstallationId} records a capture error.");
-        if (!string.IsNullOrWhiteSpace(checkpoint.LeaseOwner)
-            && (!checkpoint.LeaseExpiresAtUtc.HasValue || checkpoint.LeaseExpiresAtUtc.Value > utcNow))
+
+        // Cutover is stricter than normal worker lease recovery. A non-empty owner may represent a
+        // still-running worker whose timestamp merely expired during a slow operation; automatic
+        // cutover must never overlap that worker. A genuinely abandoned lease needs explicit local
+        // operator recovery before export.
+        if (!string.IsNullOrWhiteSpace(checkpoint.LeaseOwner))
         {
             throw new InvalidOperationException(
-                $"Connector {checkpoint.ConnectorInstallationId} has an active Scout capture lease owned by '{checkpoint.LeaseOwner}'.");
+                $"Connector {checkpoint.ConnectorInstallationId} still has a Scout capture lease owner '{checkpoint.LeaseOwner}'. Clear/recover the local worker before cutover.");
         }
 
         var highWaterMarkSha256 = Sha256(checkpoint.HighWaterMarkJson);
@@ -396,6 +417,9 @@ static async Task PauseScoutForCutoverAsync(
                     connector_capture_ownership."State" = @pausedState
                     and connector_capture_ownership."CutoverEpoch" = @cutoverEpoch
                     and connector_capture_ownership."CutoverTokenSha256" = @cutoverTokenSha256
+                    and connector_capture_ownership."SelectedGeneration" = excluded."SelectedGeneration"
+                    and connector_capture_ownership."SnapshotCompletedAtUtc" = excluded."SnapshotCompletedAtUtc"
+                    and connector_capture_ownership."HighWaterMarkSha256" = excluded."HighWaterMarkSha256"
                )
             returning "State"
             """;
@@ -417,7 +441,7 @@ static async Task PauseScoutForCutoverAsync(
         if (!string.Equals(state, ScoutPausedForCutover, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                $"Connector {checkpoint.ConnectorInstallationId} is already owned by another cutover/Fortress binding. Refusing to overwrite source ownership.");
+                $"Connector {checkpoint.ConnectorInstallationId} is already owned by another or mismatched cutover/Fortress binding. Refusing to overwrite source ownership.");
         }
     }
 
@@ -468,6 +492,49 @@ static async Task AssertConnectorBarrierReadyAsync(
     {
         throw new InvalidOperationException(
             $"{unsafeCount} connector installation(s) do not have an exact persisted Scout-paused cutover binding. Refusing export.");
+    }
+}
+
+static async Task AssertHighWaterBindingsAsync(
+    NpgsqlConnection connection,
+    Guid tenantId,
+    Guid cutoverEpoch,
+    string cutoverTokenSha256,
+    CancellationToken cancellationToken)
+{
+    const string sql = """
+        select
+            o."ConnectorInstallationId",
+            o."HighWaterMarkSha256",
+            c."HighWaterMarkJson"::text
+        from connector_capture_ownership o
+        inner join connector_capture_checkpoints c
+          on c."TenantId" = o."TenantId"
+         and c."ConnectorInstallationId" = o."ConnectorInstallationId"
+        where o."TenantId" = @tenantId
+          and o."State" = @pausedState
+          and o."CutoverEpoch" = @cutoverEpoch
+          and o."CutoverTokenSha256" = @cutoverTokenSha256
+        order by o."ConnectorInstallationId"
+        """;
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("tenantId", tenantId);
+    command.Parameters.AddWithValue("pausedState", ScoutPausedForCutover);
+    command.Parameters.AddWithValue("cutoverEpoch", cutoverEpoch);
+    command.Parameters.AddWithValue("cutoverTokenSha256", cutoverTokenSha256);
+
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    while (await reader.ReadAsync(cancellationToken))
+    {
+        var connectorInstallationId = reader.GetGuid(0);
+        var persistedHash = reader.GetString(1);
+        var checkpointJson = reader.GetString(2);
+        var actualHash = Sha256(checkpointJson);
+        if (!string.Equals(persistedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Connector {connectorInstallationId} high-water mark no longer matches its paused cutover binding.");
+        }
     }
 }
 
