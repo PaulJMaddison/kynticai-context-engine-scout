@@ -80,6 +80,11 @@ internal sealed class RestFullSourceCaptureConnector(IHttpClientFactory httpClie
             null when root is JsonArray rootArray => rootArray,
             _ => throw new InvalidOperationException($"REST full capture path '{itemsPath}' did not resolve to an array.")
         };
+        if (items.Count > request.MaxRecords)
+        {
+            throw new InvalidOperationException(
+                $"REST full capture returned {items.Count} items after a requested page limit of {request.MaxRecords}. Refusing an unbounded page.");
+        }
 
         var records = new List<ConnectorSourceCaptureRecord>(items.Count);
         var pageIds = new HashSet<string>(StringComparer.Ordinal);
