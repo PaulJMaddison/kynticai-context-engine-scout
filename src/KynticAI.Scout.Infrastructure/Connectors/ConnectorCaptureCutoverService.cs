@@ -38,6 +38,15 @@ internal sealed class ConnectorCaptureCutoverService(
         var checkpoint = await LoadCheckpointAsync(tenantId, connectorInstallationId, cancellationToken);
         EnsureCompletedGeneration(checkpoint);
 
+        // Cutover is deliberately stricter than ordinary worker lease recovery. An expired
+        // timestamp does not prove the owning process stopped; a slow worker may still be inside
+        // connector I/O or persistence. Require explicit local recovery of any non-empty owner.
+        if (!string.IsNullOrWhiteSpace(checkpoint.LeaseOwner))
+        {
+            throw new InvalidOperationException(
+                $"Scout connector capture checkpoint still has lease owner '{checkpoint.LeaseOwner}'. Recover/clear the local worker before changing source ownership.");
+        }
+
         var barrierOwner = $"cutover:{cutoverEpoch:N}";
         if (!checkpoint.TryAcquireLease(barrierOwner, CutoverLeaseDuration, now))
         {
@@ -163,7 +172,7 @@ internal sealed class ConnectorCaptureCutoverService(
         ValidateRequest(tenantId, connectorInstallationId, cutoverEpoch, cutoverToken);
         var now = EnsureUtc(clock.UtcNow);
         var checkpoint = await LoadCheckpointAsync(tenantId, connectorInstallationId, cancellationToken);
-        EnsureNoActiveScoutLease(checkpoint, now);
+        EnsureNoScoutLeaseOwner(checkpoint);
 
         var ownership = await dbContext.ConnectorCaptureOwnerships
             .SingleOrDefaultAsync(x => x.TenantId == tenantId
@@ -203,7 +212,7 @@ internal sealed class ConnectorCaptureCutoverService(
         ValidateRequest(tenantId, connectorInstallationId, cutoverEpoch, cutoverToken);
         var now = EnsureUtc(clock.UtcNow);
         var checkpoint = await LoadCheckpointAsync(tenantId, connectorInstallationId, cancellationToken);
-        EnsureNoActiveScoutLease(checkpoint, now);
+        EnsureNoScoutLeaseOwner(checkpoint);
 
         var ownership = await dbContext.ConnectorCaptureOwnerships
             .SingleOrDefaultAsync(x => x.TenantId == tenantId
@@ -248,14 +257,12 @@ internal sealed class ConnectorCaptureCutoverService(
                 "Connector checkpoint records a capture error; repair/recapture before cutover.");
     }
 
-    private static void EnsureNoActiveScoutLease(
-        ConnectorCaptureCheckpoint checkpoint,
-        DateTime utcNow)
+    private static void EnsureNoScoutLeaseOwner(ConnectorCaptureCheckpoint checkpoint)
     {
-        if (checkpoint.LeaseExpiresAtUtc.HasValue && checkpoint.LeaseExpiresAtUtc.Value > utcNow)
+        if (!string.IsNullOrWhiteSpace(checkpoint.LeaseOwner))
         {
             throw new InvalidOperationException(
-                "Scout connector capture lease is still active; wait for/release the worker before changing source ownership.");
+                $"Scout connector capture checkpoint still has lease owner '{checkpoint.LeaseOwner}'. Recover/clear the local worker before changing source ownership.");
         }
     }
 
