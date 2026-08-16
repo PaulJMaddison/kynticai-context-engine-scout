@@ -24,6 +24,8 @@ internal sealed class ConnectorCaptureOwnershipConfiguration
         builder.Property(x => x.CutoverTokenSha256).HasMaxLength(64).IsRequired();
         builder.Property(x => x.ScoutPausedAtUtc);
         builder.Property(x => x.FortressOwnedAtUtc);
+        builder.Ignore(x => x.ScoutMayCapture);
+        builder.Ignore(x => x.FortressMayCapture);
 
         builder.HasIndex(x => new { x.TenantId, x.ConnectorInstallationId }).IsUnique();
         builder.HasIndex(x => new { x.TenantId, x.State });
