@@ -45,12 +45,14 @@ internal sealed class ConnectorCaptureCutoverService(
                 "Scout connector capture lease is still active; wait for/release the worker before changing source ownership.");
         }
 
+        var leaseCommitted = false;
         var ownershipCommitted = false;
         try
         {
             // Persist the cutover lease first. Connector workers use the same lease concurrency
             // tokens, so one cannot successfully enter the source while this barrier is held.
             await dbContext.SaveChangesAsync(cancellationToken);
+            leaseCommitted = true;
 
             var highWaterHash = Sha256(checkpoint.HighWaterMarkJson);
             var tokenHash = Sha256(cutoverToken);
@@ -137,10 +139,17 @@ internal sealed class ConnectorCaptureCutoverService(
                 }
             }
 
-            // Ownership is committed before this lease is released. If the pause failed, releasing
-            // here restores normal Scout availability rather than leaving a cutover lease stranded.
-            checkpoint.ReleaseLease(barrierOwner, EnsureUtc(clock.UtcNow));
-            await dbContext.SaveChangesAsync(CancellationToken.None);
+            // Only release a lease that was actually committed. If the initial concurrency/database
+            // write failed, a cleanup SaveChanges could mask that original failure or mutate a lease
+            // owned by somebody else. In that case this scoped context is simply allowed to unwind.
+            if (leaseCommitted)
+            {
+                // Ownership is committed before this lease is released. If the pause failed after
+                // the lease commit, releasing here restores normal Scout availability rather than
+                // leaving a cutover lease stranded.
+                checkpoint.ReleaseLease(barrierOwner, EnsureUtc(clock.UtcNow));
+                await dbContext.SaveChangesAsync(CancellationToken.None);
+            }
         }
     }
 
