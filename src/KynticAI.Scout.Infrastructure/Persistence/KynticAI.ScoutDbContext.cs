@@ -13,6 +13,9 @@ namespace KynticAI.Scout.Infrastructure.Persistence;
 public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     : DbContext(options), IScoutDbContext
 {
+    private static readonly TimeSpan CaptureLeaseRenewalDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CaptureLeaseRenewalThreshold = TimeSpan.FromMinutes(2);
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<OperatorAccount> OperatorAccounts => Set<OperatorAccount>();
@@ -66,6 +69,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        PrepareCaptureLeaseRenewals();
         PrepareExactCapturePayloadEvidence();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
@@ -74,6 +78,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
+        PrepareCaptureLeaseRenewals();
         PrepareExactCapturePayloadEvidence();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
@@ -83,6 +88,34 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(ScoutDbContext).Assembly,
             type => type.Namespace == typeof(ScoutDbContext).Namespace);
+    }
+
+    /// <summary>
+    /// Whole-source capture can persist thousands of evidence/membership rows inside one leased
+    /// batch. Renew a tracked worker lease before any SaveChanges once it enters the final two
+    /// minutes. This makes each normal persistence write also prove that the worker still owns a
+    /// non-expired lease. If the lease has already expired or another worker has taken it, the
+    /// domain/concurrency checks fail closed instead of allowing stale capture to keep writing.
+    /// </summary>
+    private void PrepareCaptureLeaseRenewals()
+    {
+        var utcNow = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<ConnectorCaptureCheckpoint>())
+        {
+            var checkpoint = entry.Entity;
+            if (entry.State is EntityState.Detached or EntityState.Deleted
+                || string.IsNullOrWhiteSpace(checkpoint.LeaseOwner)
+                || !checkpoint.LeaseExpiresAtUtc.HasValue
+                || checkpoint.LeaseExpiresAtUtc.Value > utcNow.Add(CaptureLeaseRenewalThreshold))
+            {
+                continue;
+            }
+
+            checkpoint.RenewLease(
+                checkpoint.LeaseOwner,
+                CaptureLeaseRenewalDuration,
+                utcNow);
+        }
     }
 
     /// <summary>
