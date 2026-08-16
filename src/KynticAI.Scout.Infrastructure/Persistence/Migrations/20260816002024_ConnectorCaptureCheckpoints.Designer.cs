@@ -3,6 +3,7 @@ using System;
 using KynticAI.Scout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KynticAI.Scout.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ScoutDbContext))]
-    partial class ScoutDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260816002024_ConnectorCaptureCheckpoints")]
+    partial class ConnectorCaptureCheckpoints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

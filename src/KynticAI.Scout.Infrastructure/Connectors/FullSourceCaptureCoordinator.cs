@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Entities;
+using KynticAI.Scout.Domain.Saas;
 using KynticAI.Scout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

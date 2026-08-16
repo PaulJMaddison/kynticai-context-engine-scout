@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using KynticAI.Scout.Domain.Entities;
+using KynticAI.Scout.Domain.Saas;
 
 namespace KynticAI.Scout.Application.Abstractions;
 

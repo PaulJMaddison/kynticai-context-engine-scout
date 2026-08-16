@@ -116,8 +116,15 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
         var rowTenantId = reader.GetGuid(7);
         if (rowTenantId != tenantId)
             throw new InvalidOperationException($"Export row {rowCount + 1} tenant does not match the selected Scout tenant.");
+        Guid? workspaceId = reader.IsDBNull(8) ? (Guid?)null : reader.GetGuid(8);
+        var eventId = reader.GetString(9);
+        var sourceSystem = reader.GetString(10);
+        var eventType = reader.GetString(11);
+        Guid? dataSourceId = reader.IsDBNull(12) ? (Guid?)null : reader.GetGuid(12);
         var exactPayload = reader.GetString(13);
         var headersJson = reader.GetString(14);
+        var receivedAtUtc = reader.GetDateTime(15);
+        var observedAtUtc = reader.GetDateTime(16);
         var evidenceHash = reader.GetString(17);
         var actualHash = Sha256(exactPayload);
         if (!string.Equals(actualHash, evidenceHash, StringComparison.OrdinalIgnoreCase))
@@ -132,7 +139,6 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             sourceObjectType,
             sourceRecordId);
 
-        var sourceSystem = reader.GetString(10);
         connectorTypes.Add(sourceSystem);
         var row = new ScoutJournalExportRow(
             connectorInstallationId,
@@ -143,15 +149,15 @@ static async Task ExportAsync(Options options, CancellationToken cancellationTok
             sourceObjectType,
             sourceRecordId,
             rowTenantId,
-            reader.IsDBNull(8) ? null : reader.GetGuid(8),
-            reader.GetString(9),
+            workspaceId,
+            eventId,
             sourceSystem,
-            reader.GetString(11),
-            reader.IsDBNull(12) ? null : reader.GetGuid(12),
+            eventType,
+            dataSourceId,
             exactPayload,
             headersJson,
-            reader.GetDateTime(15),
-            reader.GetDateTime(16));
+            receivedAtUtc,
+            observedAtUtc);
 
         var json = JsonSerializer.Serialize(row);
         var bytes = Encoding.UTF8.GetBytes(json + "\n");
@@ -243,7 +249,7 @@ static async Task AssertConnectorBarrierReadyAsync(
     Guid tenantId,
     CancellationToken cancellationToken)
 {
-    const string installationCountSql = "select count(*) from connector_installations where \"TenantId\" = @tenantId";
+    const string installationCountSql = "select count(*) from saas_connector_installations where \"TenantId\" = @tenantId";
     await using (var installationCount = new NpgsqlCommand(installationCountSql, connection))
     {
         installationCount.Parameters.AddWithValue("tenantId", tenantId);
@@ -254,7 +260,7 @@ static async Task AssertConnectorBarrierReadyAsync(
 
     const string unsafeCheckpointSql = """
         select count(*)
-        from connector_installations i
+        from saas_connector_installations i
         left join connector_capture_checkpoints c
           on c."TenantId" = i."TenantId"
          and c."ConnectorInstallationId" = i."Id"
@@ -294,7 +300,7 @@ static async Task<IReadOnlyList<ScoutSnapshotExportSelection>> LoadSnapshotSelec
             c."CurrentStateConsistency",
             c."GenerationMembershipContract",
             count(gm."Id")
-        from connector_installations i
+        from saas_connector_installations i
         inner join connector_capture_checkpoints c
           on c."TenantId" = i."TenantId"
          and c."ConnectorInstallationId" = i."Id"

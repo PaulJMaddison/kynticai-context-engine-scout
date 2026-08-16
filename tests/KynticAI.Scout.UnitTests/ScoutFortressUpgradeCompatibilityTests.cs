@@ -21,7 +21,10 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
             AllRetainedEventsRetainFullPermittedPayload: true,
             ConnectorTypesSupportedByTarget: true,
             RequiresSourceReconnect: false,
-            HistoricalCoverageKnownComplete: true));
+            HistoricalCoverageKnownComplete: true,
+            ExactPayloadEvidenceRetained: true,
+            CurrentStateContinuityKnown: true,
+            GenerationMembershipKnown: true));
 
         Assert.Equal(LocalUpgradeReadiness.LosslessDerivedRebuild, readiness);
     }
@@ -57,7 +60,10 @@ public sealed class ScoutFortressUpgradeCompatibilityTests
             AllRetainedEventsRetainFullPermittedPayload: true,
             ConnectorTypesSupportedByTarget: true,
             RequiresSourceReconnect: false,
-            HistoricalCoverageKnownComplete: true));
+            HistoricalCoverageKnownComplete: true,
+            ExactPayloadEvidenceRetained: true,
+            CurrentStateContinuityKnown: true,
+            GenerationMembershipKnown: true));
 
         Assert.Equal(LocalUpgradeReadiness.LosslessDerivedRebuild, readiness);
     }
