@@ -49,6 +49,9 @@ public sealed class ConnectorCaptureOwnership : AuditedTenantEntity
             throw new ArgumentException("Snapshot completion time is required.", nameof(snapshotCompletedAtUtc));
         if (cutoverEpoch == Guid.Empty)
             throw new ArgumentException("Cutover epoch is required.", nameof(cutoverEpoch));
+
+        snapshotCompletedAtUtc = EnsureUtc(snapshotCompletedAtUtc);
+        utcNow = EnsureUtc(utcNow);
         if (utcNow < snapshotCompletedAtUtc)
             throw new ArgumentException("Cutover state cannot be created before the selected snapshot completed.", nameof(utcNow));
 
@@ -58,12 +61,12 @@ public sealed class ConnectorCaptureOwnership : AuditedTenantEntity
             ConnectorInstallationId = connectorInstallationId,
             State = ConnectorCaptureOwnershipState.ScoutActive,
             SelectedGeneration = selectedGeneration,
-            SnapshotCompletedAtUtc = EnsureUtc(snapshotCompletedAtUtc),
+            SnapshotCompletedAtUtc = snapshotCompletedAtUtc,
             HighWaterMarkSha256 = NormaliseSha256(highWaterMarkSha256, nameof(highWaterMarkSha256)),
             CutoverEpoch = cutoverEpoch,
             CutoverTokenSha256 = NormaliseSha256(cutoverTokenSha256, nameof(cutoverTokenSha256))
         };
-        ownership.SetAuditTimestamps(EnsureUtc(utcNow));
+        ownership.SetAuditTimestamps(utcNow);
         return ownership;
     }
 
