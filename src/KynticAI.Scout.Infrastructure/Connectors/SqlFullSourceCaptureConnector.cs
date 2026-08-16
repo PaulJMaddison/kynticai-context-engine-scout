@@ -32,6 +32,7 @@ internal sealed class SqlFullSourceCaptureConnector(
     CustomerOpsDbContext customerOpsDbContext) : IUpgradeSourceCaptureConnector
 {
     private const string CursorKind = "sql-keyset-v1";
+    private const int CaptureCommandTimeoutSeconds = 240;
 
     public string ConnectorType => "sqlDatabase";
 
@@ -84,6 +85,9 @@ internal sealed class SqlFullSourceCaptureConnector(
         try
         {
             await using var command = connection.CreateCommand();
+            // The Scout ownership lease is five minutes. A single provider query must never be
+            // allowed to outlive that lease and continue reading while cutover can proceed.
+            command.CommandTimeout = CaptureCommandTimeoutSeconds;
             var where = new List<string>();
             if (!string.IsNullOrWhiteSpace(tenantSlugColumn))
             {
@@ -328,7 +332,12 @@ internal sealed class SqlFullSourceCaptureConnector(
     private static DateTime? ToUtc(object? value)
         => value switch
         {
-            DateTime dateTime => dateTime.Kind == DateTimeKind.Utc ? dateTime : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc),
+            DateTime dateTime => dateTime.Kind switch
+            {
+                DateTimeKind.Utc => dateTime,
+                DateTimeKind.Local => dateTime.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+            },
             DateTimeOffset offset => offset.UtcDateTime,
             string text when DateTimeOffset.TryParse(text, out var parsed) => parsed.UtcDateTime,
             _ => null
