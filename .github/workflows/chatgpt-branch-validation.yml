@@ -1,0 +1,54 @@
+name: ChatGPT branch validation
+
+on:
+  push:
+    branches:
+      - chatgpt/precloud-static-fixes-20260816
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-sync-ef:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore tools and packages
+        run: |
+          dotnet tool restore
+          dotnet restore KynticAI.Scout.slnx
+
+      - name: Build solution with warnings as errors
+        run: dotnet build KynticAI.Scout.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Run deterministic tests
+        run: dotnet test KynticAI.Scout.slnx --configuration Release --no-restore --no-build
+
+      - name: Generate current EF model snapshot
+        run: |
+          dotnet ef migrations add __ChatGptSnapshotSync \
+            --project src/KynticAI.Scout.Infrastructure/KynticAI.Scout.Infrastructure.csproj \
+            --startup-project src/KynticAI.Scout.Api/KynticAI.Scout.Api.csproj \
+            --output-dir Persistence/Migrations
+          rm -f src/KynticAI.Scout.Infrastructure/Persistence/Migrations/*__ChatGptSnapshotSync.cs
+          rm -f src/KynticAI.Scout.Infrastructure/Persistence/Migrations/*__ChatGptSnapshotSync.Designer.cs
+
+      - name: Commit generated snapshot and remove temporary workflow
+        run: |
+          rm -f .github/workflows/chatgpt-branch-validation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/KynticAI.Scout.Infrastructure/Persistence/Migrations/ScoutDbContextModelSnapshot.cs
+          git add -u .github/workflows/chatgpt-branch-validation.yml
+          git diff --cached --check
+          git commit -m "fix: sync connector ownership EF snapshot"
+          git push origin HEAD:chatgpt/precloud-static-fixes-20260816
