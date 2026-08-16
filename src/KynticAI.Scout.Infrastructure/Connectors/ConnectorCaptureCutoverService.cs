@@ -45,6 +45,7 @@ internal sealed class ConnectorCaptureCutoverService(
                 "Scout connector capture lease is still active; wait for/release the worker before changing source ownership.");
         }
 
+        var ownershipCommitted = false;
         try
         {
             // Persist the cutover lease first. Connector workers use the same lease concurrency
@@ -72,6 +73,7 @@ internal sealed class ConnectorCaptureCutoverService(
                 ownership.PauseScoutForCutover(now);
                 dbContext.ConnectorCaptureOwnerships.Add(ownership);
                 await dbContext.SaveChangesAsync(cancellationToken);
+                ownershipCommitted = true;
                 return ownership;
             }
 
@@ -90,6 +92,7 @@ internal sealed class ConnectorCaptureCutoverService(
                         now);
                     ownership.PauseScoutForCutover(now);
                     await dbContext.SaveChangesAsync(cancellationToken);
+                    ownershipCommitted = true;
                     break;
                 case ConnectorCaptureOwnershipState.ScoutPausedForCutover:
                     ownership.AssertBinding(
@@ -98,7 +101,8 @@ internal sealed class ConnectorCaptureCutoverService(
                         highWaterHash,
                         cutoverEpoch,
                         tokenHash);
-                    // Exact retry is idempotent. No ownership mutation is required.
+                    // Exact retry is idempotent and the ownership was committed by the earlier run.
+                    ownershipCommitted = true;
                     break;
                 case ConnectorCaptureOwnershipState.FortressOwned:
                     throw new InvalidOperationException(
@@ -111,6 +115,28 @@ internal sealed class ConnectorCaptureCutoverService(
         }
         finally
         {
+            if (!ownershipCommitted)
+            {
+                // A failed/cancelled ownership SaveChanges must not be flushed accidentally by the
+                // subsequent lease-release SaveChanges. Added rows are detached; modified rows are
+                // reloaded from their last durable database version first.
+                foreach (var entry in dbContext.ChangeTracker
+                             .Entries<ConnectorCaptureOwnership>()
+                             .Where(entry => entry.Entity.TenantId == tenantId
+                                 && entry.Entity.ConnectorInstallationId == connectorInstallationId)
+                             .ToArray())
+                {
+                    if (entry.State == EntityState.Added)
+                    {
+                        entry.State = EntityState.Detached;
+                    }
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        await entry.ReloadAsync(CancellationToken.None);
+                    }
+                }
+            }
+
             // Ownership is committed before this lease is released. If the pause failed, releasing
             // here restores normal Scout availability rather than leaving a cutover lease stranded.
             checkpoint.ReleaseLease(barrierOwner, EnsureUtc(clock.UtcNow));
