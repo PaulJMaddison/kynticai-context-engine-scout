@@ -43,18 +43,16 @@ public sealed class ConnectorCaptureOwnership : AuditedTenantEntity
             throw new ArgumentException("Tenant id is required.", nameof(tenantId));
         if (connectorInstallationId == Guid.Empty)
             throw new ArgumentException("Connector installation id is required.", nameof(connectorInstallationId));
-        if (selectedGeneration <= 0)
-            throw new ArgumentOutOfRangeException(nameof(selectedGeneration), "Selected generation must be positive.");
-        if (snapshotCompletedAtUtc == default)
-            throw new ArgumentException("Snapshot completion time is required.", nameof(snapshotCompletedAtUtc));
-        if (cutoverEpoch == Guid.Empty)
-            throw new ArgumentException("Cutover epoch is required.", nameof(cutoverEpoch));
+        ValidateBinding(
+            selectedGeneration,
+            snapshotCompletedAtUtc,
+            highWaterMarkSha256,
+            cutoverEpoch,
+            cutoverTokenSha256,
+            utcNow);
 
         snapshotCompletedAtUtc = EnsureUtc(snapshotCompletedAtUtc);
         utcNow = EnsureUtc(utcNow);
-        if (utcNow < snapshotCompletedAtUtc)
-            throw new ArgumentException("Cutover state cannot be created before the selected snapshot completed.", nameof(utcNow));
-
         var ownership = new ConnectorCaptureOwnership
         {
             TenantId = tenantId,
@@ -68,6 +66,39 @@ public sealed class ConnectorCaptureOwnership : AuditedTenantEntity
         };
         ownership.SetAuditTimestamps(utcNow);
         return ownership;
+    }
+
+    /// <summary>
+    /// Replace the cutover binding after an earlier cutover was explicitly aborted and Scout
+    /// ownership was restored. Paused or Fortress-owned records can never be rebound.
+    /// </summary>
+    public void RebindForCutover(
+        long selectedGeneration,
+        DateTime snapshotCompletedAtUtc,
+        string highWaterMarkSha256,
+        Guid cutoverEpoch,
+        string cutoverTokenSha256,
+        DateTime utcNow)
+    {
+        if (State != ConnectorCaptureOwnershipState.ScoutActive)
+            throw new InvalidOperationException("Only Scout-active ownership can be rebound for a new cutover.");
+
+        ValidateBinding(
+            selectedGeneration,
+            snapshotCompletedAtUtc,
+            highWaterMarkSha256,
+            cutoverEpoch,
+            cutoverTokenSha256,
+            utcNow);
+
+        SelectedGeneration = selectedGeneration;
+        SnapshotCompletedAtUtc = EnsureUtc(snapshotCompletedAtUtc);
+        HighWaterMarkSha256 = NormaliseSha256(highWaterMarkSha256, nameof(highWaterMarkSha256));
+        CutoverEpoch = cutoverEpoch;
+        CutoverTokenSha256 = NormaliseSha256(cutoverTokenSha256, nameof(cutoverTokenSha256));
+        ScoutPausedAtUtc = null;
+        FortressOwnedAtUtc = null;
+        SetAuditTimestamps(EnsureUtc(utcNow));
     }
 
     /// <summary>
@@ -156,6 +187,27 @@ public sealed class ConnectorCaptureOwnership : AuditedTenantEntity
         {
             throw new InvalidOperationException("Cutover request does not match the persisted source-ownership binding.");
         }
+    }
+
+    private static void ValidateBinding(
+        long selectedGeneration,
+        DateTime snapshotCompletedAtUtc,
+        string highWaterMarkSha256,
+        Guid cutoverEpoch,
+        string cutoverTokenSha256,
+        DateTime utcNow)
+    {
+        if (selectedGeneration <= 0)
+            throw new ArgumentOutOfRangeException(nameof(selectedGeneration), "Selected generation must be positive.");
+        if (snapshotCompletedAtUtc == default)
+            throw new ArgumentException("Snapshot completion time is required.", nameof(snapshotCompletedAtUtc));
+        if (cutoverEpoch == Guid.Empty)
+            throw new ArgumentException("Cutover epoch is required.", nameof(cutoverEpoch));
+
+        _ = NormaliseSha256(highWaterMarkSha256, nameof(highWaterMarkSha256));
+        _ = NormaliseSha256(cutoverTokenSha256, nameof(cutoverTokenSha256));
+        if (EnsureUtc(utcNow) < EnsureUtc(snapshotCompletedAtUtc))
+            throw new ArgumentException("Cutover state cannot be created before the selected snapshot completed.", nameof(utcNow));
     }
 
     private static string NormaliseSha256(string value, string parameterName)
