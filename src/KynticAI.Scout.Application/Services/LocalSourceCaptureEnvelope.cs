@@ -49,7 +49,10 @@ public static class LocalSourceCaptureEnvelope
                 ? null
                 : EnsureUtc(metadata.EarliestAvailableAtUtc.Value, nameof(metadata.EarliestAvailableAtUtc)),
             metadata.RawPayloadSha256.Trim().ToLowerInvariant(),
-            metadata.PermittedFieldSetSha256.Trim().ToLowerInvariant());
+            metadata.PermittedFieldSetSha256.Trim().ToLowerInvariant(),
+            metadata.FullPermittedPayloadRetained
+                ? LocalDataPlaneContracts.PayloadStorageExactTextV1
+                : LocalDataPlaneContracts.PayloadStorageLegacyJsonbV0);
 
         if (!result.IsUpgradeCompatible)
             throw new InvalidOperationException("Connector capture metadata is incomplete for whole-source upgrade-compatible capture.");
