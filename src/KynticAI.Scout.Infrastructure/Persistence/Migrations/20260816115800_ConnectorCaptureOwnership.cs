@@ -1,4 +1,5 @@
 using System;
+using KynticAI.Scout.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
