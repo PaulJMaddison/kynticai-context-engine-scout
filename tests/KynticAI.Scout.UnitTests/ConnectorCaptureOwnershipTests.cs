@@ -68,7 +68,7 @@ public sealed class ConnectorCaptureOwnershipTests
     }
 
     [Fact]
-    public void AbortedPausedCutoverCanResumeScoutButOwnedSourceCannotBeReclaimed()
+    public void AbortedCutoverCanRebindToFreshGenerationAndEpoch()
     {
         var ownership = Create();
         ownership.PauseScoutForCutover(SnapshotCompletedAt.AddMinutes(2));
@@ -76,11 +76,32 @@ public sealed class ConnectorCaptureOwnershipTests
         Assert.Equal(ConnectorCaptureOwnershipState.ScoutActive, ownership.State);
         Assert.True(ownership.ScoutMayCapture);
 
-        ownership.PauseScoutForCutover(SnapshotCompletedAt.AddMinutes(4));
-        ownership.TransferToFortress(Epoch, TokenHash, SnapshotCompletedAt.AddMinutes(5));
-        Assert.Throws<InvalidOperationException>(() =>
-            ownership.ResumeScoutAfterAbortedCutover(SnapshotCompletedAt.AddMinutes(6)));
+        var nextCompleted = SnapshotCompletedAt.AddHours(1);
+        var nextEpoch = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var nextHighWater = new string('c', 64);
+        var nextToken = new string('d', 64);
+        ownership.RebindForCutover(
+            8,
+            nextCompleted,
+            nextHighWater,
+            nextEpoch,
+            nextToken,
+            nextCompleted.AddMinutes(1));
+        ownership.AssertBinding(8, nextCompleted, nextHighWater, nextEpoch, nextToken);
+
+        ownership.PauseScoutForCutover(nextCompleted.AddMinutes(2));
+        ownership.TransferToFortress(nextEpoch, nextToken, nextCompleted.AddMinutes(3));
         Assert.True(ownership.FortressMayCapture);
+        Assert.Throws<InvalidOperationException>(() =>
+            ownership.ResumeScoutAfterAbortedCutover(nextCompleted.AddMinutes(4)));
+        Assert.Throws<InvalidOperationException>(() =>
+            ownership.RebindForCutover(
+                9,
+                nextCompleted.AddHours(1),
+                new string('e', 64),
+                Guid.NewGuid(),
+                new string('f', 64),
+                nextCompleted.AddHours(1).AddMinutes(1)));
     }
 
     [Fact]
