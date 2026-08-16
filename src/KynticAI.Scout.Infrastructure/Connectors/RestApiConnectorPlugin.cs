@@ -211,11 +211,12 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
         using var httpRequest = new HttpRequestMessage(HttpMethod.Head, baseUrl);
         ApplyHeaders(request.Configuration, request.Credentials, httpRequest);
         using var response = await client.SendAsync(httpRequest, cancellationToken);
+        var statusCode = (int)response.StatusCode;
         return new ConnectorHealthCheckResult(
             response.IsSuccessStatusCode,
             response.IsSuccessStatusCode ? "healthy" : "degraded",
-            [$"HEAD {baseUrl} returned {(int)response.StatusCode}."],
-            "{}",
+            [$"HEAD {baseUrl} returned {statusCode}."],
+            JsonSerializer.Serialize(new { statusCode, method = "HEAD", url = baseUrl }),
             DateTime.UtcNow);
     }
 
