@@ -14,12 +14,18 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 ///
 /// This service never stores the raw cutover token. It binds ownership to the exact completed
 /// Scout generation, completion timestamp, high-water hash, caller-provided epoch and SHA-256 of
-/// the token. It refuses to pause/transfer while a Scout capture lease is active.
+/// the token.
+///
+/// Pause is made race-safe with the existing connector lease: the cutover operation first becomes
+/// the lease owner, commits the paused ownership row while normal Scout workers are excluded, then
+/// releases the lease. A worker that was already active prevents cutover from starting.
 /// </summary>
 internal sealed class ConnectorCaptureCutoverService(
     ScoutDbContext dbContext,
     IClock clock)
 {
+    private static readonly TimeSpan CutoverLeaseDuration = TimeSpan.FromMinutes(5);
+
     public async Task<ConnectorCaptureOwnership> PauseScoutAsync(
         Guid tenantId,
         Guid connectorInstallationId,
@@ -30,56 +36,86 @@ internal sealed class ConnectorCaptureCutoverService(
         ValidateRequest(tenantId, connectorInstallationId, cutoverEpoch, cutoverToken);
         var now = EnsureUtc(clock.UtcNow);
         var checkpoint = await LoadCheckpointAsync(tenantId, connectorInstallationId, cancellationToken);
-        EnsureCompletedStableGeneration(checkpoint, now);
+        EnsureCompletedGeneration(checkpoint);
 
-        var highWaterHash = Sha256(checkpoint.HighWaterMarkJson);
-        var tokenHash = Sha256(cutoverToken);
-        var ownership = await dbContext.ConnectorCaptureOwnerships
-            .SingleOrDefaultAsync(x => x.TenantId == tenantId
-                && x.ConnectorInstallationId == connectorInstallationId,
-                cancellationToken);
-
-        if (ownership is null)
+        var barrierOwner = $"cutover:{cutoverEpoch:N}";
+        if (!checkpoint.TryAcquireLease(barrierOwner, CutoverLeaseDuration, now))
         {
-            ownership = ConnectorCaptureOwnership.CreateForCutover(
-                tenantId,
-                connectorInstallationId,
-                checkpoint.Generation,
-                checkpoint.LastFullSourceCompletedAtUtc!.Value,
-                highWaterHash,
-                cutoverEpoch,
-                tokenHash,
-                now);
-            ownership.PauseScoutForCutover(now);
-            dbContext.ConnectorCaptureOwnerships.Add(ownership);
+            throw new InvalidOperationException(
+                "Scout connector capture lease is still active; wait for/release the worker before changing source ownership.");
+        }
+
+        try
+        {
+            // Persist the cutover lease first. Connector workers use the same lease concurrency
+            // tokens, so one cannot successfully enter the source while this barrier is held.
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            var highWaterHash = Sha256(checkpoint.HighWaterMarkJson);
+            var tokenHash = Sha256(cutoverToken);
+            var ownership = await dbContext.ConnectorCaptureOwnerships
+                .SingleOrDefaultAsync(x => x.TenantId == tenantId
+                    && x.ConnectorInstallationId == connectorInstallationId,
+                    cancellationToken);
+
+            if (ownership is null)
+            {
+                ownership = ConnectorCaptureOwnership.CreateForCutover(
+                    tenantId,
+                    connectorInstallationId,
+                    checkpoint.Generation,
+                    checkpoint.LastFullSourceCompletedAtUtc!.Value,
+                    highWaterHash,
+                    cutoverEpoch,
+                    tokenHash,
+                    now);
+                ownership.PauseScoutForCutover(now);
+                dbContext.ConnectorCaptureOwnerships.Add(ownership);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return ownership;
+            }
+
+            switch (ownership.State)
+            {
+                case ConnectorCaptureOwnershipState.ScoutActive:
+                    // A previous cutover may have been explicitly aborted. Bind the new attempt to
+                    // the current completed generation/high-water mark and new epoch/token before
+                    // pausing Scout again.
+                    ownership.RebindForCutover(
+                        checkpoint.Generation,
+                        checkpoint.LastFullSourceCompletedAtUtc!.Value,
+                        highWaterHash,
+                        cutoverEpoch,
+                        tokenHash,
+                        now);
+                    ownership.PauseScoutForCutover(now);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    break;
+                case ConnectorCaptureOwnershipState.ScoutPausedForCutover:
+                    ownership.AssertBinding(
+                        checkpoint.Generation,
+                        checkpoint.LastFullSourceCompletedAtUtc!.Value,
+                        highWaterHash,
+                        cutoverEpoch,
+                        tokenHash);
+                    // Exact retry is idempotent. No ownership mutation is required.
+                    break;
+                case ConnectorCaptureOwnershipState.FortressOwned:
+                    throw new InvalidOperationException(
+                        "Connector is already Fortress-owned; Scout cutover pause cannot be replayed as a new transfer.");
+                default:
+                    throw new InvalidOperationException($"Unsupported connector ownership state {ownership.State}.");
+            }
+
             return ownership;
         }
-
-        ownership.AssertBinding(
-            checkpoint.Generation,
-            checkpoint.LastFullSourceCompletedAtUtc!.Value,
-            highWaterHash,
-            cutoverEpoch,
-            tokenHash);
-
-        switch (ownership.State)
+        finally
         {
-            case ConnectorCaptureOwnershipState.ScoutActive:
-                ownership.PauseScoutForCutover(now);
-                await dbContext.SaveChangesAsync(cancellationToken);
-                break;
-            case ConnectorCaptureOwnershipState.ScoutPausedForCutover:
-                // Exact retry is idempotent. No mutation is required.
-                break;
-            case ConnectorCaptureOwnershipState.FortressOwned:
-                throw new InvalidOperationException(
-                    "Connector is already Fortress-owned; Scout cutover pause cannot be replayed as a new transfer.");
-            default:
-                throw new InvalidOperationException($"Unsupported connector ownership state {ownership.State}.");
+            // Ownership is committed before this lease is released. If the pause failed, releasing
+            // here restores normal Scout availability rather than leaving a cutover lease stranded.
+            checkpoint.ReleaseLease(barrierOwner, EnsureUtc(clock.UtcNow));
+            await dbContext.SaveChangesAsync(CancellationToken.None);
         }
-
-        return ownership;
     }
 
     public async Task<ConnectorCaptureOwnership> TransferToFortressAsync(
@@ -164,9 +200,7 @@ internal sealed class ConnectorCaptureCutoverService(
             ?? throw new InvalidOperationException(
                 "Connector has no local capture checkpoint; cutover ownership cannot be proven.");
 
-    private static void EnsureCompletedStableGeneration(
-        ConnectorCaptureCheckpoint checkpoint,
-        DateTime utcNow)
+    private static void EnsureCompletedGeneration(ConnectorCaptureCheckpoint checkpoint)
     {
         if (checkpoint.Generation <= 0 || checkpoint.LastFullSourceCompletedAtUtc is null)
             throw new InvalidOperationException(
@@ -177,8 +211,6 @@ internal sealed class ConnectorCaptureCutoverService(
         if (!string.IsNullOrWhiteSpace(checkpoint.LastError))
             throw new InvalidOperationException(
                 "Connector checkpoint records a capture error; repair/recapture before cutover.");
-
-        EnsureNoActiveScoutLease(checkpoint, utcNow);
     }
 
     private static void EnsureNoActiveScoutLease(
