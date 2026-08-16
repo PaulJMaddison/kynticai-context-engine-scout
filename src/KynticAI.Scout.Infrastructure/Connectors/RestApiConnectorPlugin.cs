@@ -13,10 +13,8 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
 
     public override string DisplayName => "REST API Connector";
 
-    public override string Description => "Fetches subject payloads from generic HTTP APIs, CRM-style services, telemetry systems, and other operational platforms.";
+    public override string Description => "Fetches subject payloads from generic HTTP APIs and can optionally enumerate an explicitly authorised collection for Scout-to-Fortress continuity. Generic REST collection paging remains snapshot/history-limited unless a provider-specific ordered change-feed connector proves stronger semantics.";
 
-    // Public aliases stay generic here. Vendor-specific enterprise connectors can
-    // implement the same contracts in a separate private repository.
     public override IReadOnlyList<string> Aliases =>
     [
         "apiPayload",
@@ -47,7 +45,43 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
                 ["responses"] = new JsonObject { ["type"] = "array" },
                 ["headers"] = new JsonObject { ["type"] = "object" },
                 ["apiKeyHeader"] = new JsonObject { ["type"] = "string" },
-                ["credentials"] = new JsonObject { ["type"] = "object" }
+                ["credentials"] = new JsonObject { ["type"] = "object" },
+
+                ["captureFullPermittedPayload"] = new JsonObject
+                {
+                    ["type"] = "boolean",
+                    ["description"] = "Explicit customer decision to retain the full permitted collection locally for tier continuity."
+                },
+                ["retainEntireResponseObject"] = new JsonObject
+                {
+                    ["type"] = "boolean",
+                    ["description"] = "Required with whole-source capture; confirms every returned object field is permitted after configured governance/redaction."
+                },
+                ["capturePathTemplate"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Collection endpoint used only for whole-source continuity enumeration."
+                },
+                ["sourceRecordIdPath"] = new JsonObject { ["type"] = "string" },
+                ["sourceObjectType"] = new JsonObject { ["type"] = "string" },
+                ["captureItemsPath"] = new JsonObject { ["type"] = "string", ["default"] = "items" },
+                ["captureNextCursorPath"] = new JsonObject { ["type"] = "string", ["default"] = "nextCursor" },
+                ["captureCursorQueryParameter"] = new JsonObject { ["type"] = "string", ["default"] = "cursor" },
+                ["captureLimitQueryParameter"] = new JsonObject { ["type"] = "string", ["default"] = "limit" },
+                ["captureObservedAtPath"] = new JsonObject { ["type"] = "string" },
+                ["captureSourcePositionPath"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Optional source-native position value retained for provenance. Generic REST still cannot claim exact order without a provider-specific mapper."
+                },
+                ["captureOperationPath"] = new JsonObject { ["type"] = "string" },
+                ["captureHistoryCompleteness"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = "Generic REST must remain SNAPSHOT_ONLY/UNKNOWN. Exact history belongs to a provider-specific connector."
+                },
+                ["captureEarliestAvailableAtUtc"] = new JsonObject { ["type"] = "string" },
+                ["redactionPolicyVersion"] = new JsonObject { ["type"] = "string" }
             }
         };
 
@@ -72,6 +106,18 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
             ["pathTemplate"] = "/v1/customers/{externalUserId}",
             ["method"] = "GET",
             ["observedAtPath"] = "meta.observedAtUtc",
+            ["captureFullPermittedPayload"] = true,
+            ["retainEntireResponseObject"] = true,
+            ["capturePathTemplate"] = "/v1/customers",
+            ["sourceRecordIdPath"] = "id",
+            ["sourceObjectType"] = "customer",
+            ["captureItemsPath"] = "items",
+            ["captureNextCursorPath"] = "nextCursor",
+            ["captureCursorQueryParameter"] = "cursor",
+            ["captureLimitQueryParameter"] = "limit",
+            ["captureObservedAtPath"] = "updatedAtUtc",
+            ["captureHistoryCompleteness"] = "SNAPSHOT_ONLY",
+            ["redactionPolicyVersion"] = "customer-permitted.v1",
             ["credentials"] = new JsonObject
             {
                 ["apiKey"] = "secret://tenant/data-source/apiKey"
@@ -116,6 +162,28 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
             ValidateStaticResponses(staticResponses, errors);
         }
 
+        var fullCaptureEnabled = request.Configuration["captureFullPermittedPayload"]?.GetValue<bool?>() ?? false;
+        if (fullCaptureEnabled)
+        {
+            if (!(request.Configuration["retainEntireResponseObject"]?.GetValue<bool?>() ?? false))
+            {
+                errors.Add("REST whole-source continuity requires retainEntireResponseObject=true as an explicit customer retention decision.");
+            }
+            if (string.IsNullOrWhiteSpace(request.Configuration["capturePathTemplate"]?.GetValue<string>()))
+                errors.Add("REST whole-source continuity requires capturePathTemplate for a collection endpoint.");
+            if (string.IsNullOrWhiteSpace(request.Configuration["sourceRecordIdPath"]?.GetValue<string>()))
+                errors.Add("REST whole-source continuity requires sourceRecordIdPath.");
+            if (string.IsNullOrWhiteSpace(request.Configuration["sourceObjectType"]?.GetValue<string>()))
+                errors.Add("REST whole-source continuity requires sourceObjectType.");
+
+            var declaredHistory = request.Configuration["captureHistoryCompleteness"]?.GetValue<string>() ?? "SNAPSHOT_ONLY";
+            if (!string.Equals(declaredHistory, "SNAPSHOT_ONLY", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(declaredHistory, "UNKNOWN", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add("Generic REST whole-source capture may only declare SNAPSHOT_ONLY or UNKNOWN history. Use a provider-specific ordered change-feed connector for COMPLETE/FROM_RETENTION_BOUNDARY claims.");
+            }
+        }
+
         return baseline with
         {
             IsValid = errors.Count == 0,
@@ -147,7 +215,7 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
             response.IsSuccessStatusCode,
             response.IsSuccessStatusCode ? "healthy" : "degraded",
             [$"HEAD {baseUrl} returned {(int)response.StatusCode}."],
-            JsonSerializer.Serialize(new { statusCode = (int)response.StatusCode }),
+            "{}",
             DateTime.UtcNow);
     }
 

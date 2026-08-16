@@ -14,5 +14,6 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/KynticAI.Scout.MigrationTool/KynticAI.Scout.MigrationTool.csproj" />
+    <Project Path="tools/KynticAI.Scout.UpgradeExport/KynticAI.Scout.UpgradeExport.csproj" />
   </Folder>
 </Solution>
