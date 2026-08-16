@@ -24,7 +24,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl git jq openssl docker.io docker-compose-plugin postgresql-client
+sudo apt-get install -y ca-certificates curl git jq openssl docker.io docker-compose postgresql-client
 sudo systemctl enable --now docker
 
 if [[ ! -x "$HOME/.dotnet/dotnet" ]]; then
@@ -44,14 +44,18 @@ cd "$HOME/scout-precloud"
 TEST_SHA=$(git rev-parse HEAD)
 echo "SCOUT_TEST_SHA=$TEST_SHA"
 
+# The repository has no local dotnet-tool manifest. Install the EF CLI explicitly into the
+# disposable VM and pin it to the EF Core package version used by the repository.
+rm -rf "$HOME/.scout-dotnet-tools"
+dotnet tool install --tool-path "$HOME/.scout-dotnet-tools" dotnet-ef --version 10.0.7
+
 # Static/compiled gate. Nothing cloud-specific is allowed to compensate for a failure here.
-dotnet tool restore
 dotnet restore KynticAI.Scout.slnx
 dotnet build KynticAI.Scout.slnx --configuration Release --no-restore -warnaserror
 dotnet test KynticAI.Scout.slnx --configuration Release --no-restore --no-build
 
 # EF Core 10 must see the checked-in snapshot as equal to the runtime model.
-dotnet ef migrations has-pending-model-changes \
+"$HOME/.scout-dotnet-tools/dotnet-ef" migrations has-pending-model-changes \
   --project src/KynticAI.Scout.Infrastructure/KynticAI.Scout.Infrastructure.csproj \
   --startup-project src/KynticAI.Scout.Api/KynticAI.Scout.Api.csproj
 
@@ -59,10 +63,10 @@ dotnet ef migrations has-pending-model-changes \
 export POSTGRES_PASSWORD="$(openssl rand -hex 32)"
 export AUTH_SIGNING_KEY="$(openssl rand -hex 64)"
 export SEED_DEMO_DATA=false
-sudo -E docker compose -f deploy/docker-compose.yml --profile postgres up -d postgres
+sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres up -d postgres
 
 for i in $(seq 1 60); do
-  if sudo -E docker compose -f deploy/docker-compose.yml --profile postgres exec -T postgres \
+  if sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres exec -T postgres \
       pg_isready -U postgres -d postgres >/dev/null 2>&1; then
     break
   fi
@@ -75,14 +79,14 @@ done
 
 # Bring the real API up. PostgreSQL migrations are applied by ApplicationBootstrapper/MigrateAsync
 # during normal startup; there is deliberately no synthetic "migrate" CLI path in Scout.
-sudo -E docker compose -f deploy/docker-compose.yml --profile postgres up -d scout-api-pg
+sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres up -d scout-api-pg
 for i in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8080/health/ready >/tmp/scout-ready.json 2>/dev/null; then
     break
   fi
   sleep 2
   if [[ "$i" == "60" ]]; then
-    sudo -E docker compose -f deploy/docker-compose.yml --profile postgres logs --no-color scout-api-pg >&2
+    sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres logs --no-color scout-api-pg >&2
     echo "Scout API did not become ready after applying PostgreSQL migrations." >&2
     exit 11
   fi
@@ -90,7 +94,7 @@ done
 cat /tmp/scout-ready.json
 
 # The ownership table and expected indexes must exist after the API's normal migration/startup path.
-sudo -E docker compose -f deploy/docker-compose.yml --profile postgres exec -T postgres \
+sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres exec -T postgres \
   psql -v ON_ERROR_STOP=1 -U postgres -d scout_context_db <<'SQL'
 DO $$
 BEGIN
@@ -120,7 +124,7 @@ mkdir -p "$HOME/scout-precloud-proof"
   echo "scale_rows=$SCOUT_SCALE_ROWS"
   echo "completed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   dotnet --version | sed 's/^/dotnet=/'
-  sudo -E docker compose -f deploy/docker-compose.yml --profile postgres ps --format json
+  sudo -E docker-compose -f deploy/docker-compose.yml --profile postgres ps
 } > "$HOME/scout-precloud-proof/summary.txt"
 
 # Scale fixture generation/export is intentionally a separate explicit step because connector-specific
