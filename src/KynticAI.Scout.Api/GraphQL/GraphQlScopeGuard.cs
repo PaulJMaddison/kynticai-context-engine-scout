@@ -8,7 +8,9 @@ internal static class GraphQlScopeGuard
     public static void RequireApiClientScope(IHttpContextAccessor httpContextAccessor, string requiredScope)
     {
         var user = httpContextAccessor.HttpContext?.User;
-        if (user?.IsInRole(RoleNames.ApiClient) != true)
+        // Machine identity is determined by the client_id claim, not by a role string. That keeps
+        // scope enforcement intact even if older tokens/configuration carry an unexpected role.
+        if (user?.FindFirst("client_id") is null)
         {
             return;
         }
