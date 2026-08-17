@@ -1,5 +1,5 @@
-using System.Text.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.Persistence;
@@ -13,29 +13,46 @@ public sealed class AuthenticationService(
     JwtTokenService jwtTokenService,
     TimeProvider timeProvider)
 {
+    private const string InvalidCredentialsMessage = "Invalid tenant or credentials.";
+
     public async Task<LoginResult> LoginAsync(string tenantSlug, string email, string password, CancellationToken cancellationToken)
     {
-        var normalizedTenantSlug = tenantSlug.Trim().ToLowerInvariant();
-        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var normalizedTenantSlug = tenantSlug?.Trim().ToLowerInvariant() ?? string.Empty;
+        var normalizedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
         var utcNow = timeProvider.GetUtcNow().UtcDateTime;
+
+        if (string.IsNullOrWhiteSpace(normalizedTenantSlug)
+            || string.IsNullOrWhiteSpace(normalizedEmail)
+            || string.IsNullOrWhiteSpace(password)
+            || normalizedTenantSlug.Length > 128
+            || normalizedEmail.Length > 320
+            || password.Length > 4_096)
+        {
+            await RecordFailedLoginAsync(null, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
+            throw new InvalidOperationException(InvalidCredentialsMessage);
+        }
 
         var tenant = await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == normalizedTenantSlug, cancellationToken);
         if (tenant is null)
         {
-            await AuditFailedLoginAsync(null, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
-            throw new InvalidOperationException("Invalid tenant or credentials.");
+            await RecordFailedLoginAsync(null, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
+            throw new InvalidOperationException(InvalidCredentialsMessage);
         }
 
         var account = await dbContext.OperatorAccounts
             .FirstOrDefaultAsync(
                 x => x.TenantId == tenant.Id && x.Email == normalizedEmail && x.IsActive,
-                cancellationToken)
-            ?? throw await CreateFailedLoginExceptionAsync(tenant.Id, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
+                cancellationToken);
+        if (account is null)
+        {
+            await RecordFailedLoginAsync(tenant.Id, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
+            throw new InvalidOperationException(InvalidCredentialsMessage);
+        }
 
         if (!passwordHashingService.VerifyPassword(password, account.PasswordHash))
         {
-            await AuditFailedLoginAsync(tenant.Id, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
-            throw new InvalidOperationException("Invalid tenant or credentials.");
+            await RecordFailedLoginAsync(tenant.Id, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
+            throw new InvalidOperationException(InvalidCredentialsMessage);
         }
 
         var workspace = await dbContext.WorkspaceMembers
@@ -120,7 +137,7 @@ public sealed class AuthenticationService(
             RoleNames.ToClaimValue(account.Role));
     }
 
-    private async Task<OperatorAccount> AuditFailedLoginAsync(
+    private async Task RecordFailedLoginAsync(
         Guid? tenantId,
         string normalizedEmail,
         string normalizedTenantSlug,
@@ -129,28 +146,20 @@ public sealed class AuthenticationService(
     {
         dbContext.AuditEvents.Add(AuditEvent.Create(
             tenantId,
-            normalizedEmail,
+            string.IsNullOrWhiteSpace(normalizedEmail) ? "anonymous" : normalizedEmail,
             "auth.login.failed",
             nameof(OperatorAccount),
-            normalizedEmail,
+            string.IsNullOrWhiteSpace(normalizedEmail) ? "unknown" : normalizedEmail,
             Guid.NewGuid().ToString("N"),
-            JsonSerializer.Serialize(new { tenantSlug = normalizedTenantSlug, email = normalizedEmail }),
+            JsonSerializer.Serialize(new
+            {
+                tenantSlug = normalizedTenantSlug,
+                email = normalizedEmail
+            }),
             null,
             null,
             utcNow));
         await dbContext.SaveChangesAsync(cancellationToken);
-        throw new InvalidOperationException("Invalid tenant or credentials.");
-    }
-
-    private async Task<InvalidOperationException> CreateFailedLoginExceptionAsync(
-        Guid? tenantId,
-        string normalizedEmail,
-        string normalizedTenantSlug,
-        DateTime utcNow,
-        CancellationToken cancellationToken)
-    {
-        await AuditFailedLoginAsync(tenantId, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
-        return new InvalidOperationException("Invalid tenant or credentials.");
     }
 }
 
