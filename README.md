@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/brand/kynticai-logo.svg" alt="KynticAI" width="160" />
+  <img src="https://raw.githubusercontent.com/PaulJMaddison/kynticai-context-engine-scout/main/docs/images/brand/kynticai-logo.svg" alt="KynticAI" width="160" />
 </p>
 
 <h1 align="center">KynticAI Scout</h1>
@@ -72,25 +72,25 @@ This repository is intended to be useful as a real open-source project, not just
 
 ## The three products
 
-KynticAI has three core products in this stack.
+KynticAI follows a simple progression: **Explore → Prove → Scale**.
 
-### 1. Scout
+### 1. Scout — Explore
 
 Scout is the **open-source foundation** and the **customer-owned local data plane**.
 
-It is where source access, connector credentials, exact evidence, selectors, context, provenance, audit and customer-facing APIs live. It can be used on its own.
+Use Scout to see relationship context working on real authorised signals. It is where source access, connector credentials, exact evidence, selectors, context, provenance, audit and customer-facing APIs live. Scout can be used on its own.
 
-### 2. Fortress
+### 2. Fortress — Prove
 
-Fortress is the **private production platform** built on top of the same architectural direction.
+Fortress is the **private governed production platform**.
 
-It is where the private enterprise parts belong: stronger production governance, advanced weighting and analysis, private connectors, controlled upgrade ownership, private discovery workflows, and the commercial production path for customers who need more than the open-source core.
+Use Fortress to validate a governed private path with measurable evidence. It adds the private enterprise capabilities that do not belong in the open-source core: stronger governance, advanced relationship and outcome analysis, private connectors, controlled upgrade ownership, private discovery workflows and production-grade commercial deployment paths.
 
-### 3. Cloud
+### 3. Elite — Scale
 
-Cloud is the **optional commercial control plane**.
+Elite is the **enterprise scale layer** for programmes that move beyond one team or one deployment.
 
-It is for things like licensing, downloads, support access, update channels and account-level commercial workflows. It is not the customer data plane and it should not be the default home of raw customer operational data or derived context evidence.
+Use Elite when the programme crosses systems, divisions and security boundaries. It is the KynticAI path for organisation-wide scale, where context infrastructure must work consistently across complex estates without weakening the governance and evidence model underneath it.
 
 > Clarity and Importance are separate KynticAI products. They are not part of Scout itself and are not required to run this repository.
 
@@ -382,7 +382,7 @@ A few important truths:
 
 - Scout is useful on its own
 - Fortress contains private commercial production capabilities
-- Cloud is optional and commercial
+- Elite is the scale path for programmes crossing systems, divisions and security boundaries
 - GitHub Actions is currently disabled in this repository, so heavier validation is run through the documented local and disposable GCP paths instead
 
 That is an honest boundary and an intentional one.
@@ -391,7 +391,7 @@ That is an honest boundary and an intentional one.
 
 ## Commercial support and enterprise work
 
-If you need private connectors, Fortress, Cloud, production support, managed deployment help or a commercial engagement around this stack:
+If you need private connectors, Fortress, Elite, production support, managed deployment help or a commercial engagement around this stack:
 
 - **Email:** [paul@kynticai.com](mailto:paul@kynticai.com)
 - **Website:** [kynticai.com](https://kynticai.com)
