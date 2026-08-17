@@ -19,28 +19,96 @@ internal sealed class ContextRecomputeProcessor(
 {
     public async Task ProcessAsync(ContextRecomputeRequest request, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var tenant = await dbContext.Tenants.FirstAsync(x => x.Id == request.TenantId, cancellationToken);
-        var user = await dbContext.UserProfiles.FirstAsync(x => x.Id == request.UserProfileId, cancellationToken);
+        var user = await dbContext.UserProfiles.FirstAsync(
+            x => x.Id == request.UserProfileId && x.TenantId == request.TenantId,
+            cancellationToken);
         var recomputeJob = await dbContext.RecomputeJobs
             .FirstOrDefaultAsync(x => x.TenantId == request.TenantId && x.CorrelationId == request.CorrelationId, cancellationToken);
-        recomputeJob?.MarkRunning(clock.UtcNow);
         if (recomputeJob is not null)
         {
+            if (recomputeJob.Status is RecomputeJobStatus.Completed or RecomputeJobStatus.Failed)
+            {
+                // Duplicate queue delivery or a recovery scan racing a just-completed worker.
+                // Terminal jobs are idempotent no-ops.
+                return;
+            }
+
+            if (recomputeJob.UserProfileId != request.UserProfileId)
+            {
+                recomputeJob.MarkFailed(
+                    "Persisted recompute job does not match the queued user.",
+                    JsonSerializer.Serialize(new { request.CorrelationId, request.UserProfileId }),
+                    clock.UtcNow);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException("Recompute request does not match its persisted job.");
+            }
+
+            recomputeJob.MarkRunning(clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        var requestedExecutionIds = request.SelectorExecutionIds.Distinct().ToList();
         var executions = await dbContext.SelectorExecutions
             .Include(x => x.SelectorDefinition)
                 .ThenInclude(x => x.TargetAttributeDefinition)
             .Include(x => x.SelectorDefinition)
                 .ThenInclude(x => x.DataSource)
-            .Where(x => request.SelectorExecutionIds.Contains(x.Id))
+            .Where(x => x.TenantId == request.TenantId
+                && x.UserProfileId == request.UserProfileId
+                && requestedExecutionIds.Contains(x.Id))
             .OrderBy(x => x.RequestedAtUtc)
             .ToListAsync(cancellationToken);
+
+        if (executions.Count != requestedExecutionIds.Count)
+        {
+            recomputeJob?.MarkFailed(
+                "One or more selector executions are missing or do not belong to this recompute job.",
+                JsonSerializer.Serialize(new
+                {
+                    request.CorrelationId,
+                    requested = requestedExecutionIds.Count,
+                    resolved = executions.Count
+                }),
+                clock.UtcNow);
+            if (recomputeJob is not null)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            throw new InvalidOperationException("Recompute request references missing or mismatched selector executions.");
+        }
 
         var successfulFacts = new List<SelectorCandidateFact>();
         foreach (var execution in executions)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (execution.Status == SelectorExecutionStatus.Succeeded)
+            {
+                var restored = RestoreSuccessfulCandidate(execution);
+                if (restored is null)
+                {
+                    execution.MarkFailed(
+                        "Persisted successful selector execution is missing required result state.",
+                        execution.RawSourceDataJson,
+                        execution.ValidationErrorsJson,
+                        execution.PipelineTraceJson,
+                        clock.UtcNow);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    successfulFacts.Add(restored);
+                }
+                continue;
+            }
+
+            if (execution.Status == SelectorExecutionStatus.Failed)
+            {
+                continue;
+            }
+
             execution.MarkRunning(clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -60,6 +128,7 @@ internal sealed class ContextRecomputeProcessor(
 
             var runtimeContext = new SelectorRuntimeContext(selector, dataSource, selector.TargetAttributeDefinition);
             var outcome = await selectorExecutionEngine.ExecuteAsync(runtimeContext, user, execution.ExecutionMode, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (outcome.IsSuccess && outcome.CandidateFact is { } candidateFact)
             {
                 execution.MarkSucceeded(
@@ -203,6 +272,36 @@ internal sealed class ContextRecomputeProcessor(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private static SelectorCandidateFact? RestoreSuccessfulCandidate(SelectorExecution execution)
+    {
+        if (execution.Status != SelectorExecutionStatus.Succeeded
+            || execution.ResultObservedAtUtc is not { } observedAtUtc
+            || string.IsNullOrWhiteSpace(execution.ResultValueJson)
+            || string.IsNullOrWhiteSpace(execution.ResultProvenanceJson))
+        {
+            return null;
+        }
+
+        var selector = execution.SelectorDefinition;
+        var target = selector.TargetAttributeDefinition;
+        return new SelectorCandidateFact(
+            selector.Id,
+            target.Id,
+            target.Key,
+            execution.ResultValueJson,
+            execution.ResultValueType,
+            execution.ResultConfidence,
+            observedAtUtc,
+            observedAtUtc.AddMinutes(selector.FreshnessWindowMinutes),
+            execution.ResultExplanation,
+            execution.ResultProvenanceJson,
+            execution.RawSourceDataJson,
+            execution.RawSourceDataJson,
+            execution.ValidationErrorsJson,
+            execution.PipelineTraceJson,
+            selector.Priority);
+    }
+
     private static ProvenanceMetadata CreateProvenanceRecord(
         Guid tenantId,
         Guid? selectorExecutionId,
@@ -213,14 +312,22 @@ internal sealed class ContextRecomputeProcessor(
         string provenanceJson)
     {
         var sourceSystem = "unknown";
-        if (JsonNode.Parse(provenanceJson) is JsonObject provenanceObject)
+        try
         {
-            sourceSystem =
-                provenanceObject["connectorType"]?.GetValue<string>()
-                ?? provenanceObject["source"]?["source"]?.GetValue<string>()
-                ?? provenanceObject["source"]?.AsArray().FirstOrDefault()?["source"]?.GetValue<string>()
-                ?? provenanceObject["selector"]?["name"]?.GetValue<string>()
-                ?? sourceSystem;
+            if (JsonNode.Parse(provenanceJson) is JsonObject provenanceObject)
+            {
+                sourceSystem =
+                    provenanceObject["connectorType"]?.GetValue<string>()
+                    ?? provenanceObject["source"]?["source"]?.GetValue<string>()
+                    ?? provenanceObject["source"]?.AsArray().FirstOrDefault()?["source"]?.GetValue<string>()
+                    ?? provenanceObject["selector"]?["name"]?.GetValue<string>()
+                    ?? sourceSystem;
+            }
+        }
+        catch (JsonException)
+        {
+            // Provenance is retained verbatim even if older/corrupt data cannot be parsed for the
+            // convenience source-system field. Do not lose the recompute solely on that metadata.
         }
 
         return ProvenanceMetadata.Create(
