@@ -135,6 +135,7 @@ public static class DependencyInjection
         services.AddSingleton<ContextRecomputeQueue>();
         services.AddSingleton<IContextRecomputeQueue>(provider => provider.GetRequiredService<ContextRecomputeQueue>());
         services.AddHostedService<ContextRecomputeWorker>();
+        services.AddHostedService<ContextRecomputeRecoveryWorker>();
         services.AddHostedService<ScheduledRecomputeWorker>();
         services.AddSingleton<IClock, SystemClock>();
 
