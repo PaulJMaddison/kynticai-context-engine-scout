@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">KynticAI logo</title>
+  <desc id="desc">KynticAI rust K symbol on a warm cream background.</desc>
+  <defs>
+    <filter id="rust" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" seed="17" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0.25" result="desat"/>
+      <feBlend in="SourceGraphic" in2="desat" mode="multiply"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="#f1ebd3"/>
+  <g fill="#6f3518" filter="url(#rust)">
+    <path d="M292 270H412V410L390 425L371 446L355 479L350 509L354 544L366 573L392 604L411 616V748H292Z"/>
+    <path d="M617 270H762L575 466L562 444L541 422L527 412L501 401Z"/>
+    <path d="M507 625L524 617L544 603L563 582L578 555L759 748H612Z"/>
+    <path d="M462 441C420 444 395 476 395 514C395 556 424 586 467 586C509 586 539 556 539 514C539 471 510 441 462 441Z"/>
+  </g>
+</svg>
