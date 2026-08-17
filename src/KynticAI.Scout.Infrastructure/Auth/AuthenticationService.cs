@@ -14,6 +14,9 @@ public sealed class AuthenticationService(
     TimeProvider timeProvider)
 {
     private const string InvalidCredentialsMessage = "Invalid tenant or credentials.";
+    private const int MaximumTenantSlugLength = 128;
+    private const int MaximumEmailLength = 320;
+    private const int MaximumPasswordLength = 4_096;
 
     public async Task<LoginResult> LoginAsync(string tenantSlug, string email, string password, CancellationToken cancellationToken)
     {
@@ -24,9 +27,9 @@ public sealed class AuthenticationService(
         if (string.IsNullOrWhiteSpace(normalizedTenantSlug)
             || string.IsNullOrWhiteSpace(normalizedEmail)
             || string.IsNullOrWhiteSpace(password)
-            || normalizedTenantSlug.Length > 128
-            || normalizedEmail.Length > 320
-            || password.Length > 4_096)
+            || normalizedTenantSlug.Length > MaximumTenantSlugLength
+            || normalizedEmail.Length > MaximumEmailLength
+            || password.Length > MaximumPasswordLength)
         {
             await RecordFailedLoginAsync(null, normalizedEmail, normalizedTenantSlug, utcNow, cancellationToken);
             throw new InvalidOperationException(InvalidCredentialsMessage);
@@ -144,22 +147,34 @@ public sealed class AuthenticationService(
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
+        var auditEmail = Bound(normalizedEmail, MaximumEmailLength, "anonymous");
+        var auditTenantSlug = Bound(normalizedTenantSlug, MaximumTenantSlugLength, string.Empty);
         dbContext.AuditEvents.Add(AuditEvent.Create(
             tenantId,
-            string.IsNullOrWhiteSpace(normalizedEmail) ? "anonymous" : normalizedEmail,
+            auditEmail,
             "auth.login.failed",
             nameof(OperatorAccount),
-            string.IsNullOrWhiteSpace(normalizedEmail) ? "unknown" : normalizedEmail,
+            auditEmail == "anonymous" ? "unknown" : auditEmail,
             Guid.NewGuid().ToString("N"),
             JsonSerializer.Serialize(new
             {
-                tenantSlug = normalizedTenantSlug,
-                email = normalizedEmail
+                tenantSlug = auditTenantSlug,
+                email = auditEmail == "anonymous" ? string.Empty : auditEmail
             }),
             null,
             null,
             utcNow));
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string Bound(string value, int maximumLength, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        return value.Length <= maximumLength ? value : value[..maximumLength];
     }
 }
 
@@ -171,8 +186,8 @@ public sealed record LoginResult(
 public sealed record AuthenticatedOperator(
     Guid TenantId,
     string TenantSlug,
-    Guid? WorkspaceId,
-    string? WorkspaceSlug,
+    Guid? WorkspaceSlug,
+    string? WorkspaceSlugValue,
     Guid OperatorAccountId,
     string Email,
     string DisplayName,
