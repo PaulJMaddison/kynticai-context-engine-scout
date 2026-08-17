@@ -15,10 +15,15 @@ internal sealed class ContextRecomputeQueue : IContextRecomputeQueue
     private readonly ConcurrentDictionary<string, byte> outstandingRequests = new(StringComparer.Ordinal);
     private int pendingCount;
 
-    public ContextRecomputeQueue(IBackgroundJobMonitor backgroundJobMonitor, IConfiguration configuration)
+    public ContextRecomputeQueue(IBackgroundJobMonitor backgroundJobMonitor)
+        : this(backgroundJobMonitor, configuration: null)
+    {
+    }
+
+    public ContextRecomputeQueue(IBackgroundJobMonitor backgroundJobMonitor, IConfiguration? configuration)
     {
         this.backgroundJobMonitor = backgroundJobMonitor;
-        var configuredCapacity = configuration.GetValue<int?>("BackgroundJobs:ContextRecomputeQueueCapacity") ?? DefaultCapacity;
+        var configuredCapacity = configuration?.GetValue<int?>("BackgroundJobs:ContextRecomputeQueueCapacity") ?? DefaultCapacity;
         var capacity = Math.Clamp(configuredCapacity, 1, MaximumCapacity);
         channel = Channel.CreateBounded<ContextRecomputeRequest>(
             new BoundedChannelOptions(capacity)
