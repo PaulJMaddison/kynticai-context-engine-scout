@@ -1,4 +1,5 @@
 using KynticAI.Scout.Application.Abstractions;
+using KynticAI.Scout.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,18 @@ internal sealed class ContextRecomputeWorker(
                 {
                     backgroundJobMonitor.ReportHeartbeat("context-recompute-worker", true, $"Processing {request.CorrelationId}.", clock.UtcNow);
                     await using var scope = scopeFactory.CreateAsyncScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<ScoutDbContext>();
+                    await using var executionLease = await RecomputeExecutionLease.TryAcquireAsync(dbContext, request, stoppingToken);
+                    if (!executionLease.Acquired)
+                    {
+                        backgroundJobMonitor.ReportHeartbeat(
+                            "context-recompute-worker",
+                            true,
+                            $"Another Scout instance owns {request.CorrelationId}; recovery will retry if still non-terminal.",
+                            clock.UtcNow);
+                        continue;
+                    }
+
                     var processor = scope.ServiceProvider.GetRequiredService<ContextRecomputeProcessor>();
                     await processor.ProcessAsync(request, stoppingToken);
                     backgroundJobMonitor.ReportHeartbeat("context-recompute-worker", true, $"Completed {request.CorrelationId}.", clock.UtcNow);
