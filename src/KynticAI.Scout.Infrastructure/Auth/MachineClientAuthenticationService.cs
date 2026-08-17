@@ -81,7 +81,9 @@ public sealed class MachineClientAuthenticationService(
         var machineClient = authOptions.MachineClients.FirstOrDefault(candidate =>
             string.Equals(candidate.ClientId, normalizedClientId, StringComparison.Ordinal));
 
-        if (machineClient is null || !SecretsMatch(machineClient.ClientSecret, clientSecret))
+        if (machineClient is null
+            || string.IsNullOrWhiteSpace(machineClient.TenantSlug)
+            || !SecretsMatch(machineClient.ClientSecret, clientSecret))
         {
             throw new InvalidOperationException(InvalidCredentialsMessage);
         }
@@ -157,13 +159,12 @@ public sealed class MachineClientAuthenticationService(
 
     private static IReadOnlyList<string> ResolveGrantedScopes(IReadOnlyList<string> configuredScopes, string? requestedScope)
     {
-        var normalizedConfigured = ApiScopes.Normalize(configuredScopes).ToList();
-
-        if (normalizedConfigured.Count == 0)
+        if (configuredScopes.Count == 0)
         {
             return [];
         }
 
+        var normalizedConfigured = ApiScopes.Normalize(configuredScopes).ToList();
         if (string.IsNullOrWhiteSpace(requestedScope))
         {
             return normalizedConfigured;
