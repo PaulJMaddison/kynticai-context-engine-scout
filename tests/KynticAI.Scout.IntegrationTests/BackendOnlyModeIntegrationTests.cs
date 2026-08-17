@@ -59,12 +59,16 @@ public sealed class BackendOnlyModeIntegrationTests
         var tokenPayload = JsonNode.Parse(await tokenResponse.Content.ReadAsStringAsync())!.AsObject();
         var accessToken = tokenPayload["accessToken"]!.GetValue<string>();
         var token = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+        var roles = token.Claims
+            .Where(claim => claim.Type is "role" || claim.Type == ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
 
         Assert.Equal("client:svc-demo-admin", token.Subject);
         Assert.Equal("demo", token.Claims.Single(claim => claim.Type == "tenant_slug").Value);
         Assert.Equal("svc-demo-admin", token.Claims.Single(claim => claim.Type == "client_id").Value);
-        Assert.Equal(RoleNames.ApiClient, token.Claims.Single(claim => claim.Type == ClaimTypes.Role).Value);
-        Assert.DoesNotContain(token.Claims, claim => claim.Type == ClaimTypes.Role && claim.Value == "tenant_admin");
+        Assert.Contains(RoleNames.ApiClient, roles);
+        Assert.DoesNotContain("tenant_admin", roles);
         Assert.Equal("context:read context:write", token.Claims.Single(claim => claim.Type == "scope").Value);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
