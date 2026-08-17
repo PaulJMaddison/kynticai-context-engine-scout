@@ -1,4 +1,4 @@
-![KynticAI](docs/images/brand/kynticai-readme-logo.jpg)
+![KynticAI](https://github.com/PaulJMaddison/kynticai-context-engine-scout/blob/main/docs/images/brand/kynticai-readme-logo.jpg?raw=true)
 
 # KynticAI Scout
 
