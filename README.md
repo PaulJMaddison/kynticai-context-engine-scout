@@ -1,48 +1,33 @@
-<p align="center">
-  <img src="docs/images/brand/kynticai-readme-logo.jpg" alt="KynticAI" width="160" />
-</p>
+![KynticAI](docs/images/brand/kynticai-readme-logo.jpg)
 
-<h1 align="center">KynticAI Scout</h1>
+# KynticAI Scout
 
-<p align="center">
-  <strong>Open-source, customer-owned context infrastructure for AI-enabled software.</strong>
-</p>
+**Open-source, customer-owned context infrastructure for AI-enabled software.**
 
-<p align="center">
-  Scout connects to authorised business data, keeps the evidence in the customer's environment, turns disconnected records into governed context, and exposes that context through APIs, SDKs and local tooling.
-</p>
+Scout connects to authorised business data, keeps the evidence in the customer's environment, turns disconnected records into governed context, and exposes that context through APIs, SDKs and local tooling.
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases"><img src="https://img.shields.io/badge/release-v2.10.0-brightgreen.svg" alt="Release: v2.10.0" /></a>
-  <img src="https://img.shields.io/badge/.NET-10.0-purple.svg" alt=".NET 10" />
-  <img src="https://img.shields.io/badge/Node-%3E%3D20-green.svg" alt="Node >=20" />
-</p>
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v2.10.0-brightgreen.svg)](https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)
+![Node >=20](https://img.shields.io/badge/Node-%3E%3D20-green.svg)
 
-<p align="center">
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#what-scout-is">What Scout is</a> ·
-  <a href="#the-three-products">The three products</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#apis-and-sdks">APIs &amp; SDKs</a> ·
-  <a href="#development">Development</a>
-</p>
+[Quick start](#quick-start) · [What Scout is](#what-scout-is) · [The three products](#the-three-products) · [Architecture](#architecture) · [APIs & SDKs](#apis-and-sdks) · [Development](#development)
 
 ---
 
 ## What Scout is
 
-Most companies already have the data they need for useful AI. The real problem is that the data sits in different systems, uses different identifiers, arrives in different shapes, and means different things depending on the business context.
+Most companies already have the data they need for useful AI. The problem is that the data sits in different systems, uses different identifiers, arrives in different shapes, and means different things depending on the business context.
 
 Scout exists to solve that problem in software, not by pretending the model will magically fix it.
 
 Scout is the open-source, customer-owned data plane in the KynticAI stack. It connects to authorised systems, captures or receives the data the customer has approved, builds governed context from it, preserves provenance and audit, and makes that context available to downstream applications, workflows and AI systems.
 
-**Scout does not need an LLM to do its core job.** It prepares trusted inputs for AI, but source capture, context construction, provenance, continuity and APIs are data-plane concerns first.
+**Scout does not need an LLM to do its core job.** Source capture, context construction, provenance, continuity and APIs are data-plane concerns first. Scout prepares trusted inputs for AI rather than expecting the model to compensate for poor data foundations.
 
 ## What you get in this repository
 
-This repository is intended to be useful as a real open-source project, not just a thin wrapper around a hosted service.
+This repository is intended to be useful as a real open-source project, not a thin wrapper around a hosted service.
 
 ### Included here
 
@@ -98,7 +83,7 @@ Use Elite when the programme crosses systems, divisions and security boundaries.
 
 ## Why this matters
 
-Without a context layer, most AI-enabled applications end up doing one or more of the following badly:
+Without a context layer, AI-enabled applications often end up:
 
 - sending disconnected records to models
 - rebuilding source-specific logic in multiple places
@@ -187,7 +172,7 @@ flowchart LR
     D --> E[Applications, workflows, reporting, agents, AI consumers]
 ```
 
-A more practical way to think about Scout is:
+A practical way to think about Scout is:
 
 1. connect to or receive authorised source data
 2. retain the right evidence locally
@@ -226,12 +211,10 @@ Scout exposes both REST and GraphQL interfaces, plus typed SDKs.
 ### REST example
 
 ```bash
-# machine token
 curl -X POST http://127.0.0.1:5198/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"grantType":"client_credentials","clientId":"crm-service","clientSecret":"replace-me","scope":"context:read"}'
 
-# read user context
 curl "http://127.0.0.1:5198/api/v1/context/users/123?tenantSlug=demo" \
   -H "Authorization: Bearer <token>"
 ```
@@ -323,8 +306,6 @@ deploy/
 
 ### Local development
 
-Key commands:
-
 ```bash
 # backend tests
 dotnet test tests/KynticAI.Scout.UnitTests/KynticAI.Scout.UnitTests.csproj
@@ -346,11 +327,7 @@ For the fuller validation route, including the disposable GCP path used for the 
 - [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md)
 - [docs/testing/gcp-precloud-validation.md](docs/testing/gcp-precloud-validation.md)
 
-### Production-style notes
-
-Scout can run in local/demo mode or against PostgreSQL in more production-style environments.
-
-Before any customer-facing deployment, use:
+Before customer-facing deployment, also use:
 
 - [docs/production-install-checklist.md](docs/production-install-checklist.md)
 - [docs/hosted-deployment.md](docs/hosted-deployment.md)
@@ -376,16 +353,12 @@ Before any customer-facing deployment, use:
 
 ## Project status
 
-Scout is a serious open-source repository and a real local/customer-owned context-data-plane path, but this README does not pretend everything in the wider KynticAI commercial stack is public or included here.
-
-A few important truths:
+Scout is a serious open-source repository and a real local/customer-owned context-data-plane path, but the wider KynticAI commercial stack is deliberately not all public.
 
 - Scout is useful on its own
 - Fortress contains private commercial production capabilities
 - Elite is the scale path for programmes crossing systems, divisions and security boundaries
-- GitHub Actions is currently disabled in this repository, so heavier validation is run through the documented local and disposable GCP paths instead
-
-That is an honest boundary and an intentional one.
+- heavier validation is documented through local and disposable GCP paths
 
 ---
 
@@ -400,12 +373,7 @@ If you need private connectors, Fortress, Elite, production support, managed dep
 
 ## Contributing
 
-Contributions are welcome.
-
-Please read:
-
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [SECURITY.md](SECURITY.md)
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ---
 
