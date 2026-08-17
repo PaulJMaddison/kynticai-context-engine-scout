@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.OpenApi;
 using KynticAI.Scout.Api.Auth;
@@ -93,8 +95,18 @@ builder.Services.AddProblemDetails();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
+    options.ForwardLimit = 1;
+
+    var configuredKnownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+    foreach (var configuredProxy in configuredKnownProxies.Where(static value => !string.IsNullOrWhiteSpace(value)))
+    {
+        if (!IPAddress.TryParse(configuredProxy.Trim(), out var proxyAddress))
+        {
+            throw new InvalidOperationException($"ForwardedHeaders:KnownProxies contains invalid IP address '{configuredProxy}'.");
+        }
+
+        options.KnownProxies.Add(proxyAddress);
+    }
 });
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -163,20 +175,29 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("auth", policy =>
-    {
-        policy.PermitLimit = Math.Max(1, rateLimitOptions.AuthPermitLimit);
-        policy.Window = TimeSpan.FromSeconds(Math.Max(1, rateLimitOptions.AuthWindowSeconds));
-        policy.QueueLimit = 0;
-    });
-    options.AddTokenBucketLimiter("graphql", policy =>
-    {
-        policy.TokenLimit = Math.Max(1, rateLimitOptions.GraphQlTokenLimit);
-        policy.TokensPerPeriod = Math.Max(1, rateLimitOptions.GraphQlTokensPerPeriod);
-        policy.QueueLimit = 0;
-        policy.ReplenishmentPeriod = TimeSpan.FromSeconds(Math.Max(1, rateLimitOptions.GraphQlReplenishmentSeconds));
-        policy.AutoReplenishment = true;
-    });
+    options.AddPolicy<string>("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, rateLimitOptions.AuthPermitLimit),
+                Window = TimeSpan.FromSeconds(Math.Max(1, rateLimitOptions.AuthWindowSeconds)),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy<string>("graphql", context =>
+        RateLimitPartition.GetTokenBucketLimiter(
+            GetRateLimitPartitionKey(context),
+            _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = Math.Max(1, rateLimitOptions.GraphQlTokenLimit),
+                TokensPerPeriod = Math.Max(1, rateLimitOptions.GraphQlTokensPerPeriod),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(Math.Max(1, rateLimitOptions.GraphQlReplenishmentSeconds)),
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services
@@ -383,11 +404,11 @@ authGroup.MapPost("/token", async (
         {
             request = await ReadMachineTokenRequestAsync(httpRequest, cancellationToken);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is InvalidOperationException or JsonException or BadHttpRequestException or InvalidDataException)
         {
             return Results.Problem(
                 title: "Invalid token request",
-                detail: exception.Message,
+                detail: "The token request body is missing or malformed.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -413,11 +434,11 @@ authGroup.MapPost("/token", async (
                 expiresIn,
                 string.Join(' ', result.GrantedScopes)));
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             return Results.Problem(
                 title: "Invalid client credentials",
-                detail: exception.Message,
+                detail: "Client authentication failed.",
                 statusCode: StatusCodes.Status401Unauthorized);
         }
     })
@@ -741,18 +762,39 @@ app.Run();
 
 static async Task<MachineTokenRequest> ReadMachineTokenRequestAsync(HttpRequest httpRequest, CancellationToken cancellationToken)
 {
+    MachineTokenRequest request;
     if (httpRequest.HasFormContentType)
     {
         var form = await httpRequest.ReadFormAsync(cancellationToken);
-        return new MachineTokenRequest(
+        request = new MachineTokenRequest(
             form["grant_type"].ToString(),
             form["client_id"].ToString(),
             form["client_secret"].ToString(),
             form["scope"].ToString());
     }
+    else
+    {
+        request = await httpRequest.ReadFromJsonAsync<MachineTokenRequest>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("A machine token request body is required.");
+    }
 
-    var request = await httpRequest.ReadFromJsonAsync<MachineTokenRequest>(cancellationToken: cancellationToken);
-    return request ?? throw new InvalidOperationException("A machine token request body is required.");
+    if (string.IsNullOrWhiteSpace(request.GrantType)
+        || string.IsNullOrWhiteSpace(request.ClientId)
+        || string.IsNullOrWhiteSpace(request.ClientSecret)
+        || request.GrantType.Length > 64
+        || request.ClientId.Length > 256
+        || request.ClientSecret.Length > 4_096
+        || (request.Scope?.Length ?? 0) > 4_096)
+    {
+        throw new InvalidOperationException("The machine token request is incomplete or exceeds accepted bounds.");
+    }
+
+    return request with
+    {
+        GrantType = request.GrantType.Trim(),
+        ClientId = request.ClientId.Trim(),
+        Scope = string.IsNullOrWhiteSpace(request.Scope) ? null : request.Scope.Trim()
+    };
 }
 
 static Dictionary<string, string[]> ToValidationErrors(ValidationException exception)
@@ -764,25 +806,21 @@ static Dictionary<string, string[]> ToValidationErrors(ValidationException excep
 
 static void ValidateAllowedOrigins(string[] origins, bool hostedMode)
 {
-    if (origins.Any(origin => origin == "*" || origin.Contains('*', StringComparison.Ordinal)))
-    {
-        throw new InvalidOperationException("Cors:AllowedOrigins must contain exact origins only. Wildcards are not allowed.");
-    }
-
     if (hostedMode && origins.Length == 0)
     {
         throw new InvalidOperationException("Cors:AllowedOrigins must list the production frontend origin before running in Production or SaaS mode.");
     }
 
-    if (hostedMode && origins.Any(IsInsecureProductionOrigin))
+    foreach (var origin in origins)
     {
-        throw new InvalidOperationException("Production CORS origins must use HTTPS except localhost development entries.");
+        if (!CorsOriginValidator.TryValidate(origin, hostedMode, out var error))
+        {
+            throw new InvalidOperationException($"Cors:AllowedOrigins contains invalid origin '{origin}': {error}.");
+        }
     }
 }
 
-static bool IsInsecureProductionOrigin(string origin) =>
-    origin.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-    && !origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-    && !origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+static string GetRateLimitPartitionKey(HttpContext context)
+    => context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
 public partial class Program;
