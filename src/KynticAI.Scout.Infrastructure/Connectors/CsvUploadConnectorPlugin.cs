@@ -137,6 +137,7 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
         ConnectorFetchRequest request,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var externalUserIdColumn = request.Configuration["externalUserIdColumn"]?.GetValue<string>() ?? "externalUserId";
         var observedAtColumn = request.Configuration["observedAtColumn"]?.GetValue<string>() ?? "observedAtUtc";
         var rows = request.Configuration["rows"] as JsonArray
@@ -153,9 +154,10 @@ internal sealed class CsvUploadConnectorPlugin : ConnectorPluginBase
         {
             if (observedAtValue.TryGetValue<DateTime>(out var observedAt))
             {
-                observedAtUtc = observedAt;
+                observedAtUtc = ConnectorTimestamp.ToUtc(observedAt);
             }
-            else if (observedAtValue.TryGetValue<string>(out var observedAtText) && DateTime.TryParse(observedAtText, out var parsed))
+            else if (observedAtValue.TryGetValue<string>(out var observedAtText)
+                && ConnectorTimestamp.ParseUtc(observedAtText) is { } parsed)
             {
                 observedAtUtc = parsed;
             }
