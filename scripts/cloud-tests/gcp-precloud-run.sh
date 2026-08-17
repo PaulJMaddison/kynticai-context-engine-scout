@@ -105,7 +105,7 @@ run_node_package() {
     npm install --package-lock=false
   fi
   npm run build --if-present
-  npm test --if-present
+  npm run test --if-present
   if [[ "$run_lint" == "true" ]]; then
     npm run lint
   fi
@@ -194,7 +194,7 @@ SQL
 # migration/startup gate so any provider-sensitive regression is easy to attribute.
 dotnet test tests/KynticAI.Scout.UnitTests/KynticAI.Scout.UnitTests.csproj \
   --configuration Release --no-restore --no-build \
-  --filter 'FullyQualifiedName~ConnectorCaptureOwnershipTests|FullyQualifiedName~ContinuityCaptureProofTests|FullyQualifiedName~ContextRecomputeQueueTests|FullyQualifiedName~PasswordHashingServiceTests|FullyQualifiedName~CorsOriginValidatorTests'
+  --filter 'FullyQualifiedName~ConnectorCaptureOwnershipTests|FullyQualifiedName~ContinuityCaptureProofTests|FullyQualifiedName~ContextRecomputeQueueTests|FullyQualifiedName~RecomputeExecutionLeaseTests|FullyQualifiedName~PasswordHashingServiceTests|FullyQualifiedName~CorsOriginValidatorTests'
 
 dotnet test tests/KynticAI.Scout.IntegrationTests/KynticAI.Scout.IntegrationTests.csproj \
   --configuration Release --no-restore --no-build \
