@@ -56,6 +56,7 @@ public static class CorsOriginValidator
             return true;
         }
 
-        return IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address);
+        var ipLiteral = host.Trim('[', ']');
+        return IPAddress.TryParse(ipLiteral, out var address) && IPAddress.IsLoopback(address);
     }
 }
