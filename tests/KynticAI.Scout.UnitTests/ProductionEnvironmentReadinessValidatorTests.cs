@@ -89,6 +89,36 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
     }
 
     [Fact]
+    public void Production_shape_blocks_insecure_control_plane_transport()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>
+            {
+                ["ControlPlane:Enabled"] = "true",
+                ["ControlPlane:BaseUrl"] = "http://control-plane.internal/"
+            }),
+            new TestHostEnvironment("Production"));
+
+        Assert.False(report.ReadyForProductionStyleDeployment);
+        Assert.Contains(report.Checks, check => check.Key == "control-plane-transport" && check.Status == "Blocked");
+    }
+
+    [Fact]
+    public void Production_shape_accepts_https_control_plane_transport()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>
+            {
+                ["ControlPlane:Enabled"] = "true",
+                ["ControlPlane:BaseUrl"] = "https://control-plane.example.invalid/"
+            }),
+            new TestHostEnvironment("Production"));
+
+        Assert.True(report.ReadyForProductionStyleDeployment);
+        Assert.Contains(report.Checks, check => check.Key == "control-plane-transport" && check.Status == "Ready");
+    }
+
+    [Fact]
     public void Production_shape_blocks_openapi_wildcard_cors_and_missing_security_headers()
     {
         var report = ProductionEnvironmentReadinessValidator.GetReport(
