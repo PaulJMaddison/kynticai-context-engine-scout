@@ -70,6 +70,7 @@ services:
       Auth__Audience: KynticAI.Scout.Console
       Auth__SigningKey: ${AUTH_SIGNING_KEY:-scout-development-only-change-before-production}
       Auth__AccessTokenMinutes: ${AUTH_ACCESS_TOKEN_MINUTES:-30}
+      Cors__AllowedOrigins__0: ${SCOUT_CORS_ORIGIN:-https://localhost}
       DataProtection__ApplicationName: KynticAIScout
       DataProtection__KeyRingPath: /var/lib/scout/data-protection-keys
       DataProtection__RequirePersistentKeys: "true"
