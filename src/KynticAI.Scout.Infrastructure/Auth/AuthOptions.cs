@@ -29,7 +29,11 @@ public sealed class MachineClientOptions
 
     public string DisplayName { get; set; } = string.Empty;
 
-    public string Role { get; set; } = RoleNames.TenantAdmin;
+    /// <summary>
+    /// Retained only for configuration compatibility with older Scout installs. Machine tokens
+    /// are always issued with the dedicated api_client role; authority is defined by Scopes.
+    /// </summary>
+    public string Role { get; set; } = RoleNames.ApiClient;
 
     public List<string> Scopes { get; set; } = [];
 }
