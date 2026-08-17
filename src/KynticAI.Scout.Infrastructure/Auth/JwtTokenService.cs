@@ -63,8 +63,9 @@ public sealed class JwtTokenService(IOptions<AuthOptions> options, TimeProvider 
         var issuedAt = timeProvider.GetUtcNow().UtcDateTime;
         var expiresAt = issuedAt.AddMinutes(authOptions.AccessTokenMinutes);
         var subject = $"client:{machineClient.ClientId}";
-        var role = RoleNames.FromClaimValue(machineClient.Role);
 
+        // A machine credential must never inherit a human/operator role from configuration.
+        // Machine authority is expressed through explicit scopes and the dedicated api_client role.
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, subject),
@@ -75,7 +76,7 @@ public sealed class JwtTokenService(IOptions<AuthOptions> options, TimeProvider 
             new("display_name", string.IsNullOrWhiteSpace(machineClient.DisplayName) ? machineClient.ClientId : machineClient.DisplayName),
             new(ClaimTypes.Email, $"{machineClient.ClientId}@machines.scout.local"),
             new(JwtRegisteredClaimNames.Email, $"{machineClient.ClientId}@machines.scout.local"),
-            new(ClaimTypes.Role, RoleNames.ToClaimValue(role))
+            new(ClaimTypes.Role, RoleNames.ApiClient)
         };
 
         if (workspace is not null)
