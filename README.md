@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/brand/kynticai-logo.jpg" alt="KynticAI" width="160" />
+  <img src="docs/images/brand/kynticai-readme-logo.jpg" alt="KynticAI" width="160" />
 </p>
 
 <h1 align="center">KynticAI Scout</h1>
