@@ -225,14 +225,12 @@ public static class ProductionEnvironmentReadinessValidator
             return Check("cors-origins", Blocked, true, "Cors:AllowedOrigins must list exact production origins.", "(missing)");
         }
 
-        if (normalised.Any(origin => origin == "*" || origin.Contains('*', StringComparison.Ordinal)))
+        foreach (var origin in normalised)
         {
-            return Check("cors-origins", Blocked, true, "Cors:AllowedOrigins must not contain wildcards.", "wildcard");
-        }
-
-        if (normalised.Any(IsInsecureProductionOrigin))
-        {
-            return Check("cors-origins", Blocked, true, "Production CORS origins must use HTTPS except explicit localhost development values.", "insecure-origin");
+            if (!CorsOriginValidator.TryValidate(origin, hostedMode: true, out var error))
+            {
+                return Check("cors-origins", Blocked, true, $"Cors:AllowedOrigins contains an invalid production origin: {error}.", "invalid-origin");
+            }
         }
 
         return Check("cors-origins", Ready, true, "Exact HTTPS CORS origins are configured.", string.Join(',', normalised));
@@ -282,9 +280,4 @@ public static class ProductionEnvironmentReadinessValidator
         || value.Contains(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase)
         || value.Contains("/tmp/", StringComparison.OrdinalIgnoreCase)
         || value.Contains("\\Temp\\", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsInsecureProductionOrigin(string origin) =>
-        origin.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-        && !origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-        && !origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
 }
