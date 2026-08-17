@@ -2,110 +2,166 @@
 
 # KynticAI Scout
 
-**Open-source, customer-owned context infrastructure for AI-enabled software.**
+**Open-source software that connects business data and turns it into useful, trusted information for applications and AI.**
 
-Scout connects to authorised business data, keeps the evidence in the customer's environment, turns disconnected records into governed context, and exposes that context through APIs, SDKs and local tooling.
+Scout runs in your own environment. It connects to the systems you already use, keeps a clear record of where information came from, links related information together, and makes the result available through simple APIs.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/release-v2.10.0-brightgreen.svg)](https://github.com/PaulJMaddison/kynticai-context-engine-scout/releases)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)
 ![Node >=20](https://img.shields.io/badge/Node-%3E%3D20-green.svg)
 
-[Quick start](#quick-start) · [What Scout is](#what-scout-is) · [The three products](#the-three-products) · [Architecture](#architecture) · [APIs & SDKs](#apis-and-sdks) · [Development](#development)
+[What Scout does](#what-scout-does) · [The three KynticAI products](#the-three-kynticai-products) · [Quick start](#quick-start) · [How it works](#how-it-works) · [For developers](#for-developers)
 
 ---
 
-## What Scout is
+## What Scout does
 
-Most companies already have the data they need for useful AI. The problem is that the data sits in different systems, uses different identifiers, arrives in different shapes, and means different things depending on the business context.
+Most businesses already have useful data. The problem is that it is spread across many places: CRM systems, finance software, support tools, databases, spreadsheets, websites and internal applications.
 
-Scout exists to solve that problem in software, not by pretending the model will magically fix it.
+Those systems often describe the same customer, order, company, product or event in different ways.
 
-Scout is the open-source, customer-owned data plane in the KynticAI stack. It connects to authorised systems, captures or receives the data the customer has approved, builds governed context from it, preserves provenance and audit, and makes that context available to downstream applications, workflows and AI systems.
+Scout brings that information together.
 
-**Scout does not need an LLM to do its core job.** Source capture, context construction, provenance, continuity and APIs are data-plane concerns first. Scout prepares trusted inputs for AI rather than expecting the model to compensate for poor data foundations.
+For example, a customer may have:
 
-## What you get in this repository
+- an account in a CRM
+- orders in an ecommerce system
+- support tickets in a helpdesk
+- invoices in a finance system
+- activity on a website
 
-This repository is intended to be useful as a real open-source project, not a thin wrapper around a hosted service.
+Scout can connect those records so other software can understand that they belong to the same customer and can see the useful background around them.
 
-### Included here
+That useful background is what we mean by **context**.
 
-- Scout API and customer-owned data plane
-- connector framework and public connectors
-- exact source capture and continuity foundations
-- selectors, semantic schema and context snapshots
-- relationship and evidence foundations
-- REST and GraphQL APIs
-- TypeScript and .NET SDKs
-- React web console
-- webhook and source-event ingestion
-- authentication, API clients, audit and provenance
-- local Docker evaluation stack with observability
-- Scout-to-Fortress continuity and export tooling
-- generic Discovery Agent and public Scout Discovery MCP
+Scout does this before the information is sent to an AI model or used by another application. The model does not have to guess how disconnected records fit together.
 
-### Not included here
+### In simple terms
 
-- Fortress private production internals
-- the private KynticAI Discovery MCP buyer workflow
-- private enterprise connectors
-- private governance modules and paid deployment packs
-- managed support operations or hosted commercial control-plane internals
+Scout:
+
+1. connects to business systems you allow it to use
+2. reads or receives the approved data
+3. keeps a record of the original information and where it came from
+4. links related records together
+5. turns them into useful information that other software can request
+
+Your source credentials and business data stay under your control.
 
 ---
 
-## The three products
+## Why Scout exists
 
-KynticAI follows a simple progression: **Explore → Prove → Scale**.
+AI is only as useful as the information it receives.
+
+Giving a model a pile of unrelated database rows, documents and API responses does not automatically give it a good understanding of a business.
+
+Scout handles the work that should happen before that point.
+
+It can answer questions such as:
+
+- Which records belong to the same customer?
+- Which value is the newest one?
+- Where did this piece of information come from?
+- When was it last updated?
+- Which systems disagree with each other?
+- What information should an application receive about this customer, order or case?
+
+This makes the information easier to use, easier to check and easier to explain.
+
+Scout can also be used by normal software without any AI at all.
+
+---
+
+## The three KynticAI products
+
+The main KynticAI platform has three levels: **Scout, Fortress and Elite**.
 
 ### 1. Scout — Explore
 
-Scout is the **open-source foundation** and the **customer-owned local data plane**.
+Scout is the open-source version in this repository.
 
-Use Scout to see relationship context working on real authorised signals. It is where source access, connector credentials, exact evidence, selectors, context, provenance, audit and customer-facing APIs live. Scout can be used on its own.
+Use it to:
+
+- connect real business data
+- see how information can be linked together
+- build and test integrations
+- try KynticAI on your own infrastructure
+- create applications using the Scout APIs and SDKs
+
+Scout can be used on its own.
 
 ### 2. Fortress — Prove
 
-Fortress is the **private governed production platform**.
+Fortress is the private production version of the platform.
 
-Use Fortress to validate a governed private path with measurable evidence. It adds the private enterprise capabilities that do not belong in the open-source core: stronger governance, advanced relationship and outcome analysis, private connectors, controlled upgrade ownership, private discovery workflows and production-grade commercial deployment paths.
+It is designed for organisations that want to move from experimenting with Scout to running KynticAI as an important production system.
+
+Fortress adds private commercial features, more advanced controls, private connectors and the production features needed for larger or more sensitive deployments.
+
+Scout has been designed so that a customer can move to Fortress without starting again from scratch.
 
 ### 3. Elite — Scale
 
-Elite is the **enterprise scale layer** for programmes that move beyond one team or one deployment.
+Elite is for large organisations using KynticAI across many systems, teams or parts of the business.
 
-Use Elite when the programme crosses systems, divisions and security boundaries. It is the KynticAI path for organisation-wide scale, where context infrastructure must work consistently across complex estates without weakening the governance and evidence model underneath it.
+It is designed for programmes that cross departments, security boundaries and complex enterprise systems while keeping the same rules about data ownership, evidence and control.
 
-> Clarity and Importance are separate KynticAI products. They are not part of Scout itself and are not required to run this repository.
+**Scout → Fortress → Elite** gives customers a clear path from trying the technology, to proving it in production, to using it across a large organisation.
 
 ---
 
-## Why this matters
+## What is included in this repository
 
-Without a context layer, AI-enabled applications often end up:
+Scout is a real open-source product, not just a small client library for a paid service.
 
-- sending disconnected records to models
-- rebuilding source-specific logic in multiple places
-- losing provenance
-- mixing operational truth with generated interpretation
-- struggling to explain where an answer came from
-- breaking when data moves, changes or arrives out of order
+It includes:
 
-Scout gives you a place to solve those problems once, properly, in the customer environment.
+- the Scout API
+- connectors for reading data from other systems
+- support for SQL/PostgreSQL, REST APIs and CSV data
+- rules for mapping source data into common fields
+- storage for the useful information Scout builds
+- links between related records
+- a record of where information came from
+- REST and GraphQL APIs
+- TypeScript and .NET SDKs
+- a React web interface
+- webhooks and event input
+- user and machine authentication
+- audit records
+- local Docker setup
+- local monitoring tools
+- tools for moving safely from Scout to Fortress
+- the public Scout Discovery MCP
+- the generic Discovery Agent
+
+### What is not included
+
+Some KynticAI software is private and commercial. That includes:
+
+- Fortress source code
+- Elite source code
+- private enterprise connectors
+- private production features
+- the private KynticAI Discovery MCP used in the commercial discovery process
+- paid deployment and support services
+
+The public Scout repository and the private commercial products are deliberately kept separate.
 
 ---
 
 ## Quick start
 
-The easiest way to evaluate Scout is the Docker path.
+The easiest way to try Scout is with Docker.
 
-### Prerequisites
+### You need
 
 - Git
-- Docker Desktop or Docker Engine with Docker Compose
+- Docker Desktop, or Docker Engine with Docker Compose
 
-### Run Scout
+### macOS / Linux
 
 ```bash
 git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git scout
@@ -113,7 +169,7 @@ cd scout
 sh ./scripts/start-scout-docker.sh --reset
 ```
 
-**Windows PowerShell**
+### Windows PowerShell
 
 ```powershell
 git clone https://github.com/PaulJMaddison/kynticai-context-engine-scout.git scout
@@ -121,14 +177,14 @@ cd scout
 .\scripts\start-scout-docker.ps1 -Reset
 ```
 
-Then open:
+When it starts, open:
 
-- Scout web console: `http://127.0.0.1:5173`
+- Scout web interface: `http://127.0.0.1:5173`
 - Scout API: `http://127.0.0.1:5198`
-- OpenAPI / Scalar: `http://127.0.0.1:5198/api-docs`
-- Grafana: `http://127.0.0.1:3000`
-- Prometheus: `http://127.0.0.1:9090`
-- Tempo: `http://127.0.0.1:3200`
+- API documentation: `http://127.0.0.1:5198/api-docs`
+- Grafana monitoring: `http://127.0.0.1:3000`
+- Prometheus metrics: `http://127.0.0.1:9090`
+- Tempo tracing: `http://127.0.0.1:3200`
 
 ### Demo login
 
@@ -138,83 +194,118 @@ Then open:
 | Email | `admin@scout.local` |
 | Password | `DemoAdmin123!` |
 
-The Docker start script builds the stack, waits for readiness, runs a self-test, registers a standard connector, checks connector health, and sends local source events so you can verify the full local path quickly.
+The start script builds Scout, waits until it is ready, runs basic checks and loads enough sample activity to prove that the local setup is working.
 
-For contributor-only non-Docker setup, see [docs/getting-started.md](docs/getting-started.md).
-
----
-
-## What Scout does
-
-| Capability | What it gives you |
-|---|---|
-| **Customer-owned data plane** | Source access, credentials, evidence, context, provenance and audit stay in the customer-controlled environment by default. |
-| **Connector framework** | Public connector model with executable SQL/PostgreSQL, REST, CSV and demo/reference connectors. |
-| **Exact source capture** | Customer-approved source payload evidence can be retained locally for continuity, replay and upgrade paths. |
-| **Selectors** | Explicit rules turn source fields into canonical semantic attributes. |
-| **Context snapshots** | Reusable context with confidence, freshness, explanation and provenance. |
-| **Relationship foundations** | Linked records and local relationship evidence can be prepared before handing anything to AI consumers. |
-| **Governed APIs** | REST and GraphQL surfaces for context lookup, recompute, selectors, audit, connectors and event ingestion. |
-| **SDKs** | Typed TypeScript and .NET client libraries. |
-| **Web console** | UI for sources, selectors, schemas, context, demo walkthroughs and audit. |
-| **Observability** | OpenTelemetry plus local Prometheus, Grafana and Tempo in the Docker evaluation stack. |
-| **Continuity** | Capture generations, exact evidence and ownership boundaries for controlled Scout-to-Fortress migration. |
+For a developer setup without Docker, see [docs/getting-started.md](docs/getting-started.md).
 
 ---
 
-## Architecture
+## How it works
 
 ```mermaid
 flowchart LR
-    A[Existing business systems\nCRM · ERP · Support · Billing · Product · SQL · APIs] --> B[Scout connectors and event ingestion]
-    B --> C[Exact evidence, selectors, semantic schema, context snapshots]
-    C --> D[Relationships, provenance, audit, governed APIs]
-    D --> E[Applications, workflows, reporting, agents, AI consumers]
+    A[Business systems\nCRM · ERP · Support · Billing · Databases · APIs] --> B[Scout]
+    B --> C[Clean and link the information]
+    C --> D[Keep the source and history]
+    D --> E[Make useful information available through APIs]
+    E --> F[Apps · Workflows · Reports · AI]
 ```
 
-A practical way to think about Scout is:
+### Step 1: Connect a source
 
-1. connect to or receive authorised source data
-2. retain the right evidence locally
-3. normalise and interpret it through explicit rules
-4. build governed context and relationships
-5. expose the result to downstream software through normal APIs
+Scout connects to a system that the customer has approved, such as a database, REST API or CSV file.
+
+### Step 2: Read the information
+
+Scout reads only the information the connector has been configured to use.
+
+### Step 3: Map it into common fields
+
+Different systems often use different names for the same thing. One system may call a field `customer_name`, another may call it `fullName`.
+
+Scout uses mapping rules to turn those differences into a consistent set of fields.
+
+Inside the codebase these rules are called **selectors**.
+
+### Step 4: Link related records
+
+Scout can connect records that refer to the same person, company, product, order or other business item.
+
+This is how disconnected data starts to become useful context.
+
+### Step 5: Keep the evidence
+
+Scout keeps enough information to show where a value came from and when it was seen.
+
+This means an application can do more than say, “the customer name is Paul”. It can also show which source supplied that value and when it was last updated.
+
+### Step 6: Make it available
+
+Applications can request the resulting information through Scout's REST API, GraphQL API or SDKs.
 
 ---
 
-## Discovery tooling
+## Moving from Scout to Fortress
 
-There are two discovery-related open-source components in this repository.
+A Scout installation may contain valuable source information and history. Moving to Fortress should not mean throwing that away or rebuilding everything from an exported summary.
+
+Scout therefore includes a controlled upgrade path.
+
+The important idea is simple:
+
+**Fortress should rebuild from the real source evidence Scout captured, not just copy a final JSON result.**
+
+Scout keeps the information needed to identify exactly what was captured and when. During an upgrade, ownership can then move from Scout to Fortress in a controlled way so both systems do not try to manage the same work at the same time.
+
+The detailed engineering design is documented here:
+
+- [Upgrade-compatible source capture](docs/upgrade-compatible-source-capture.md)
+- [Migration tool](docs/migration-tool.md)
+- [Validation guide](LOCAL_VALIDATION.md)
+
+---
+
+## Discovery tools
+
+Scout contains two public discovery tools. They do different jobs.
 
 ### Discovery Agent
 
-A generic local codebase auditing and handover tool. It helps inspect repositories and produce structured handover material.
+The Discovery Agent is a general tool for looking through a software repository and producing structured information about it.
+
+It can help with code reviews, technical handovers and understanding an unfamiliar codebase.
 
 Path: `apps/discovery-agent`
 
 ### Scout Discovery MCP
 
-A public MCP server for Scout metadata inspection.
+MCP is a standard way for AI tools to call other software.
 
-It exposes public connector and metadata information for AI tools and agent workflows without exposing private commercial discovery flows.
+The public Scout Discovery MCP lets compatible tools inspect Scout's public connector and metadata information.
 
 Path: `packages/typescript/scout-discovery-mcp`
 
-> The private commercial **KynticAI Discovery MCP** does **not** belong in this repository. It belongs in Fortress.
+The **private KynticAI Discovery MCP** used in the commercial KynticAI discovery process is different software and is not part of this open-source repository.
 
 ---
 
-## APIs and SDKs
+## For developers
 
-Scout exposes both REST and GraphQL interfaces, plus typed SDKs.
+Scout provides REST and GraphQL APIs as well as TypeScript and .NET SDKs.
 
 ### REST example
+
+First request a machine access token:
 
 ```bash
 curl -X POST http://127.0.0.1:5198/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"grantType":"client_credentials","clientId":"crm-service","clientSecret":"replace-me","scope":"context:read"}'
+```
 
+Then request information about a user:
+
+```bash
 curl "http://127.0.0.1:5198/api/v1/context/users/123?tenantSlug=demo" \
   -H "Authorization: Bearer <token>"
 ```
@@ -246,125 +337,101 @@ const context = await scout.users.getContext('demo', '123')
 console.log(context?.fullName)
 ```
 
-Useful references:
+More detail:
 
 - [Public API Contract](docs/public-api-contract.md)
-- [TypeScript SDK README](packages/typescript/scout-sdk/README.md)
-- [.NET SDK docs](docs/sdk-development.md)
+- [TypeScript SDK](packages/typescript/scout-sdk/README.md)
+- [.NET SDK](docs/sdk-development.md)
 
 ---
 
-## Scout to Fortress continuity
-
-Scout includes continuity foundations for a controlled move into Fortress.
-
-That includes:
-
-- exact source evidence retained locally
-- capture generations
-- generation membership
-- ownership boundaries
-- pause / transfer semantics
-- customer-local export tooling
-
-The important principle is simple: **derived JSON is not source truth**. If a customer upgrades from Scout to Fortress, the upgrade path should be based on exact evidence and explicit ownership transfer, not a vague re-interpretation of old output.
-
-See:
-
-- [docs/upgrade-compatible-source-capture.md](docs/upgrade-compatible-source-capture.md)
-- [docs/migration-tool.md](docs/migration-tool.md)
-- [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md)
-
----
-
-## Repository structure
+## Repository layout
 
 ```text
 apps/
-  web/                        React admin console and demo UI
-  discovery-agent/            Generic discovery / handover tool
+  web/                        Scout web interface
+  discovery-agent/            General repository discovery tool
+
 src/
-  KynticAI.Scout.Api/         ASP.NET Core API
-  KynticAI.Scout.Domain/      Domain model
-  KynticAI.Scout.Application/ Application services
-  KynticAI.Scout.Infrastructure/ Persistence, connectors, integrations
+  KynticAI.Scout.Api/         HTTP API
+  KynticAI.Scout.Domain/      Main business objects and rules
+  KynticAI.Scout.Application/ Application logic
+  KynticAI.Scout.Infrastructure/ Database, connectors and external services
+
 packages/
   typescript/scout-sdk/               TypeScript SDK
   typescript/scout-discovery-mcp/     Public Scout Discovery MCP
   typescript/scout-connector-validator/
   typescript/scout-metadata-audit/
-  dotnet/KynticAI.Scout.Sdk/
-tests/
-docs/
-scripts/
-deploy/
+  dotnet/KynticAI.Scout.Sdk/          .NET SDK
+
+tests/                        Automated tests
+docs/                         Documentation
+scripts/                      Development and deployment scripts
+deploy/                       Deployment files
 ```
 
 ---
 
 ## Development
 
-### Local development
+### Backend tests
 
 ```bash
-# backend tests
 dotnet test tests/KynticAI.Scout.UnitTests/KynticAI.Scout.UnitTests.csproj
 dotnet test tests/KynticAI.Scout.Sdk.Tests/KynticAI.Scout.Sdk.Tests.csproj
+```
 
-# web app
+### Web application
+
+```bash
 cd apps/web
 npm run lint
 npm test
 npm run build
+```
 
-# TypeScript SDK
+### TypeScript SDK
+
+```bash
 cd packages/typescript/scout-sdk
 npm test
 ```
 
-For the fuller validation route, including the disposable GCP path used for the heavier engineering gate, see:
+For the full test process, including the disposable Google Cloud test environment used for the heavier checks, see:
 
 - [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md)
-- [docs/testing/gcp-precloud-validation.md](docs/testing/gcp-precloud-validation.md)
+- [GCP validation guide](docs/testing/gcp-precloud-validation.md)
 
-Before customer-facing deployment, also use:
+Before using Scout for a customer-facing deployment, also read:
 
-- [docs/production-install-checklist.md](docs/production-install-checklist.md)
-- [docs/hosted-deployment.md](docs/hosted-deployment.md)
-- [SECURITY.md](SECURITY.md)
+- [Production install checklist](docs/production-install-checklist.md)
+- [Hosted deployment](docs/hosted-deployment.md)
+- [Security](SECURITY.md)
 
 ---
 
-## Key documentation
+## Documentation
 
 - [Getting Started](docs/getting-started.md)
 - [Public API Contract](docs/public-api-contract.md)
-- [Customer Data Plane](docs/customer-data-plane.md)
-- [Connector Authoring Guide](docs/connector-authoring.md)
-- [Connector Plugin Model](docs/connector-plugin-model.md)
-- [Connector Catalogue](docs/connector-marketplace.md)
-- [Webhook Events](docs/webhook-events.md)
-- [Open Core Boundary](docs/open-core-boundary.md)
-- [Enterprise Extension Points](docs/enterprise-extension-points.md)
+- [How Scout keeps customer data local](docs/customer-data-plane.md)
+- [Writing a connector](docs/connector-authoring.md)
+- [Connector plugin model](docs/connector-plugin-model.md)
+- [Connector catalogue](docs/connector-marketplace.md)
+- [Webhook events](docs/webhook-events.md)
+- [What is open source and what is private](docs/open-core-boundary.md)
+- [Enterprise extension points](docs/enterprise-extension-points.md)
 - [Roadmap](docs/roadmap.md)
-- [CHANGELOG](CHANGELOG.md)
+- [Changelog](CHANGELOG.md)
 
 ---
 
-## Project status
+## Commercial support
 
-Scout is a serious open-source repository and a real local/customer-owned context-data-plane path, but the wider KynticAI commercial stack is deliberately not all public.
+Scout is open source and can be used on its own.
 
-- Scout is useful on its own
-- Fortress contains private commercial production capabilities
-- Elite is the scale path for programmes crossing systems, divisions and security boundaries
-- heavier validation is documented through local and disposable GCP paths
-
----
-
-## Commercial support and enterprise work
-
-If you need private connectors, Fortress, Elite, production support, managed deployment help or a commercial engagement around this stack:
+If you want help with private connectors, Fortress, Elite, production deployment, support or a commercial KynticAI project:
 
 - **Email:** [paul@kynticai.com](mailto:paul@kynticai.com)
 - **Website:** [kynticai.com](https://kynticai.com)
@@ -373,7 +440,12 @@ If you need private connectors, Fortress, Elite, production support, managed dep
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+Contributions are welcome.
+
+Please read:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
 
 ---
 
