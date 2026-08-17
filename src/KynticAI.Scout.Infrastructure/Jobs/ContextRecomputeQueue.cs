@@ -31,8 +31,19 @@ internal sealed class ContextRecomputeQueue : IContextRecomputeQueue
 
     public async ValueTask EnqueueAsync(ContextRecomputeRequest request, CancellationToken cancellationToken)
     {
-        await channel.Writer.WriteAsync(request, cancellationToken);
-        backgroundJobMonitor.UpdateQueueDepth("context-recompute-queue", Interlocked.Increment(ref pendingCount));
+        var depth = Interlocked.Increment(ref pendingCount);
+        backgroundJobMonitor.UpdateQueueDepth("context-recompute-queue", depth);
+        try
+        {
+            await channel.Writer.WriteAsync(request, cancellationToken);
+        }
+        catch
+        {
+            backgroundJobMonitor.UpdateQueueDepth(
+                "context-recompute-queue",
+                Math.Max(0, Interlocked.Decrement(ref pendingCount)));
+            throw;
+        }
     }
 
     public async IAsyncEnumerable<ContextRecomputeRequest> ReadAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
