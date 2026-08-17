@@ -99,9 +99,17 @@ public sealed class ApiKeyAuthenticationHandler(
 
     private static IReadOnlyList<string> DeserializeScopes(string scopesJson)
     {
+        if (string.IsNullOrWhiteSpace(scopesJson))
+        {
+            return [];
+        }
+
         try
         {
-            return ApiScopes.Normalize(JsonSerializer.Deserialize<IReadOnlyList<string>>(scopesJson, JsonSerializerOptions.Web) ?? []);
+            var parsed = JsonSerializer.Deserialize<IReadOnlyList<string>>(scopesJson, JsonSerializerOptions.Web);
+            return parsed is null || parsed.Count == 0
+                ? []
+                : ApiScopes.Normalize(parsed);
         }
         catch (JsonException)
         {
