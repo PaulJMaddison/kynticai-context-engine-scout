@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/PaulJMaddison/kynticai-context-engine-scout/main/docs/images/brand/kynticai-logo.svg" alt="KynticAI" width="160" />
+  <img src="https://raw.githubusercontent.com/PaulJMaddison/kynticai-context-engine-scout/main/docs/images/brand/kynticai-logo.jpg" alt="KynticAI" width="160" />
 </p>
 
 <h1 align="center">KynticAI Scout</h1>
