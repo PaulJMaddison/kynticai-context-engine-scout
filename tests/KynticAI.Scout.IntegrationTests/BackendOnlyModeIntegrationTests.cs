@@ -84,6 +84,81 @@ public sealed class BackendOnlyModeIntegrationTests
         Assert.True(graphQlPayload["data"]?["connectorPlugins"]?.AsArray().Count > 0);
     }
 
+    [Fact]
+    public async Task MachineClientToken_MalformedJson_ReturnsBoundedBadRequest()
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{\"grantType\":", Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/api/auth/token", content);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("missing or malformed", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("JsonException", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("byte position", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("", "SvcSecret123!")]
+    [InlineData("svc-demo-admin", "")]
+    public async Task MachineClientToken_MissingCredentials_ReturnsBadRequest(string clientId, string clientSecret)
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId,
+            clientSecret
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MachineClientToken_BadCredentials_DoNotExposeConfiguredClientDetails()
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId = "unknown-client",
+            clientSecret = "wrong-secret"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("Client authentication failed", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("demo", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("svc-demo-admin", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MachineClientToken_DisallowedScope_FailsClosedWithoutScopePolicyDetails()
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId = "svc-demo-admin",
+            clientSecret = "SvcSecret123!",
+            scope = "admin:manage"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("Client authentication failed", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Requested scope", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("admin:manage", body, StringComparison.Ordinal);
+    }
+
     private static void AuthenticateAsMachineClient(HttpClient client)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("scout-tests-signing-key-1234567890"));
@@ -136,6 +211,7 @@ public sealed class BackendOnlyModeIntegrationTests
                     ["Auth:MachineClients:0:Role"] = "tenant_admin",
                     ["Auth:MachineClients:0:Scopes:0"] = "context:read",
                     ["Auth:MachineClients:0:Scopes:1"] = "context:write",
+                    ["RateLimits:AuthPermitLimit"] = "100",
                     ["Telemetry:OtlpEndpoint"] = string.Empty
                 };
 
