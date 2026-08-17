@@ -49,6 +49,33 @@ public sealed class ContextRecomputeQueueTests
         Assert.Equal(1, QueueDepth(monitor));
     }
 
+    [Fact]
+    public async Task Queue_DeduplicatesSameTenantCorrelation_UntilDeliveryCompletes()
+    {
+        var monitor = new InMemoryBackgroundJobMonitor();
+        var queue = CreateQueue(monitor, capacity: 4);
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var first = new ContextRecomputeRequest(tenantId, userId, "same-correlation", [Guid.NewGuid()]);
+        var duplicate = new ContextRecomputeRequest(tenantId, userId, "same-correlation", [Guid.NewGuid()]);
+
+        await queue.EnqueueAsync(first, CancellationToken.None);
+        await queue.EnqueueAsync(duplicate, CancellationToken.None);
+        Assert.Equal(1, QueueDepth(monitor));
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var reader = queue.ReadAllAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        Assert.True(await reader.MoveNextAsync());
+        Assert.Equal(first, reader.Current);
+        Assert.Equal(0, QueueDepth(monitor));
+
+        queue.Complete(first);
+        await queue.EnqueueAsync(duplicate, CancellationToken.None);
+        Assert.Equal(1, QueueDepth(monitor));
+        Assert.True(await reader.MoveNextAsync());
+        Assert.Equal(duplicate, reader.Current);
+    }
+
     private static ContextRecomputeQueue CreateQueue(InMemoryBackgroundJobMonitor monitor, int capacity)
     {
         var configuration = new ConfigurationBuilder()
