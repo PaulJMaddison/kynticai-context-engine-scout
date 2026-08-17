@@ -30,8 +30,6 @@ internal sealed class ContextRecomputeProcessor(
         {
             if (recomputeJob.Status is RecomputeJobStatus.Completed or RecomputeJobStatus.Failed)
             {
-                // Duplicate queue delivery or a recovery scan racing a just-completed worker.
-                // Terminal jobs are idempotent no-ops.
                 return;
             }
 
@@ -90,7 +88,7 @@ internal sealed class ContextRecomputeProcessor(
                 if (restored is null)
                 {
                     execution.MarkFailed(
-                        "Persisted successful selector execution is missing required result state.",
+                        "Persisted successful selector execution is missing or contains invalid result state.",
                         execution.RawSourceDataJson,
                         execution.ValidationErrorsJson,
                         execution.PipelineTraceJson,
@@ -277,7 +275,8 @@ internal sealed class ContextRecomputeProcessor(
         if (execution.Status != SelectorExecutionStatus.Succeeded
             || execution.ResultObservedAtUtc is not { } observedAtUtc
             || string.IsNullOrWhiteSpace(execution.ResultValueJson)
-            || string.IsNullOrWhiteSpace(execution.ResultProvenanceJson))
+            || string.IsNullOrWhiteSpace(execution.ResultProvenanceJson)
+            || !IsValidJson(execution.ResultValueJson))
         {
             return null;
         }
@@ -316,18 +315,13 @@ internal sealed class ContextRecomputeProcessor(
         {
             if (JsonNode.Parse(provenanceJson) is JsonObject provenanceObject)
             {
-                sourceSystem =
-                    provenanceObject["connectorType"]?.GetValue<string>()
-                    ?? provenanceObject["source"]?["source"]?.GetValue<string>()
-                    ?? provenanceObject["source"]?.AsArray().FirstOrDefault()?["source"]?.GetValue<string>()
-                    ?? provenanceObject["selector"]?["name"]?.GetValue<string>()
-                    ?? sourceSystem;
+                sourceSystem = ResolveSourceSystem(provenanceObject) ?? sourceSystem;
             }
         }
         catch (JsonException)
         {
-            // Provenance is retained verbatim even if older/corrupt data cannot be parsed for the
-            // convenience source-system field. Do not lose the recompute solely on that metadata.
+            // Retain the original provenance even when older/corrupt metadata cannot be parsed for
+            // the convenience source-system field. Provenance parsing must not lose the recompute.
         }
 
         return ProvenanceMetadata.Create(
@@ -340,6 +334,58 @@ internal sealed class ContextRecomputeProcessor(
             provenanceJson,
             observedAtUtc,
             observedAtUtc);
+    }
+
+    private static string? ResolveSourceSystem(JsonObject provenance)
+    {
+        if (TryGetString(provenance["connectorType"], out var connectorType))
+        {
+            return connectorType;
+        }
+
+        if (provenance["source"] is JsonObject sourceObject
+            && TryGetString(sourceObject["source"], out var objectSource))
+        {
+            return objectSource;
+        }
+
+        if (provenance["source"] is JsonArray sourceArray)
+        {
+            foreach (var sourceNode in sourceArray)
+            {
+                if (sourceNode is JsonObject item
+                    && TryGetString(item["source"], out var arraySource))
+                {
+                    return arraySource;
+                }
+            }
+        }
+
+        return provenance["selector"] is JsonObject selector
+            && TryGetString(selector["name"], out var selectorName)
+                ? selectorName
+                : null;
+    }
+
+    private static bool TryGetString(JsonNode? node, out string value)
+    {
+        value = string.Empty;
+        return node is JsonValue jsonValue
+            && jsonValue.TryGetValue<string>(out value)
+            && !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool IsValidJson(string value)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<SelectorCandidateFact> ResolveConflicts(IReadOnlyList<SelectorCandidateFact> candidates)
@@ -370,7 +416,19 @@ internal sealed class ContextRecomputeProcessor(
 
     private static string AppendConflictResolution(string provenanceJson, IReadOnlyList<SelectorCandidateFact> candidates)
     {
-        var provenance = JsonNode.Parse(provenanceJson) as JsonObject ?? new JsonObject();
+        JsonObject provenance;
+        try
+        {
+            provenance = JsonNode.Parse(provenanceJson) as JsonObject ?? new JsonObject();
+        }
+        catch (JsonException)
+        {
+            provenance = new JsonObject
+            {
+                ["unparsedOriginalProvenance"] = provenanceJson
+            };
+        }
+
         provenance["conflictResolution"] = JsonSerializer.SerializeToNode(new
         {
             strategy = "priority-confidence-observedAt",
