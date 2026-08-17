@@ -267,9 +267,9 @@ internal sealed class SqlConnectorPlugin(
                 {
                     observedAtUtc = value switch
                     {
-                        DateTime dateTime => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc),
+                        DateTime dateTime => NormalizeUtc(dateTime),
                         DateTimeOffset offset => offset.UtcDateTime,
-                        string stringValue when DateTime.TryParse(stringValue, out var parsed) => parsed,
+                        string stringValue when DateTimeOffset.TryParse(stringValue, out var parsed) => parsed.UtcDateTime,
                         _ => observedAtUtc
                     };
                     continue;
@@ -369,6 +369,14 @@ internal sealed class SqlConnectorPlugin(
         => string.Equals(mode, "currentDatabase", StringComparison.OrdinalIgnoreCase)
             || string.Equals(mode, "customerOpsDatabase", StringComparison.OrdinalIgnoreCase)
             || string.Equals(mode, "connectionString", StringComparison.OrdinalIgnoreCase);
+
+    private static DateTime NormalizeUtc(DateTime value)
+        => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
 
     private static string QuoteIdentifier(string identifier) => "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 }
