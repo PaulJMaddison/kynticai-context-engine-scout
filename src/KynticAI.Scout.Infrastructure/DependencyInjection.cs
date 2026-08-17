@@ -53,7 +53,17 @@ public static class DependencyInjection
             dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionOptions.KeyRingPath));
         }
 
-        services.AddHttpClient("scout-connectors");
+        services
+            .AddHttpClient("scout-connectors")
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                // Credentialled generic connectors must not forward custom auth headers through
+                // arbitrary redirects. Operators should configure the final authorised endpoint.
+                AllowAutoRedirect = false,
+                ConnectTimeout = TimeSpan.FromSeconds(10),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                MaxConnectionsPerServer = 32
+            });
         services.AddHttpClient<IControlPlaneEntitlementClient, CloudControlPlaneEntitlementClient>((provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<ControlPlaneOptions>>().Value;
@@ -135,6 +145,7 @@ public static class DependencyInjection
         services.AddSingleton<ContextRecomputeQueue>();
         services.AddSingleton<IContextRecomputeQueue>(provider => provider.GetRequiredService<ContextRecomputeQueue>());
         services.AddHostedService<ContextRecomputeWorker>();
+        services.AddHostedService<ContextRecomputeRecoveryWorker>();
         services.AddHostedService<ScheduledRecomputeWorker>();
         services.AddSingleton<IClock, SystemClock>();
 

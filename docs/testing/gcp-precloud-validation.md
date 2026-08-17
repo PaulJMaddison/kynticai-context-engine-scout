@@ -1,30 +1,37 @@
 # GCP pre-cloud validation
 
-Last updated: 2026-08-16
+Last updated: 2026-08-17
 
-This is the required disposable-cloud validation for Scout before a production Scout -> Fortress cutover is considered proven.
+This is the required disposable-cloud validation for Scout before a production Scout -> Fortress cutover or a final engineering sign-off is considered proven.
 
-The purpose is not to benchmark an LLM. It is to prove the parts of Scout that must be correct before customer source ownership moves: PostgreSQL migrations, FULL_SOURCE capture evidence, generation membership, lease exclusion, durable cutover ownership, exact export selection, restart behaviour and cost-bounded deployment.
+The runner is intentionally repo-wide. It validates the .NET data plane, PostgreSQL migration/startup path, React application, public TypeScript packages, n8n integrations, the public Scout metadata Discovery MCP, and the generic local Discovery Agent. The commercial KynticAI Discovery MCP buyer workflow is private Fortress software and is not part of this public Scout gate.
 
-The core suite therefore uses Scout's `mock` LLM provider. A paid or GPU model adds cost and another failure mode without improving this proof.
+The cutover-specific purpose remains to prove the parts of Scout that must be correct before customer source ownership moves: PostgreSQL migrations, FULL_SOURCE capture evidence, generation membership, lease exclusion, durable cutover ownership, exact export selection, restart behaviour and cost-bounded deployment.
+
+The core suite uses Scout's `mock` LLM provider. A paid or GPU model adds cost and another failure mode without improving this proof.
 
 ## What this validates
 
-The run has two layers.
-
 The checked-in automated core gate runs:
 
-1. .NET 10.0.203 restore.
-2. Release build with warnings as errors.
-3. Full deterministic test suite.
-4. `dotnet ef migrations has-pending-model-changes` against the Scout runtime model.
-5. PostgreSQL 16 startup.
-6. The real `MigrateAsync` path used by Scout bootstrap.
-7. Verification that `connector_capture_ownership` and its indexes exist.
-8. Scout API startup against PostgreSQL with the mock LLM provider.
-9. Focused ownership/cutover unit tests.
+1. Pinned .NET 10.0.203 and Node.js 24.19.0 toolchains.
+2. Clean-checkout SHA verification when `SCOUT_EXPECTED_SHA` is supplied.
+3. .NET restore and `dotnet format --verify-no-changes`.
+4. Release build with warnings as errors.
+5. Full deterministic .NET test suite.
+6. Build/test validation for every committed TypeScript package under `packages/typescript`.
+7. React web lint, build and tests.
+8. Generic Discovery Agent build, tests and a Tier-1 smoke audit against the exact checkout.
+9. Package dry-runs for the public SDK and both n8n packages.
+10. `dotnet ef migrations has-pending-model-changes` against the Scout runtime model.
+11. PostgreSQL 16 startup.
+12. The real `MigrateAsync` path used by normal Scout API startup.
+13. Verification that `connector_capture_ownership` and its indexes exist.
+14. Scout API readiness against PostgreSQL with the mock LLM provider.
+15. Focused continuity, queue, credential-hash, CORS and machine-token failure-path tests.
+16. A tracked-file cleanliness check after validation.
 
-The acceptance matrix below is then run with synthetic connector fixtures before production use.
+The large synthetic source/cutover acceptance matrix below remains an explicit second layer because connector-specific fixture credentials and large datasets are deliberately not committed to the public repository.
 
 ## Cost envelope
 
@@ -53,7 +60,7 @@ Optional million-row scale pass:
 - 8 vCPU / 32 GB RAM
 - same 2 hour deletion limit
 
-At the Google Cloud pricing table visible when this plan was written, `e2-standard-4` was displayed at about US$0.134/hour and `e2-standard-8` at about US$0.268/hour before disk, network, tax and regional variation. That makes the raw two-hour VM compute component roughly US$0.27 or US$0.54 respectively. **Do not treat those figures as a quote for London. Check the live Google Cloud price/calculator for the selected project and zone immediately before running.**
+Cloud pricing changes. Check the live Google Cloud price/calculator for the selected project and zone immediately before running.
 
 The administrative budget is fixed by the checked-in helper at **25 billing-account currency units** with alerts at 50%, 80% and 100%.
 
@@ -71,12 +78,14 @@ For a normal branch validation, the expected bill should be far below the 25-uni
 
 ## Prerequisites
 
-Local workstation:
+Workstation/control machine:
 
 - Google Cloud CLI installed and authenticated.
 - A Google Cloud project with billing enabled.
 - Permission to create Compute Engine instances.
 - If using the budget helper, permission to create billing budgets and the billing account ID.
+
+The workstation does **not** need enough disk space to restore/build Scout. The runner clones, restores, builds and tests on the disposable GCP VM.
 
 Do not use production customer data, production source credentials or production cutover tokens in this test.
 
@@ -114,28 +123,37 @@ bash scripts/cloud-tests/gcp-precloud-setup.sh
 
 The VM has no Scout/API firewall rule. The runner uses `gcloud compute ssh` and the API remains bound to localhost on the VM.
 
-## 3. Run the core gate
+## 3. Run the repo-wide core gate
+
+The default branch is `main`.
+
+For a final sign-off, pin the exact revision so the runner refuses to validate a moving or mistaken branch:
 
 ```bash
 GCP_PROJECT_ID="your-disposable-project" \
+SCOUT_BRANCH="main" \
+SCOUT_EXPECTED_SHA="<exact-main-sha>" \
 bash scripts/cloud-tests/gcp-precloud-run.sh
 ```
 
-The default branch under test is:
+To validate a review branch before merging:
 
-```text
-chatgpt/precloud-static-fixes-20260816
+```bash
+GCP_PROJECT_ID="your-disposable-project" \
+SCOUT_BRANCH="agent/final-engineering-signoff" \
+SCOUT_EXPECTED_SHA="<exact-branch-sha>" \
+bash scripts/cloud-tests/gcp-precloud-run.sh
 ```
 
-After this branch is merged, set `SCOUT_BRANCH=main` and run the same suite against the exact main commit intended for deployment.
-
-A successful core run ends with:
+A successful automated run ends with:
 
 ```text
-CORE_PRECLOUD_VALIDATION=PASS
+REPO_WIDE_PRECLOUD_VALIDATION=PASS
 ```
 
-Do not accept a partial run as a pass. In particular, the migration/model check, PostgreSQL migration and deterministic tests are mandatory.
+Do not accept a partial run as a pass. In particular, the .NET and Node test/build gates, model/migration check, PostgreSQL startup/migration and focused safety tests are mandatory.
+
+The generic Discovery Agent currently installs with `--package-lock=false` because its previous lockfile described the commercial buyer-facing Discovery MCP wrapper that was removed from Scout. A clean replacement lockfile should be generated and committed from a successful dependency resolution before publishing that package. This is a reproducibility concern, not permission to restore the private buyer workflow to Scout.
 
 ## 4. Synthetic capture and cutover acceptance matrix
 
@@ -209,7 +227,9 @@ Inject process termination at these points:
 2. while the export pause transaction is waiting for a lease;
 3. immediately after the pause transaction commits;
 4. during JSONL export;
-5. after JSONL is written but before the operator transfers ownership to Fortress.
+5. after JSONL is written but before the operator transfers ownership to Fortress;
+6. after a recompute job is persisted but before it reaches the in-memory queue;
+7. while a recompute selector execution is running.
 
 Pass criteria:
 
@@ -217,7 +237,10 @@ Pass criteria:
 - after a committed pause, Scout remains paused across restart;
 - a retry using the same cutover epoch/token binds to the same snapshot;
 - no restart resumes source capture while ownership is paused or Fortress-owned;
-- a failed export never silently unpauses Scout.
+- a failed export never silently unpauses Scout;
+- persisted Pending/stranded Running recompute jobs are rediscovered by the recovery worker;
+- already-succeeded selector executions are reused from durable result state instead of being called again;
+- completed/failed recompute jobs remain idempotent no-ops on duplicate delivery.
 
 ### F. Required 100,000-row proof
 
@@ -275,11 +298,10 @@ Do not rely on the two-hour auto-delete as the normal cleanup path. It is the la
 
 Retain only non-customer proof material:
 
-- tested Git SHA;
-- branch;
-- tool/.NET version;
-- test result summary;
-- migration list;
+- exact tested Git SHA and branch;
+- .NET, Node.js and npm versions;
+- test/build/lint result summary;
+- migration/model result;
 - synthetic row-count/hash reconciliation;
 - timings and resource measurements;
 - final teardown confirmation.
@@ -290,13 +312,20 @@ Do not copy exact customer payloads, credentials, cutover tokens or production d
 
 A release is not pre-cloud validated until all of the following are true:
 
-- local/static review is clean;
+- final static/review diff is clean;
+- exact SHA is recorded;
+- .NET formatting check passes;
 - Release build passes with warnings as errors;
-- full deterministic test suite passes;
+- full deterministic .NET suite passes;
+- every committed Node/TypeScript surface builds and tests;
+- web lint/build/tests pass;
+- generic Discovery Agent smoke audit passes;
 - EF has no pending model changes;
 - PostgreSQL migrations apply from the supported baseline;
+- API readiness succeeds against PostgreSQL;
 - ownership migration/table/indexes exist;
-- 100k synthetic capture/export reconciliation passes;
+- required focused failure-path tests pass;
+- 100k synthetic capture/export reconciliation passes before a real production cutover;
 - anti-resurrection passes;
 - concurrent pause/cutover passes;
 - crash/restart passes;

@@ -37,8 +37,19 @@ internal sealed class ScheduledRecomputeDispatcher(
 
         foreach (var tenantSelectors in selectorsByTenant)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var tenantId = tenantSelectors.Key;
             var minScheduleIntervalMinutes = tenantSelectors.Min(x => x.ScheduleIntervalMinutes!.Value);
+            var tenantPublishedSelectors = await dbContext.SelectorDefinitions
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.Status == SelectorStatus.Published)
+                .OrderBy(x => x.Name)
+                .ToListAsync(cancellationToken);
+            if (tenantPublishedSelectors.Count == 0)
+            {
+                continue;
+            }
+
             var users = await dbContext.UserProfiles
                 .AsNoTracking()
                 .Where(x => x.TenantId == tenantId)
@@ -46,11 +57,13 @@ internal sealed class ScheduledRecomputeDispatcher(
 
             foreach (var user in users)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                // Recovery owns stale/interrupted non-terminal jobs. Do not create a second
+                // scheduled recompute just because the original has been running for a while.
                 var hasPendingExecution = await dbContext.SelectorExecutions.AnyAsync(
-                    x => x.TenantId == tenantId &&
-                         x.UserProfileId == user.Id &&
-                         (x.Status == SelectorExecutionStatus.Pending || x.Status == SelectorExecutionStatus.Running) &&
-                         x.RequestedAtUtc >= utcNow.AddMinutes(-5),
+                    x => x.TenantId == tenantId
+                         && x.UserProfileId == user.Id
+                         && (x.Status == SelectorExecutionStatus.Pending || x.Status == SelectorExecutionStatus.Running),
                     cancellationToken);
 
                 if (hasPendingExecution)
@@ -69,17 +82,6 @@ internal sealed class ScheduledRecomputeDispatcher(
                 var dueByAge = latestSnapshot is null || latestSnapshot.GeneratedAtUtc <= utcNow.AddMinutes(-minScheduleIntervalMinutes);
                 var dueByStaleness = latestSnapshot?.Facts.Any(fact => fact.FreshUntilUtc.HasValue && fact.FreshUntilUtc.Value < utcNow) ?? true;
                 if (!dueByAge && !dueByStaleness)
-                {
-                    skippedUsers++;
-                    continue;
-                }
-
-                var tenantPublishedSelectors = await dbContext.SelectorDefinitions
-                    .Where(x => x.TenantId == tenantId && x.Status == SelectorStatus.Published)
-                    .OrderBy(x => x.Name)
-                    .ToListAsync(cancellationToken);
-
-                if (tenantPublishedSelectors.Count == 0)
                 {
                     skippedUsers++;
                     continue;

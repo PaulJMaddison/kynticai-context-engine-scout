@@ -16,11 +16,11 @@
     <Product>KynticAI Scout</Product>
     <Authors>KynticAI</Authors>
     <Company>KynticAI</Company>
-    <RepositoryUrl>https://github.com/PaulJMaddison/scout</RepositoryUrl>
+    <RepositoryUrl>https://github.com/PaulJMaddison/kynticai-context-engine-scout</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/PaulJMaddison/scout</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/PaulJMaddison/kynticai-context-engine-scout</PackageProjectUrl>
     <PackageTags>context-infrastructure;graphql;rest;dotnet;react;semantic-layer;context-engineering;open-core</PackageTags>
     <PackageReleaseNotes>2.10.0 hardens API client key management, aligns legacy REST cross-tenant authorisation with v1 and GraphQL, uses the injected TimeProvider for deterministic token and audit timestamps, protects platform configuration in hosted mode, and keeps hardened GitHub Actions reference workflows intentionally disabled while the account lock remains unresolved.</PackageReleaseNotes>
   </PropertyGroup>

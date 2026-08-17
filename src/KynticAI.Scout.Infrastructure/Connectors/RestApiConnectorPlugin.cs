@@ -235,8 +235,8 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
             var payload = ParseObject(response["payload"], "payload");
             var observedAtUtc = response["observedAtUtc"] switch
             {
-                JsonValue value when value.TryGetValue<DateTime>(out var dateTime) => dateTime,
-                JsonValue value when value.TryGetValue<string>(out var stringValue) && DateTime.TryParse(stringValue, out var parsed) => parsed,
+                JsonValue value when value.TryGetValue<DateTime>(out var dateTime) => ConnectorTimestamp.ToUtc(dateTime),
+                JsonValue value when value.TryGetValue<string>(out var stringValue) && ConnectorTimestamp.ParseUtc(stringValue) is { } parsed => parsed,
                 _ => DateTime.UtcNow
             };
             return new ConnectorFetchResult(
@@ -365,8 +365,8 @@ internal sealed class RestApiConnectorPlugin(IHttpClientFactory httpClientFactor
 
         return current switch
         {
-            JsonValue value when value.TryGetValue<DateTime>(out var dateTime) => dateTime,
-            JsonValue value when value.TryGetValue<string>(out var stringValue) && DateTime.TryParse(stringValue, out var parsed) => parsed,
+            JsonValue value when value.TryGetValue<DateTime>(out var dateTime) => ConnectorTimestamp.ToUtc(dateTime),
+            JsonValue value when value.TryGetValue<string>(out var stringValue) && ConnectorTimestamp.ParseUtc(stringValue) is { } parsed => parsed,
             _ => DateTime.UtcNow
         };
     }

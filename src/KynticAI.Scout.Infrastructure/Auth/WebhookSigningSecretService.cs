@@ -83,6 +83,16 @@ public sealed class WebhookSigningSecretService(
 
     public async Task<WebhookSignatureValidationResult> ValidateAsync(string tenantSlug, string? workspaceSlug, string secretId, string candidateSecret, string timestamp, string eventId, string body, string signature, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(tenantSlug)
+            || string.IsNullOrWhiteSpace(secretId)
+            || string.IsNullOrWhiteSpace(candidateSecret)
+            || string.IsNullOrWhiteSpace(timestamp)
+            || string.IsNullOrWhiteSpace(eventId)
+            || string.IsNullOrWhiteSpace(signature))
+        {
+            return new WebhookSignatureValidationResult(false, "invalid_request");
+        }
+
         var tenant = await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == tenantSlug.Trim().ToLowerInvariant(), cancellationToken);
         if (tenant is null)
         {
@@ -105,13 +115,15 @@ public sealed class WebhookSigningSecretService(
             return new WebhookSignatureValidationResult(false, "workspace_mismatch", tenant.Id, workspace?.Id, secretId);
         }
 
-        if (!passwordHashingService.VerifyPassword(candidateSecret.Trim(), secret.SecretHash))
+        var trimmedSecret = candidateSecret.Trim();
+        if (!passwordHashingService.VerifyPassword(trimmedSecret, secret.SecretHash))
         {
             await AuditValidationAsync(tenant.Id, workspace?.Id, secretId, "webhook.signature.rejected", "bad_secret", cancellationToken);
             return new WebhookSignatureValidationResult(false, "bad_secret", tenant.Id, workspace?.Id, secretId);
         }
 
-        if (!IsFresh(timestamp))
+        var utcNow = timeProvider.GetUtcNow();
+        if (!IsFresh(timestamp, utcNow))
         {
             await AuditValidationAsync(tenant.Id, workspace?.Id, secretId, "webhook.signature.rejected", "expired_timestamp", cancellationToken);
             return new WebhookSignatureValidationResult(false, "expired_timestamp", tenant.Id, workspace?.Id, secretId);
@@ -123,15 +135,14 @@ public sealed class WebhookSigningSecretService(
             return new WebhookSignatureValidationResult(false, "replayed_event_id", tenant.Id, workspace?.Id, secretId);
         }
 
-        if (!VerifyHmac(candidateSecret.Trim(), timestamp, eventId, body, signature))
+        if (!VerifyHmac(trimmedSecret, timestamp, eventId, body ?? string.Empty, signature))
         {
             await AuditValidationAsync(tenant.Id, workspace?.Id, secretId, "webhook.signature.rejected", "bad_signature", cancellationToken);
             return new WebhookSignatureValidationResult(false, "bad_signature", tenant.Id, workspace?.Id, secretId);
         }
 
-        secret.MarkUsed(timeProvider.GetUtcNow().UtcDateTime);
+        secret.MarkUsed(utcNow.UtcDateTime);
         await AuditValidationAsync(tenant.Id, workspace?.Id, secretId, "webhook.signature.accepted", "accepted", cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
         return new WebhookSignatureValidationResult(true, "accepted", tenant.Id, workspace?.Id, secretId);
     }
 
@@ -149,6 +160,11 @@ public sealed class WebhookSigningSecretService(
 
     private async Task<Tenant> GetTenantForActorAsync(string tenantSlug, ActorContext actor, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(tenantSlug))
+        {
+            throw new InvalidOperationException("Tenant slug is required.");
+        }
+
         var normalizedSlug = tenantSlug.Trim().ToLowerInvariant();
         var tenant = await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == normalizedSlug, cancellationToken)
             ?? throw new InvalidOperationException($"Tenant '{tenantSlug}' was not found.");
@@ -190,13 +206,16 @@ public sealed class WebhookSigningSecretService(
 
     public static bool VerifyLegacyApiKeyHmac(string apiKey, string timestamp, string body, string signature)
     {
-        if (!IsFresh(timestamp))
+        if (string.IsNullOrWhiteSpace(apiKey)
+            || string.IsNullOrWhiteSpace(timestamp)
+            || string.IsNullOrWhiteSpace(signature)
+            || !IsFresh(timestamp, TimeProvider.System.GetUtcNow()))
         {
             return false;
         }
 
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(apiKey.Trim()));
-        var expected = "sha256=" + Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes($"{timestamp}.{body}"))).ToLowerInvariant();
+        var expected = "sha256=" + Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes($"{timestamp}.{body ?? string.Empty}"))).ToLowerInvariant();
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(signature.Trim().ToLowerInvariant()));
     }
 
@@ -207,9 +226,9 @@ public sealed class WebhookSigningSecretService(
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(signature.Trim().ToLowerInvariant()));
     }
 
-    private static bool IsFresh(string timestamp) =>
+    internal static bool IsFresh(string timestamp, DateTimeOffset utcNow) =>
         DateTimeOffset.TryParse(timestamp, out var parsedTimestamp)
-        && Math.Abs((DateTimeOffset.UtcNow - parsedTimestamp.ToUniversalTime()).TotalMinutes) <= 5;
+        && Math.Abs((utcNow - parsedTimestamp.ToUniversalTime()).TotalMinutes) <= 5;
 
     private static string GenerateSecret()
     {

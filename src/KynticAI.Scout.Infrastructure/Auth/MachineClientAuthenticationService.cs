@@ -16,23 +16,31 @@ public sealed class MachineClientAuthenticationService(
     ScoutDbContext dbContext,
     PasswordHashingService passwordHashingService)
 {
+    private const string InvalidCredentialsMessage = "Invalid client credentials.";
+
     public async Task<MachineTokenResult> AuthenticateAsync(
         string clientId,
         string clientSecret,
         string? requestedScope,
         CancellationToken cancellationToken)
     {
+        var normalizedClientId = clientId?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedClientId) || string.IsNullOrWhiteSpace(clientSecret))
+        {
+            throw new InvalidOperationException(InvalidCredentialsMessage);
+        }
+
         var persistedClient = await dbContext.ApiClients
             .AsTracking()
             .Include(x => x.Tenant)
             .Include(x => x.Workspace)
-            .FirstOrDefaultAsync(candidate => candidate.ClientId == clientId.Trim(), cancellationToken);
+            .FirstOrDefaultAsync(candidate => candidate.ClientId == normalizedClientId, cancellationToken);
         if (persistedClient is not null)
         {
             if (persistedClient.Status != ApiClientStatus.Active
                 || !passwordHashingService.VerifyPassword(clientSecret, persistedClient.SecretHash))
             {
-                throw new InvalidOperationException("Invalid client credentials.");
+                throw new InvalidOperationException(InvalidCredentialsMessage);
             }
 
             var configuredScopes = DeserializeScopes(persistedClient.ScopesJson);
@@ -71,18 +79,23 @@ public sealed class MachineClientAuthenticationService(
 
         var authOptions = options.Value;
         var machineClient = authOptions.MachineClients.FirstOrDefault(candidate =>
-            string.Equals(candidate.ClientId, clientId.Trim(), StringComparison.Ordinal));
+            string.Equals(candidate.ClientId, normalizedClientId, StringComparison.Ordinal));
 
-        if (machineClient is null || !SecretsMatch(machineClient.ClientSecret, clientSecret))
+        if (machineClient is null
+            || string.IsNullOrWhiteSpace(machineClient.TenantSlug)
+            || !SecretsMatch(machineClient.ClientSecret, clientSecret))
         {
-            throw new InvalidOperationException("Invalid client credentials.");
+            throw new InvalidOperationException(InvalidCredentialsMessage);
         }
 
         var tenantSlug = machineClient.TenantSlug.Trim().ToLowerInvariant();
         var tenant = await dbContext.Tenants
             .AsNoTracking()
-            .FirstOrDefaultAsync(candidate => candidate.Slug == tenantSlug, cancellationToken)
-            ?? throw new InvalidOperationException($"Tenant '{machineClient.TenantSlug}' was not found for machine client '{machineClient.ClientId}'.");
+            .FirstOrDefaultAsync(candidate => candidate.Slug == tenantSlug, cancellationToken);
+        if (tenant is null)
+        {
+            throw new InvalidOperationException(InvalidCredentialsMessage);
+        }
 
         var grantedScopes = ResolveGrantedScopes(machineClient.Scopes, requestedScope);
         var token = jwtTokenService.CreateMachineToken(tenant, machineClient, grantedScopes);
@@ -146,13 +159,12 @@ public sealed class MachineClientAuthenticationService(
 
     private static IReadOnlyList<string> ResolveGrantedScopes(IReadOnlyList<string> configuredScopes, string? requestedScope)
     {
-        var normalizedConfigured = ApiScopes.Normalize(configuredScopes).ToList();
-
-        if (normalizedConfigured.Count == 0)
+        if (configuredScopes.Count == 0)
         {
             return [];
         }
 
+        var normalizedConfigured = ApiScopes.Normalize(configuredScopes).ToList();
         if (string.IsNullOrWhiteSpace(requestedScope))
         {
             return normalizedConfigured;
@@ -166,7 +178,7 @@ public sealed class MachineClientAuthenticationService(
 
         if (requested.Any(scope => !normalizedConfigured.Contains(scope, StringComparer.Ordinal)))
         {
-            throw new InvalidOperationException("Requested scope is not allowed for this client.");
+            throw new InvalidOperationException(InvalidCredentialsMessage);
         }
 
         return requested;

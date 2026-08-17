@@ -19,28 +19,94 @@ internal sealed class ContextRecomputeProcessor(
 {
     public async Task ProcessAsync(ContextRecomputeRequest request, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var tenant = await dbContext.Tenants.FirstAsync(x => x.Id == request.TenantId, cancellationToken);
-        var user = await dbContext.UserProfiles.FirstAsync(x => x.Id == request.UserProfileId, cancellationToken);
+        var user = await dbContext.UserProfiles.FirstAsync(
+            x => x.Id == request.UserProfileId && x.TenantId == request.TenantId,
+            cancellationToken);
         var recomputeJob = await dbContext.RecomputeJobs
             .FirstOrDefaultAsync(x => x.TenantId == request.TenantId && x.CorrelationId == request.CorrelationId, cancellationToken);
-        recomputeJob?.MarkRunning(clock.UtcNow);
         if (recomputeJob is not null)
         {
+            if (recomputeJob.Status is RecomputeJobStatus.Completed or RecomputeJobStatus.Failed)
+            {
+                return;
+            }
+
+            if (recomputeJob.UserProfileId != request.UserProfileId)
+            {
+                recomputeJob.MarkFailed(
+                    "Persisted recompute job does not match the queued user.",
+                    JsonSerializer.Serialize(new { request.CorrelationId, request.UserProfileId }),
+                    clock.UtcNow);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException("Recompute request does not match its persisted job.");
+            }
+
+            recomputeJob.MarkRunning(clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        var requestedExecutionIds = request.SelectorExecutionIds.Distinct().ToList();
         var executions = await dbContext.SelectorExecutions
             .Include(x => x.SelectorDefinition)
                 .ThenInclude(x => x.TargetAttributeDefinition)
             .Include(x => x.SelectorDefinition)
                 .ThenInclude(x => x.DataSource)
-            .Where(x => request.SelectorExecutionIds.Contains(x.Id))
+            .Where(x => x.TenantId == request.TenantId
+                && x.UserProfileId == request.UserProfileId
+                && requestedExecutionIds.Contains(x.Id))
             .OrderBy(x => x.RequestedAtUtc)
             .ToListAsync(cancellationToken);
+
+        if (executions.Count != requestedExecutionIds.Count)
+        {
+            recomputeJob?.MarkFailed(
+                "One or more selector executions are missing or do not belong to this recompute job.",
+                JsonSerializer.Serialize(new
+                {
+                    request.CorrelationId,
+                    requested = requestedExecutionIds.Count,
+                    resolved = executions.Count
+                }),
+                clock.UtcNow);
+            if (recomputeJob is not null)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            throw new InvalidOperationException("Recompute request references missing or mismatched selector executions.");
+        }
 
         var successfulFacts = new List<SelectorCandidateFact>();
         foreach (var execution in executions)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (execution.Status == SelectorExecutionStatus.Succeeded)
+            {
+                var restored = RestoreSuccessfulCandidate(execution);
+                if (restored is null)
+                {
+                    execution.MarkFailed(
+                        "Persisted successful selector execution is missing or contains invalid result state.",
+                        execution.RawSourceDataJson,
+                        execution.ValidationErrorsJson,
+                        execution.PipelineTraceJson,
+                        clock.UtcNow);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    successfulFacts.Add(restored);
+                }
+                continue;
+            }
+
+            if (execution.Status == SelectorExecutionStatus.Failed)
+            {
+                continue;
+            }
+
             execution.MarkRunning(clock.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -60,6 +126,7 @@ internal sealed class ContextRecomputeProcessor(
 
             var runtimeContext = new SelectorRuntimeContext(selector, dataSource, selector.TargetAttributeDefinition);
             var outcome = await selectorExecutionEngine.ExecuteAsync(runtimeContext, user, execution.ExecutionMode, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (outcome.IsSuccess && outcome.CandidateFact is { } candidateFact)
             {
                 execution.MarkSucceeded(
@@ -203,6 +270,37 @@ internal sealed class ContextRecomputeProcessor(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private static SelectorCandidateFact? RestoreSuccessfulCandidate(SelectorExecution execution)
+    {
+        if (execution.Status != SelectorExecutionStatus.Succeeded
+            || execution.ResultObservedAtUtc is not { } observedAtUtc
+            || string.IsNullOrWhiteSpace(execution.ResultValueJson)
+            || string.IsNullOrWhiteSpace(execution.ResultProvenanceJson)
+            || !IsValidJson(execution.ResultValueJson))
+        {
+            return null;
+        }
+
+        var selector = execution.SelectorDefinition;
+        var target = selector.TargetAttributeDefinition;
+        return new SelectorCandidateFact(
+            selector.Id,
+            target.Id,
+            target.Key,
+            execution.ResultValueJson,
+            execution.ResultValueType,
+            execution.ResultConfidence,
+            observedAtUtc,
+            observedAtUtc.AddMinutes(selector.FreshnessWindowMinutes),
+            execution.ResultExplanation,
+            execution.ResultProvenanceJson,
+            execution.RawSourceDataJson,
+            execution.RawSourceDataJson,
+            execution.ValidationErrorsJson,
+            execution.PipelineTraceJson,
+            selector.Priority);
+    }
+
     private static ProvenanceMetadata CreateProvenanceRecord(
         Guid tenantId,
         Guid? selectorExecutionId,
@@ -213,14 +311,17 @@ internal sealed class ContextRecomputeProcessor(
         string provenanceJson)
     {
         var sourceSystem = "unknown";
-        if (JsonNode.Parse(provenanceJson) is JsonObject provenanceObject)
+        try
         {
-            sourceSystem =
-                provenanceObject["connectorType"]?.GetValue<string>()
-                ?? provenanceObject["source"]?["source"]?.GetValue<string>()
-                ?? provenanceObject["source"]?.AsArray().FirstOrDefault()?["source"]?.GetValue<string>()
-                ?? provenanceObject["selector"]?["name"]?.GetValue<string>()
-                ?? sourceSystem;
+            if (JsonNode.Parse(provenanceJson) is JsonObject provenanceObject)
+            {
+                sourceSystem = ResolveSourceSystem(provenanceObject) ?? sourceSystem;
+            }
+        }
+        catch (JsonException)
+        {
+            // Retain the original provenance even when older/corrupt metadata cannot be parsed for
+            // the convenience source-system field. Provenance parsing must not lose the recompute.
         }
 
         return ProvenanceMetadata.Create(
@@ -233,6 +334,58 @@ internal sealed class ContextRecomputeProcessor(
             provenanceJson,
             observedAtUtc,
             observedAtUtc);
+    }
+
+    private static string? ResolveSourceSystem(JsonObject provenance)
+    {
+        if (TryGetString(provenance["connectorType"], out var connectorType))
+        {
+            return connectorType;
+        }
+
+        if (provenance["source"] is JsonObject sourceObject
+            && TryGetString(sourceObject["source"], out var objectSource))
+        {
+            return objectSource;
+        }
+
+        if (provenance["source"] is JsonArray sourceArray)
+        {
+            foreach (var sourceNode in sourceArray)
+            {
+                if (sourceNode is JsonObject item
+                    && TryGetString(item["source"], out var arraySource))
+                {
+                    return arraySource;
+                }
+            }
+        }
+
+        return provenance["selector"] is JsonObject selector
+            && TryGetString(selector["name"], out var selectorName)
+                ? selectorName
+                : null;
+    }
+
+    private static bool TryGetString(JsonNode? node, out string value)
+    {
+        value = string.Empty;
+        return node is JsonValue jsonValue
+            && jsonValue.TryGetValue<string>(out value)
+            && !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool IsValidJson(string value)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<SelectorCandidateFact> ResolveConflicts(IReadOnlyList<SelectorCandidateFact> candidates)
@@ -263,7 +416,19 @@ internal sealed class ContextRecomputeProcessor(
 
     private static string AppendConflictResolution(string provenanceJson, IReadOnlyList<SelectorCandidateFact> candidates)
     {
-        var provenance = JsonNode.Parse(provenanceJson) as JsonObject ?? new JsonObject();
+        JsonObject provenance;
+        try
+        {
+            provenance = JsonNode.Parse(provenanceJson) as JsonObject ?? new JsonObject();
+        }
+        catch (JsonException)
+        {
+            provenance = new JsonObject
+            {
+                ["unparsedOriginalProvenance"] = provenanceJson
+            };
+        }
+
         provenance["conflictResolution"] = JsonSerializer.SerializeToNode(new
         {
             strategy = "priority-confidence-observedAt",

@@ -1,8 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json.Nodes;
+using KynticAI.Scout.Infrastructure.Auth;
 using KynticAI.Scout.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,9 +15,6 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Text;
 
 namespace KynticAI.Scout.IntegrationTests;
 
@@ -42,7 +42,7 @@ public sealed class BackendOnlyModeIntegrationTests
     }
 
     [Fact]
-    public async Task MachineClientToken_CanCallRestAndGraphQl_InBackendOnlyMode()
+    public async Task MachineClientToken_IsScopeBound_AndCannotInheritConfiguredHumanRole()
     {
         await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
         using var client = factory.CreateClient();
@@ -59,21 +59,28 @@ public sealed class BackendOnlyModeIntegrationTests
         var tokenPayload = JsonNode.Parse(await tokenResponse.Content.ReadAsStringAsync())!.AsObject();
         var accessToken = tokenPayload["accessToken"]!.GetValue<string>();
         var token = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+        var roles = token.Claims
+            .Where(claim => claim.Type is "role" || claim.Type == ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
 
         Assert.Equal("client:svc-demo-admin", token.Subject);
         Assert.Equal("demo", token.Claims.Single(claim => claim.Type == "tenant_slug").Value);
         Assert.Equal("svc-demo-admin", token.Claims.Single(claim => claim.Type == "client_id").Value);
+        Assert.Contains(RoleNames.ApiClient, roles);
+        Assert.DoesNotContain("tenant_admin", roles);
+        Assert.Equal("context:read context:write", token.Claims.Single(claim => claim.Type == "scope").Value);
 
-        AuthenticateAsMachineClient(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        var restResponse = await client.GetAsync("/api/rest/connectors/plugins");
-        Assert.Equal(HttpStatusCode.OK, restResponse.StatusCode);
+        var v1Response = await client.GetAsync("/api/v1/workspaces?tenantSlug=demo");
+        Assert.Equal(HttpStatusCode.OK, v1Response.StatusCode);
 
         var graphQlResponse = await client.PostAsJsonAsync("/graphql", new
         {
             query = """
-                query MachineClientPlugins {
-                  connectorPlugins {
+                query MachineClientCatalogue {
+                  connectorCatalogue {
                     connectorType
                   }
                 }
@@ -81,30 +88,85 @@ public sealed class BackendOnlyModeIntegrationTests
         });
         Assert.Equal(HttpStatusCode.OK, graphQlResponse.StatusCode);
         var graphQlPayload = JsonNode.Parse(await graphQlResponse.Content.ReadAsStringAsync())!.AsObject();
-        Assert.True(graphQlPayload["data"]?["connectorPlugins"]?.AsArray().Count > 0);
+        Assert.True(graphQlPayload["data"]?["connectorCatalogue"]?.AsArray().Count > 0);
+
+        var legacyRestResponse = await client.GetAsync("/api/rest/connectors/plugins");
+        Assert.Equal(HttpStatusCode.Forbidden, legacyRestResponse.StatusCode);
     }
 
-    private static void AuthenticateAsMachineClient(HttpClient client)
+    [Fact]
+    public async Task MachineClientToken_MalformedJson_ReturnsBoundedBadRequest()
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("scout-tests-signing-key-1234567890"));
-        var token = new JwtSecurityToken(
-            issuer: "KynticAI.Scout.Tests",
-            audience: "KynticAI.Scout.Tests",
-            claims:
-            [
-                new Claim(JwtRegisteredClaimNames.Sub, "client:svc-demo-admin"),
-                new Claim(ClaimTypes.NameIdentifier, "client:svc-demo-admin"),
-                new Claim("client_id", "svc-demo-admin"),
-                new Claim("tenant_slug", "demo"),
-                new Claim("display_name", "Demo Service Client"),
-                new Claim(ClaimTypes.Email, "svc-demo-admin@machines.scout.local"),
-                new Claim(JwtRegisteredClaimNames.Email, "svc-demo-admin@machines.scout.local"),
-                new Claim(ClaimTypes.Role, "tenant_admin")
-            ],
-            expires: DateTime.UtcNow.AddHours(1),
-            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{\"grantType\":", Encoding.UTF8, "application/json");
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(token));
+        var response = await client.PostAsync("/api/auth/token", content);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("missing or malformed", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("JsonException", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("byte position", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("", "SvcSecret123!")]
+    [InlineData("svc-demo-admin", "")]
+    public async Task MachineClientToken_MissingCredentials_ReturnsBadRequest(string clientId, string clientSecret)
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId,
+            clientSecret
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MachineClientToken_BadCredentials_DoNotExposeConfiguredClientDetails()
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId = "unknown-client",
+            clientSecret = "wrong-secret"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("Client authentication failed", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("demo", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("svc-demo-admin", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MachineClientToken_DisallowedScope_FailsClosedWithoutScopePolicyDetails()
+    {
+        await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: true);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/token", new
+        {
+            grantType = "client_credentials",
+            clientId = "svc-demo-admin",
+            clientSecret = "SvcSecret123!",
+            scope = "admin:manage"
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("Client authentication failed", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Requested scope", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("admin:manage", body, StringComparison.Ordinal);
     }
 
     private sealed class BackendOnlyWebApplicationFactory(bool seedDemoData) : WebApplicationFactory<Program>
@@ -133,9 +195,12 @@ public sealed class BackendOnlyModeIntegrationTests
                     ["Auth:MachineClients:0:ClientSecret"] = "SvcSecret123!",
                     ["Auth:MachineClients:0:TenantSlug"] = "demo",
                     ["Auth:MachineClients:0:DisplayName"] = "Demo Service Client",
+                    // Deliberately hostile legacy configuration: machine tokens must ignore this
+                    // human role and always be issued as api_client identities.
                     ["Auth:MachineClients:0:Role"] = "tenant_admin",
                     ["Auth:MachineClients:0:Scopes:0"] = "context:read",
                     ["Auth:MachineClients:0:Scopes:1"] = "context:write",
+                    ["RateLimits:AuthPermitLimit"] = "100",
                     ["Telemetry:OtlpEndpoint"] = string.Empty
                 };
 

@@ -29,6 +29,7 @@ public static class ProductionEnvironmentReadinessValidator
         var bootstrap = configuration.GetSection(BootstrapOptions.SectionName).Get<BootstrapOptions>() ?? new BootstrapOptions();
         var dataProtection = configuration.GetSection(DataProtectionKeyOptions.SectionName).Get<DataProtectionKeyOptions>() ?? new DataProtectionKeyOptions();
         var auth = configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
+        var controlPlane = configuration.GetSection(ControlPlaneOptions.SectionName).Get<ControlPlaneOptions>() ?? new ControlPlaneOptions();
         var productionShapeRequired = environment.IsProduction()
             || string.Equals(platform.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
 
@@ -42,6 +43,7 @@ public static class ProductionEnvironmentReadinessValidator
             DemoExperienceCheck(featureFlags, productionShapeRequired),
             DataProtectionCheck(dataProtection, productionShapeRequired),
             AuthSigningKeyCheck(auth, productionShapeRequired),
+            ControlPlaneTransportCheck(controlPlane, productionShapeRequired),
             OpenApiExposureCheck(platform, productionShapeRequired),
             CorsOriginsCheck(configuration, productionShapeRequired),
             SecurityHeadersCheck(configuration, productionShapeRequired)
@@ -195,6 +197,43 @@ public static class ProductionEnvironmentReadinessValidator
             : Check("auth-signing-key", Blocked, true, $"Auth:SigningKey must be a non-placeholder secret of at least {minimumLength} characters.", "missing-placeholder-or-short");
     }
 
+    private static ProductionReadinessCheck ControlPlaneTransportCheck(ControlPlaneOptions controlPlane, bool required)
+    {
+        if (!controlPlane.Enabled)
+        {
+            return Check("control-plane-transport", Ready, false, "Cloud control-plane checks are disabled.", "disabled");
+        }
+
+        if (!Uri.TryCreate(controlPlane.BaseUrl?.Trim(), UriKind.Absolute, out var baseUri)
+            || (baseUri.Scheme != Uri.UriSchemeHttps && baseUri.Scheme != Uri.UriSchemeHttp)
+            || string.IsNullOrWhiteSpace(baseUri.Host))
+        {
+            return Check(
+                "control-plane-transport",
+                required ? Blocked : Warning,
+                required,
+                "ControlPlane:BaseUrl must be an absolute HTTP(S) URI when the control plane is enabled.",
+                "invalid-base-url");
+        }
+
+        if (required && baseUri.Scheme != Uri.UriSchemeHttps)
+        {
+            return Check(
+                "control-plane-transport",
+                Blocked,
+                true,
+                "ControlPlane:BaseUrl must use HTTPS for production-style deployments.",
+                "insecure-http");
+        }
+
+        return Check(
+            "control-plane-transport",
+            Ready,
+            required,
+            required ? "Control-plane entitlement transport uses HTTPS." : "Control-plane endpoint is configured for this non-production environment.",
+            baseUri.Scheme);
+    }
+
     private static ProductionReadinessCheck OpenApiExposureCheck(PlatformOptions platform, bool required)
     {
         if (!required)
@@ -225,14 +264,12 @@ public static class ProductionEnvironmentReadinessValidator
             return Check("cors-origins", Blocked, true, "Cors:AllowedOrigins must list exact production origins.", "(missing)");
         }
 
-        if (normalised.Any(origin => origin == "*" || origin.Contains('*', StringComparison.Ordinal)))
+        foreach (var origin in normalised)
         {
-            return Check("cors-origins", Blocked, true, "Cors:AllowedOrigins must not contain wildcards.", "wildcard");
-        }
-
-        if (normalised.Any(IsInsecureProductionOrigin))
-        {
-            return Check("cors-origins", Blocked, true, "Production CORS origins must use HTTPS except explicit localhost development values.", "insecure-origin");
+            if (!CorsOriginValidator.TryValidate(origin, hostedMode: true, out var error))
+            {
+                return Check("cors-origins", Blocked, true, $"Cors:AllowedOrigins contains an invalid production origin: {error}.", "invalid-origin");
+            }
         }
 
         return Check("cors-origins", Ready, true, "Exact HTTPS CORS origins are configured.", string.Join(',', normalised));
@@ -282,9 +319,4 @@ public static class ProductionEnvironmentReadinessValidator
         || value.Contains(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase)
         || value.Contains("/tmp/", StringComparison.OrdinalIgnoreCase)
         || value.Contains("\\Temp\\", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsInsecureProductionOrigin(string origin) =>
-        origin.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-        && !origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-        && !origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
 }

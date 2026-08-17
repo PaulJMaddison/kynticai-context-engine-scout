@@ -11,6 +11,21 @@ public static class RestEndpointRouteBuilderExtensions
     {
         var restGroup = endpoints.MapGroup("/api/rest")
             .RequireAuthorization();
+        restGroup.AddEndpointFilter(async (context, next) =>
+        {
+            // The legacy REST surface predates machine-client scopes. Keep it available to human
+            // operators for compatibility, but require machine clients to use the scoped /api/v1
+            // contract instead of silently bypassing their declared scopes here.
+            if (context.HttpContext.User.FindFirst("client_id") is not null)
+            {
+                return Results.Problem(
+                    title: "Legacy API is not available to machine clients",
+                    detail: "Use the scoped /api/v1 endpoints for machine-to-machine access.",
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            return await next(context);
+        });
 
         var tenantAdminGroup = restGroup.MapGroup(string.Empty)
             .RequireAuthorization(policy => policy.RequireRole(RoleNames.PlatformOwner, RoleNames.TenantAdmin, RoleNames.IntegrationAdmin));

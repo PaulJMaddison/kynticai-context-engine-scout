@@ -7,7 +7,6 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "kyntic-discovery-mcp": "./dist/kyntic-discovery-mcp.js",
     "kyntic-discovery-agent": "./dist/index.js",
     "discovery-agent": "./dist/index.js"
   },
@@ -21,14 +20,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "prebuild": "npm --prefix ../../packages/typescript/scout-discovery-mcp install --no-save --no-package-lock && npm --prefix ../../packages/typescript/scout-discovery-mcp run build",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "start": "node dist/index.js",
     "smoke:tier1": "node dist/index.js --path ../.. --tier 1"
   },
   "dependencies": {
-    "@kynticai/scout-discovery-mcp": "file:../../packages/typescript/scout-discovery-mcp",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.25.76"
   },

@@ -43,7 +43,6 @@ public static class ApiScopes
             .Where(scope => !string.IsNullOrWhiteSpace(scope))
             .Select(Normalize)
             .Distinct(StringComparer.Ordinal)
-            .DefaultIfEmpty(ContextRead)
             .ToList();
 
     public static string Normalize(string scope)

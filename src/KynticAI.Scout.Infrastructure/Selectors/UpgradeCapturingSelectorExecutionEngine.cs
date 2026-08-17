@@ -22,6 +22,10 @@ internal sealed class UpgradeCapturingSelectorExecutionEngine(
         CancellationToken cancellationToken)
     {
         var outcome = await inner.ExecuteAsync(runtimeContext, userProfile, mode, cancellationToken);
+        // The inner engine converts ordinary connector exceptions into a failed pipeline outcome.
+        // Cancellation is different: shutdown/request abort must remain cancellation so callers do
+        // not persist a false business failure or source-capture record for interrupted work.
+        cancellationToken.ThrowIfCancellationRequested();
         await sourceCaptureJournal.CaptureSelectorOutcomeAsync(
             runtimeContext,
             userProfile,
@@ -31,11 +35,15 @@ internal sealed class UpgradeCapturingSelectorExecutionEngine(
         return outcome;
     }
 
-    public Task<SelectorPipelineOutcome> ValidateAsync(
+    public async Task<SelectorPipelineOutcome> ValidateAsync(
         SelectorRuntimeContext runtimeContext,
         UserProfile? userProfile,
         CancellationToken cancellationToken)
-        => inner.ValidateAsync(runtimeContext, userProfile, cancellationToken);
+    {
+        var outcome = await inner.ValidateAsync(runtimeContext, userProfile, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return outcome;
+    }
 
     public async Task<IReadOnlyList<SelectorPipelineOutcome>> ExecuteSelectorsAsync(
         IReadOnlyList<SelectorRuntimeContext> runtimeContexts,
@@ -46,6 +54,7 @@ internal sealed class UpgradeCapturingSelectorExecutionEngine(
         var outcomes = new List<SelectorPipelineOutcome>(runtimeContexts.Count);
         foreach (var runtimeContext in runtimeContexts)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             outcomes.Add(await ExecuteAsync(runtimeContext, userProfile, mode, cancellationToken));
         }
         return outcomes;
