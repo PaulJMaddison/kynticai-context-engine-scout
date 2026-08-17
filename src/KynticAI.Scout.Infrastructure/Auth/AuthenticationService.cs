@@ -186,8 +186,8 @@ public sealed record LoginResult(
 public sealed record AuthenticatedOperator(
     Guid TenantId,
     string TenantSlug,
-    Guid? WorkspaceSlug,
-    string? WorkspaceSlugValue,
+    Guid? WorkspaceId,
+    string? WorkspaceSlug,
     Guid OperatorAccountId,
     string Email,
     string DisplayName,
