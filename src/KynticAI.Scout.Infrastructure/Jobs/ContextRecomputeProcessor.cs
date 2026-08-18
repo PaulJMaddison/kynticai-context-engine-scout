@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -367,12 +368,18 @@ internal sealed class ContextRecomputeProcessor(
                 : null;
     }
 
-    private static bool TryGetString(JsonNode? node, out string value)
+    private static bool TryGetString(JsonNode? node, [NotNullWhen(true)] out string? value)
     {
-        value = string.Empty;
-        return node is JsonValue jsonValue
-            && jsonValue.TryGetValue<string>(out value)
-            && !string.IsNullOrWhiteSpace(value);
+        if (node is JsonValue jsonValue
+            && jsonValue.TryGetValue<string>(out var parsed)
+            && !string.IsNullOrWhiteSpace(parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
     private static bool IsValidJson(string value)

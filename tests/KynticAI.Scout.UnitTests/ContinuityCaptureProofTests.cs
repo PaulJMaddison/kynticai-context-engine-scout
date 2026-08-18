@@ -607,7 +607,7 @@ public sealed class ContinuityCaptureProofTests
             await fixture._opsConnection.OpenAsync();
             fixture.Scout = new ScoutDbContext(new DbContextOptionsBuilder<ScoutDbContext>()
                 .UseSqlite(fixture._scoutConnection)
-                .Options);
+                .Options, fixture.Clock);
             fixture.Ops = new CustomerOpsDbContext(new DbContextOptionsBuilder<CustomerOpsDbContext>()
                 .UseSqlite(fixture._opsConnection)
                 .Options);
@@ -761,14 +761,15 @@ public sealed class ContinuityCaptureProofTests
                 command.ExecuteNonQuery();
             }
 
+            var clock = new TestClock();
             var scout = new ScoutDbContext(new DbContextOptionsBuilder<ScoutDbContext>()
                 .UseSqlite(sqlite)
-                .Options);
+                .Options, clock);
             scout.Database.EnsureCreated();
             scout.Dispose();
 
             var connector = new SqlFullSourceCaptureConnector(
-                new ScoutDbContext(new DbContextOptionsBuilder<ScoutDbContext>().UseSqlite(sqlite).Options),
+                new ScoutDbContext(new DbContextOptionsBuilder<ScoutDbContext>().UseSqlite(sqlite).Options, clock),
                 new CustomerOpsDbContext(new DbContextOptionsBuilder<CustomerOpsDbContext>().UseSqlite(sqlite).Options));
             return new ConnectorFixture(installation, dataSource, configuration, sqlite, connector);
         }

@@ -6,13 +6,15 @@ using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Saas;
+using KynticAI.Scout.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace KynticAI.Scout.Infrastructure.Persistence;
 
-public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
+public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options, IClock? clock = null)
     : DbContext(options), IScoutDbContext
 {
+    private readonly IClock _clock = clock ?? SystemClock.Instance;
     private static readonly TimeSpan CaptureLeaseRenewalDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan CaptureLeaseRenewalThreshold = TimeSpan.FromMinutes(2);
 
@@ -99,7 +101,7 @@ public sealed class ScoutDbContext(DbContextOptions<ScoutDbContext> options)
     /// </summary>
     private void PrepareCaptureLeaseRenewals()
     {
-        var utcNow = DateTime.UtcNow;
+        var utcNow = _clock.UtcNow;
         foreach (var entry in ChangeTracker.Entries<ConnectorCaptureCheckpoint>())
         {
             var checkpoint = entry.Entity;

@@ -145,6 +145,7 @@ describe('contract parity checker', () => {
       'HealthCheck',
       'ConfigurationValidation',
       'SecureCredentialStorage',
+      'UpgradeCompatibleCapture',
     ])
   })
 
