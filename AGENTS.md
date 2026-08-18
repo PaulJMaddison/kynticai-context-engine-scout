@@ -44,6 +44,14 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - Do not publish releases, tags, packages, or public deployment changes without explicit approval.
 - Do not introduce telemetry that sends customer data to third parties.
 
+## Git Safety — Mandatory for All Agents
+
+- Work only on the branch the user provides or explicitly authorises. Preserve all existing and unrelated changes.
+- Never run `git stash`, `git stash drop`, `git reset --hard`, `git clean`, branch deletion, force checkout (`git checkout -f` or equivalent), force push (`--force` or `--force-with-lease`), or any other destructive Git operation.
+- If Git state prevents safe continuation, stop and report the exact current branch and `git status` instead of attempting to repair Git state autonomously.
+- Never reconstruct lost or uncommitted code from conversational memory. If changes appear to have been lost, stop immediately and report the exact Git state; preserve recoverable objects rather than recreating work from memory.
+- Never discard, overwrite, or rewrite uncommitted work unless the user explicitly directs that exact action.
+
 ## Commercial Quality Bar
 
 - Every implementation must be commercial-standard code: real behaviour, typed errors, compatibility-aware public contracts, safe defaults, and focused tests for the changed behaviour.
