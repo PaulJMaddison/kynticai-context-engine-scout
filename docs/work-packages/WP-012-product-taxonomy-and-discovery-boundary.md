@@ -89,6 +89,6 @@ At minimum inspect and reconcile:
 
 ## Verification
 
-Run public-safe text/reference checks and docs builds. For final executable sign-off, follow `LOCAL_VALIDATION.md`; when workstation constraints prevent complete validation, use the disposable GCP exact-SHA gate in `docs/testing/gcp-precloud-validation.md`.
+Run public-safe text/reference checks and docs builds. For executable sign-off, follow `LOCAL_VALIDATION.md`. If a required local dependency is unavailable, record that proof as blocked rather than provisioning cloud infrastructure.
 
 Report every intentionally retained legacy term and why it cannot be removed.
