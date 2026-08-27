@@ -40,7 +40,7 @@ Do not perform gratuitous moves that create package churn without improving clar
 4. Add top-level README/AGENTS guidance explaining the categories.
 5. Update solution/project/package references after any move.
 6. Preserve package names unless a separate compatibility decision requires change.
-7. Verify build scripts and GCP validation discover every moved package.
+7. Verify normal local build/test scripts discover every moved package.
 8. Remove obsolete duplicate assets/packages only when equivalence is proven.
 
 ## Acceptance criteria
@@ -53,4 +53,4 @@ Do not perform gratuitous moves that create package churn without improving clar
 
 ## Verification
 
-Full repository tree/build/test/package validation, including docs-site and all TypeScript packages. Use the exact-SHA GCP gate for final sign-off if moves are substantial.
+Full local repository tree/build/test/package validation, including docs-site and all TypeScript packages.
