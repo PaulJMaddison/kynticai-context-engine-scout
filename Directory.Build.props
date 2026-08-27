@@ -9,10 +9,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Version>2.10.0</Version>
-    <AssemblyVersion>2.10.0.0</AssemblyVersion>
-    <FileVersion>2.10.0.0</FileVersion>
-    <InformationalVersion>2.10.0</InformationalVersion>
+    <Version>2.11.0</Version>
+    <AssemblyVersion>2.11.0.0</AssemblyVersion>
+    <FileVersion>2.11.0.0</FileVersion>
+    <InformationalVersion>2.11.0</InformationalVersion>
     <Product>KynticAI Scout</Product>
     <Authors>KynticAI</Authors>
     <Company>KynticAI</Company>
@@ -22,6 +22,6 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/PaulJMaddison/kynticai-context-engine-scout</PackageProjectUrl>
     <PackageTags>context-infrastructure;graphql;rest;dotnet;react;semantic-layer;context-engineering;open-core</PackageTags>
-    <PackageReleaseNotes>2.10.0 hardens API client key management, aligns legacy REST cross-tenant authorisation with v1 and GraphQL, uses the injected TimeProvider for deterministic token and audit timestamps, protects platform configuration in hosted mode, and keeps hardened GitHub Actions reference workflows intentionally disabled while the account lock remains unresolved.</PackageReleaseNotes>
+    <PackageReleaseNotes>2.11.0 separates sales/reference intelligence from the inference-free Scout core, hardens runtime and production boundaries, adds PostgreSQL cross-instance source-event idempotency and Data Protection restart proof coverage, and aligns the APIs, UI, documentation, and product model around Scout Explore, Fortress Prove, and Elite Scale.</PackageReleaseNotes>
   </PropertyGroup>
 </Project>

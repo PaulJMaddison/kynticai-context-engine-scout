@@ -6,6 +6,37 @@ The format is inspired by Keep a Changelog and this project follows semantic ver
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-08-27
+
+### Added
+
+- Added the Scout reference-sales package so sales-specific relationship weighting, next-action heuristics, prompt envelopes, and example agent behaviour live outside the inference-free open-core runtime.
+- Added production-shape runtime modes for self-hosted and managed data planes while retaining legacy mode aliases for compatibility.
+- Added persistent Data Protection restart proof coverage and PostgreSQL-backed source-event idempotency using transaction-scoped advisory locks.
+- Added production UI regression coverage that keeps LocalDemo/reference sales surfaces out of production navigation.
+
+### Changed
+
+- Re-established the public product boundary around **Scout — Explore**, **Fortress — Prove**, and **Elite — Scale**; cloud/control-plane capabilities are supporting infrastructure rather than a third product.
+- Clarified that tenant is the security boundary while workspace remains an organisational boundary rather than hard isolation.
+- Made `/api/v1` the canonical machine REST surface and kept `/api/rest` as explicitly deprecated compatibility routing.
+- Changed the canonical next-action endpoint to fail closed with `501 feature.external_consumer_required` unless a reference/private consumer supplies the capability.
+- Removed sales-specific summaries, scoring semantics, model execution assumptions, and fictional CustomerOps dependencies from the Scout core runtime.
+- Tightened SQL connector configuration so mode is explicit and the fictional CustomerOps database is LocalDemo/reference-only.
+- Updated docs, roadmap, getting-started material, readiness guidance, and work-package status language to match the implemented architecture.
+
+### Fixed
+
+- Fixed final Release build wiring by adding the EF Core relational dependency required by the PostgreSQL advisory-lock path.
+- Fixed reference-sales proof-test dependency registration without reintroducing sales services into production DI.
+- Fixed production-readiness assertion wiring and final frontend navigation tests.
+
+### Security
+
+- Production readiness now blocks fictional CustomerOps reference data, demo fallbacks, incomplete workspace-isolation claims, insecure control-plane transport, unsafe signing keys, wildcard CORS, and other non-production settings.
+- Source-system event duplicate detection is serialised across Scout instances at the PostgreSQL boundary before the authoritative duplicate/conflict check.
+
+
 ## [2.10.0] - 2026-08-09
 
 ### Fixed

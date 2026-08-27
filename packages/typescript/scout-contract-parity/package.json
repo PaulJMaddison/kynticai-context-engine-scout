@@ -1,6 +1,6 @@
 {
   "name": "@kynticai/scout-contract-parity",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "Local Scout SDK and connector contract parity checker.",
   "license": "MIT",
   "repository": {
