@@ -1,6 +1,6 @@
 {
   "name": "@kynticai/scout-n8n-node",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "KynticAI Scout community node for n8n — ingest source-system events into the Scout semantic layer.",
   "license": "MIT",
   "repository": {
