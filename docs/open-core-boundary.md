@@ -9,7 +9,7 @@ This repository is public-facing. It must not contain private strategy, customer
 The intended long-term structure is:
 
 - this public repository
-  The public customer data-plane core, demo/admin console, SDKs, extension contracts, GraphQL and REST APIs, and local/backend-only runtime.
+  The public customer data-plane core, demo/admin console, SDKs, extension contracts, GraphQL and REST APIs, and local/self-hosted runtime.
 - private extension repositories
   Paid extension implementations such as advanced relationship-set analysis, attribution-path analysis, enterprise connectors, SSO, advanced governance, and managed deployment assets.
 - private control-plane repositories
