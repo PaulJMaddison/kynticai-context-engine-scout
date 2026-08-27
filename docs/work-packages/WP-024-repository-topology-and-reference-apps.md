@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Complete
+- **Status:** Implementation complete; branch validation pending
 - **Priority:** Medium
 - **Phase:** H — Maintainability and developer experience
 - **Depends on:** WP-013, WP-014, WP-015, WP-023
@@ -46,10 +46,11 @@ Do not perform gratuitous moves that create package churn without improving clar
 ## Implementation note (2026-08-27)
 
 The repository now has an explicit `examples/` category. The fictional
-sales/next-action implementation lives in
-`examples/KynticAI.Scout.Reference.Sales`, is built by the solution, and is referenced
-only by tests that deliberately exercise the example. It is not registered by Scout's
-production/core dependency injection. The root README documents the distinction.
+sales/next-action and sales-prompt implementation lives in
+`examples/KynticAI.Scout.Reference.Sales` and is built by the solution. Tests that
+exercise those business rules reference the example explicitly. Scout production/core
+DI does not register the example; it uses disabled/neutral compatibility services only.
+The root README documents the distinction.
 
 ## Acceptance criteria
 

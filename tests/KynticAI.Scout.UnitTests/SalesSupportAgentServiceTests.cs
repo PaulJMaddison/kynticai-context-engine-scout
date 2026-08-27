@@ -3,9 +3,7 @@ using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
-using KynticAI.Scout.Infrastructure.AI;
-using KynticAI.Scout.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
+using KynticAI.Scout.Reference.Sales;
 
 namespace KynticAI.Scout.UnitTests;
 
@@ -15,7 +13,7 @@ public sealed class SalesSupportAgentServiceTests
     public void BuildContextPackage_FlagsWeakSignals_AndAssignsCitationIds()
     {
         var utcNow = new DateTime(2026, 05, 09, 12, 00, 00, DateTimeKind.Utc);
-        var service = CreateService(new ContextPackageOptions
+        var service = CreateService(new SalesReferenceContextOptions
         {
             LowConfidenceThreshold = 0.75m,
             MinimumStrongFacts = 2
@@ -108,7 +106,7 @@ public sealed class SalesSupportAgentServiceTests
             utcNow);
 
         var contextPackage = CreateStrongContextPackage(utcNow);
-        var service = CreateService(new ContextPackageOptions
+        var service = CreateService(new SalesReferenceContextOptions
         {
             LowConfidenceThreshold = 0.75m,
             MinimumStrongFacts = 3
@@ -126,16 +124,16 @@ public sealed class SalesSupportAgentServiceTests
         // return an explicit external-consumer-required signal rather than
         // silently producing a scored recommendation.
         Assert.NotNull(artifact.FailureReason);
-        Assert.Contains("Scout core does not execute AI models", artifact.FailureReason, StringComparison.Ordinal);
-        Assert.Contains("Scout core does not execute AI models", artifact.ValidationErrorsJson, StringComparison.Ordinal);
+        Assert.Contains("The Scout sales reference project does not execute AI models", artifact.FailureReason, StringComparison.Ordinal);
+        Assert.Contains("The Scout sales reference project does not execute AI models", artifact.ValidationErrorsJson, StringComparison.Ordinal);
         Assert.Equal(0, artifact.AttemptCount);
         Assert.Equal("{}", artifact.OutputJson);
         Assert.True(artifact.HumanReviewRecommended);
     }
 
-    private static SalesSupportAgentService CreateService(ContextPackageOptions options)
+    private static SalesSupportAgentService CreateService(SalesReferenceContextOptions options)
     {
-        return new SalesSupportAgentService(Options.Create(options));
+        return new SalesSupportAgentService(options);
     }
 
     private static SalesContextPackageResult CreateStrongContextPackage(DateTime utcNow)

@@ -5,7 +5,7 @@ using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Application.Services;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
-using KynticAI.Scout.Infrastructure.AI;
+using KynticAI.Scout.Infrastructure.ContextPackages;
 using KynticAI.Scout.Infrastructure.Auth;
 using KynticAI.Scout.Infrastructure.Configuration;
 using KynticAI.Scout.Infrastructure.Connectors;
@@ -208,6 +208,7 @@ public sealed class SelectorPipelineIntegrationTests
         Assert.Contains(contextPackage.WeakSignalMessages, message => message.Contains("stale", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(contextPackage.WeakSignalMessages, message => message.Contains("low confidence", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("\"citationId\":\"FACT-01\"", contextPackage.ContextPackageJson, StringComparison.Ordinal);
+        Assert.Empty(contextPackage.MissingInformation); // Scout core does not impose sales-specific required attributes.
     }
 
     [Fact]
@@ -311,7 +312,7 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
             services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
             services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
-            services.AddScoped<ISalesSupportAgentService, SalesSupportAgentService>();
+            services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
             services.AddScoped<ContextRecomputeProcessor>();
             services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
             services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();

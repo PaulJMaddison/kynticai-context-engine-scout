@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Complete
+- **Status:** Implementation complete; branch validation pending
 - **Priority:** High
 - **Phase:** E — Architectural truth and product boundary
 - **Depends on:** WP-014
@@ -42,10 +42,13 @@ Move sales-specific next-action scoring, sales weights and recommendation constr
 
 ## Implementation note (2026-08-27)
 
-The sales-specific `BasicRelationshipEngine`, `NextActionIntelligenceService` and
-`EnterpriseRelationshipEngineHandoff` implementations now live in
+The sales-specific `BasicRelationshipEngine`, `NextActionIntelligenceService`,
+`EnterpriseRelationshipEngineHandoff` and `SalesSupportAgentService` implementations now live in
 `examples/KynticAI.Scout.Reference.Sales`. The normal Scout application DI registers
 only the disabled compatibility implementation for `INextActionIntelligenceService`.
+Scout infrastructure registers a neutral compatibility context packager for the legacy
+sales-context contract; it does not contain required-sales-key heuristics, fixed sales
+weights, recommendation construction, prompt orchestration, or model execution.
 Tests that prove the fictional sales example reference the example project explicitly.
 
 ## Acceptance criteria

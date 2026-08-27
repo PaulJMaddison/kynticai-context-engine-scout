@@ -2,7 +2,7 @@ using KynticAI.Scout.Application;
 using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Services;
 using KynticAI.Scout.Domain.Entities;
-using KynticAI.Scout.Infrastructure.AI;
+using KynticAI.Scout.Infrastructure.ContextPackages;
 using KynticAI.Scout.Infrastructure.Auth;
 using KynticAI.Scout.Infrastructure.Configuration;
 using KynticAI.Scout.Infrastructure.Connectors;
@@ -61,7 +61,7 @@ internal sealed class ScoutServiceTestHarness : IAsyncDisposable
         services.AddScoped<IPlatformRuntimeOptions>(_ => new TestPlatformRuntimeOptions(mode, featureFlags));
         services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
         services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
-        services.AddScoped<ISalesSupportAgentService, SalesSupportAgentService>();
+        services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
         services.AddScoped<ContextRecomputeProcessor>();
         services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
         services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();

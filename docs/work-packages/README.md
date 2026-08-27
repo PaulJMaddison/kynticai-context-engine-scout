@@ -51,7 +51,7 @@ coding agent.
 | WP-012 | Canonical product taxonomy and Discovery boundary | E | Critical | — | Complete |
 | WP-013 | Make the Scout inference boundary real | E | Critical | WP-012 | Complete |
 | WP-014 | Decouple CustomerOps demo data from production Scout | E | Critical | WP-012 | Complete |
-| WP-015 | Extract sales next-action heuristics from Scout core | E | High | WP-014 | Complete |
+| WP-015 | Extract sales next-action heuristics from Scout core | E | High | WP-014 | Implementation complete; branch validation pending |
 | WP-016 | Separate runtime mode from control-plane features | E | High | WP-012 | Complete |
 | WP-017 | Make workspace isolation truthful and enforceable | F | Critical | WP-016 | Complete (tenant boundary; workspace organisational only) |
 | WP-018 | Make hosted Data Protection persistence real | F | Critical | WP-016 | Implementation complete; local validation pending |
@@ -60,7 +60,7 @@ coding agent.
 | WP-021 | Separate source truth from derived Scout state | G | High | WP-014, WP-015 | Complete |
 | WP-022 | Remove stale repository state and correct release truth | G | High | WP-012 | Complete |
 | WP-023 | Clarify KynticAI Score as a companion product | G | Medium | WP-012 | Complete |
-| WP-024 | Make core, examples, tools and integrations obvious | H | Medium | WP-013, WP-014, WP-015, WP-023 | Complete |
+| WP-024 | Make core, examples, tools and integrations obvious | H | Medium | WP-013, WP-014, WP-015, WP-023 | Implementation complete; branch validation pending |
 | WP-025 | Rationalise REST, GraphQL and SDK surfaces | H | Medium | WP-013, WP-014, WP-017 | Complete |
 | WP-026 | Activate continuous integration when GitHub permits it | H | High | WP-022 + external unblock | Blocked |
 
