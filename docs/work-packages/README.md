@@ -25,9 +25,10 @@ coding agent.
    focused behavioural tests where runtime behaviour changes.
 5. Public API, SDK, connector-contract, data-model, security, persistence,
    concurrency and migration changes require xhigh review before completion.
-6. Follow `LOCAL_VALIDATION.md` for executable proof. When workstation
-   constraints prevent complete validation, use the disposable GCP exact-SHA
-   gate in `docs/testing/gcp-precloud-validation.md`.
+6. Follow `LOCAL_VALIDATION.md` for executable proof. Validation for this
+   programme is local only. If a required local dependency such as PostgreSQL
+   or Docker is unavailable, record the proof as blocked rather than
+   provisioning cloud infrastructure.
 7. Update the package status only after its acceptance criteria are actually
    met. Do not mark a package complete from static review alone when it
    requires PostgreSQL, deployment, concurrency or browser proof.
@@ -53,8 +54,8 @@ coding agent.
 | WP-015 | Extract sales next-action heuristics from Scout core | E | High | WP-014 | Complete |
 | WP-016 | Separate runtime mode from control-plane features | E | High | WP-012 | Complete |
 | WP-017 | Make workspace isolation truthful and enforceable | F | Critical | WP-016 | Complete (tenant boundary; workspace organisational only) |
-| WP-018 | Make hosted Data Protection persistence real | F | Critical | WP-016 | Partial (local restart proof unavailable) |
-| WP-019 | Atomic cross-instance source-event idempotency | F | Critical | — | Partial (real PostgreSQL concurrency proof unavailable) |
+| WP-018 | Make hosted Data Protection persistence real | F | Critical | WP-016 | Implementation complete; local validation pending |
+| WP-019 | Atomic cross-instance source-event idempotency | F | Critical | — | Partial (real local PostgreSQL concurrency proof pending) |
 | WP-020 | Correct production backup/source responsibility | F | High | WP-014 | Complete |
 | WP-021 | Separate source truth from derived Scout state | G | High | WP-014, WP-015 | Complete |
 | WP-022 | Remove stale repository state and correct release truth | G | High | WP-012 | Complete |
