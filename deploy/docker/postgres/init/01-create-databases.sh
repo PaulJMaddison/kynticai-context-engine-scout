@@ -15,5 +15,7 @@ create_database() {
   fi
 }
 
-create_database "${CUSTOMER_OPS_DB:-customer_ops_db}"
+# CustomerOps is fictional LocalDemo/reference data. Only create it when the
+# composition explicitly requests one; production Scout needs only SCOUT_DB.
+create_database "${CUSTOMER_OPS_DB:-}"
 create_database "${SCOUT_DB:-scout_context_db}"
