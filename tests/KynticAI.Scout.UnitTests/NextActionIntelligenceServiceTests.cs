@@ -7,6 +7,7 @@ using KynticAI.Scout.Application.Validation;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Reference.Sales;
 using Microsoft.EntityFrameworkCore;
 
 namespace KynticAI.Scout.UnitTests;
