@@ -27,12 +27,12 @@ public static class DependencyInjection
         var platformOptions = configuration.GetSection(PlatformOptions.SectionName).Get<PlatformOptions>() ?? new PlatformOptions();
         var dataProtectionOptions = configuration.GetSection(DataProtectionKeyOptions.SectionName).Get<DataProtectionKeyOptions>() ?? new DataProtectionKeyOptions();
         var hostedMode = (environment?.IsProduction() ?? false)
-            || string.Equals(platformOptions.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
+            || PlatformModes.RequiresProductionShape(platformOptions.Mode);
         if (hostedMode
             && dataProtectionOptions.RequirePersistentKeys
             && string.IsNullOrWhiteSpace(dataProtectionOptions.KeyRingPath))
         {
-            throw new InvalidOperationException("DataProtection:KeyRingPath must be set to persistent storage before running in Production or SaaS mode with connector credential protection.");
+            throw new InvalidOperationException("DataProtection:KeyRingPath must be set to persistent storage before running a production data-plane mode with connector credential protection.");
         }
 
         services.AddDbContext<ScoutDbContext>(options =>
