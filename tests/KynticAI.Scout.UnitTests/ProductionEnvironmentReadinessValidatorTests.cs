@@ -13,10 +13,9 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
         var report = ProductionEnvironmentReadinessValidator.GetReport(
             Configuration(new Dictionary<string, string?>
             {
-                ["Platform:Mode"] = PlatformModes.BackendOnly,
+                ["Platform:Mode"] = PlatformModes.SelfHosted,
                 ["Database:Provider"] = "Postgres",
                 ["ConnectionStrings:Scout"] = "Host=postgres.internal;Port=5432;Database=scout_context;Username=scout;Password=not-real",
-                ["ConnectionStrings:CustomerOps"] = "Host=postgres.internal;Port=5432;Database=customer_ops;Username=scout;Password=not-real",
                 ["Bootstrap:SeedDemoData"] = "false",
                 ["FeatureFlags:DemoExperience"] = "false",
                 ["DataProtection:RequirePersistentKeys"] = "true",
@@ -35,6 +34,23 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
         Assert.True(report.ProductionShapeRequired);
         Assert.True(report.ReadyForProductionStyleDeployment);
         Assert.DoesNotContain(report.Checks, check => check.BlocksProduction && check.Status == "Blocked");
+    }
+
+    [Fact]
+    public void Production_shape_does_not_require_customer_ops_connection_string()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:CustomerOps"] = null,
+                ["ReferenceData:CustomerOpsEnabled"] = "false"
+            }),
+            new TestHostEnvironment("Production"));
+
+        Assert.True(report.ReadyForProductionStyleDeployment);
+        Assert.DoesNotContain(report.Checks, check =>
+            check.Key == "connection-strings"
+            && check.Evidence.Contains("customer", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -158,7 +174,7 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
     {
         var settings = new Dictionary<string, string?>
         {
-            ["Platform:Mode"] = PlatformModes.BackendOnly,
+            ["Platform:Mode"] = PlatformModes.SelfHosted,
             ["Database:Provider"] = "Postgres",
             ["ConnectionStrings:Scout"] = "Host=postgres.internal;Port=5432;Database=scout_context;Username=scout;Password=not-real",
             ["ConnectionStrings:CustomerOps"] = "Host=postgres.internal;Port=5432;Database=customer_ops;Username=scout;Password=not-real",
