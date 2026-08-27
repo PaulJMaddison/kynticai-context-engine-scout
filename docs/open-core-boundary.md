@@ -47,13 +47,15 @@ The current repo already contains the main public core surfaces:
 
 That shape is intentional. The public repo should prove the architecture and remain useful without shipping private enterprise implementation code.
 
+The fictional sales/next-action implementation lives under `examples/KynticAI.Scout.Reference.Sales`. It exists to demonstrate a consumer use case and must not be registered as Scout core runtime behaviour. Its fixed weights and sales recommendations are example business rules, not calibrated Scout platform intelligence.
+
 ## What belongs in this repository
 
 The public repo is the right home for:
 
 - the semantic engine and selector execution logic
 - exact linked records, context facts, and context snapshots
-- governed relationship/context JSON and next-best-action API patterns
+- governed context and relationship/evidence contracts; business-specific next-action scoring belongs in reference consumers or private products
 - provenance, freshness, confidence, and audit primitives
 - GraphQL and REST APIs
 - SDKs and developer tooling
@@ -66,7 +68,7 @@ The public repo is the right home for:
 - safe mock or no-op default implementations for those interfaces
 - SaaS/control-plane foundation metadata models for tenants, workspaces, subscriptions, API clients, onboarding, context package manifests, and usage metering, provided they stay provider-neutral
 - local licence and control-plane configuration seams, provided they do not phone home or unlock private code inside the public repo
-- context package generation patterns, next-best-action relationship/evidence JSON, and delivery-channel metadata
+- context-package generation patterns and delivery-channel metadata; the legacy next-action API contract is compatibility-only and does not make sales heuristics Scout core behaviour
 - demo UI, samples, and fictional seed data
 - documentation and in-repo demo copy that explain architecture, extension patterns, product positioning, and the public/private boundary
 
