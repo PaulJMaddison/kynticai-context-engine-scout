@@ -5,12 +5,13 @@ using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Constants;
 using KynticAI.Scout.Domain.Entities;
+using KynticAI.Scout.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace KynticAI.Scout.Infrastructure.AI;
 
 public sealed class SalesSupportAgentService(
-    IOptions<LlmOptions> options)
+    IOptions<ContextPackageOptions> options)
     : ISalesSupportAgentService
 {
     private static readonly ActivitySource ActivitySource = new("KynticAI.Scout.Ai");
@@ -37,14 +38,14 @@ public sealed class SalesSupportAgentService(
         string salesObjective,
         DateTime utcNow)
     {
-        var llmOptions = options.Value;
+        var contextOptions = options.Value;
         var strongFacts = 0;
         var factResults = contextSnapshot.Facts
             .OrderBy(fact => fact.AttributeKey, StringComparer.Ordinal)
             .Select((fact, index) =>
             {
                 var isFresh = !fact.FreshUntilUtc.HasValue || fact.FreshUntilUtc.Value >= utcNow;
-                var isLowConfidence = fact.Confidence < llmOptions.LowConfidenceThreshold;
+                var isLowConfidence = fact.Confidence < contextOptions.LowConfidenceThreshold;
                 if (isFresh && !isLowConfidence)
                 {
                     strongFacts++;
@@ -91,9 +92,9 @@ public sealed class SalesSupportAgentService(
             }
         }
 
-        if (strongFacts < llmOptions.MinimumStrongFacts)
+        if (strongFacts < contextOptions.MinimumStrongFacts)
         {
-            weakSignalMessages.Add($"Only {strongFacts} fresh high-confidence facts are available, which is below the minimum grounded threshold of {llmOptions.MinimumStrongFacts}.");
+            weakSignalMessages.Add($"Only {strongFacts} fresh high-confidence facts are available, which is below the minimum grounded threshold of {contextOptions.MinimumStrongFacts}.");
         }
 
         var humanReviewRecommended = weakSignalMessages.Count > 0 || missingInformation.Count > 0;
