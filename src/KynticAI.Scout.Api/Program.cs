@@ -46,7 +46,8 @@ var rateLimitOptions = builder.Configuration.GetSection(RateLimitOptions.Section
 var graphQlOptions = builder.Configuration.GetSection(GraphQlOptions.SectionName).Get<GraphQlOptions>() ?? new GraphQlOptions();
 var securityHeadersOptions = builder.Configuration.GetSection(SecurityHeadersOptions.SectionName).Get<SecurityHeadersOptions>() ?? new SecurityHeadersOptions();
 var hostedMode = builder.Environment.IsProduction()
-    || PlatformModes.IsProductionDataPlane(platformOptions.Mode);
+    || string.Equals(platformOptions.Mode, PlatformModes.ManagedDataPlane, StringComparison.OrdinalIgnoreCase)
+    || string.Equals(platformOptions.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
 
 // Runtime/deployment mode and optional commercial features are deliberately
 // independent. Enabling a production data plane must never silently enable
