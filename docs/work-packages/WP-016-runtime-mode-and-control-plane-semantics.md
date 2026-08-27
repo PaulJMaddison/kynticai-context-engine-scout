@@ -64,4 +64,4 @@ Then independently configure:
 
 ## Verification
 
-Run production-readiness unit/E2E tests across the configuration matrix, deployment config checks and full GCP exact-SHA sign-off.
+Run production-readiness unit/E2E tests across the configuration matrix and local deployment/configuration checks. Do not provision cloud infrastructure for this work package.
