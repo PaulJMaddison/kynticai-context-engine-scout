@@ -273,14 +273,8 @@ builder.Services
     });
 
 var app = builder.Build();
-var migrateOnly = args.Any(static arg =>
-    string.Equals(arg, "bootstrap", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(arg, "init", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(arg, "migrate", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(arg, "migrate-database", StringComparison.OrdinalIgnoreCase));
-var seedDemoOnly = args.Any(static arg =>
-    string.Equals(arg, "bootstrap-demo", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(arg, "seed-demo", StringComparison.OrdinalIgnoreCase));
+var migrateOnly = BootstrapCommandResolver.IsMigrationCommand(args);
+var seedDemoOnly = BootstrapCommandResolver.IsSeedDemoCommand(args);
 var bootstrapOnly = migrateOnly || seedDemoOnly;
 
 if ((seedDemoOnly || bootstrapOptions.SeedDemoData)
@@ -291,11 +285,10 @@ if ((seedDemoOnly || bootstrapOptions.SeedDemoData)
     throw new InvalidOperationException("Demo seeding is only available in LocalDemo/Demo mode. Production data-plane deployments must run without demo seed data.");
 }
 
-var resolvedBootstrapOptions = new BootstrapOptions
-{
-    ApplyMigrationsOnStartup = bootstrapOptions.ApplyMigrationsOnStartup,
-    SeedDemoData = seedDemoOnly || bootstrapOptions.SeedDemoData
-};
+var resolvedBootstrapOptions = BootstrapCommandResolver.Resolve(
+    bootstrapOptions,
+    explicitMigrationCommand: migrateOnly,
+    explicitSeedDemoCommand: seedDemoOnly);
 
 app.UseExceptionHandler();
 app.UseForwardedHeaders();
