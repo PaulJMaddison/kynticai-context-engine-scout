@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KynticAI Scout is the open-source public repo for the Universal Context Layer. It is MIT-licensed and provides the public data-plane foundation: .NET API, TypeScript SDK, .NET SDK, React admin console, connector abstractions, docs, samples, and demo tooling.
+KynticAI Scout is the open-source **Explore** product in the KynticAI Scout → Fortress → Elite progression. It is MIT-licensed and provides the customer-controlled context foundation: .NET API, TypeScript SDK, .NET SDK, React admin console, connector abstractions, docs, samples, and demo tooling.
 
 Scout is the public face of KynticAI. Keep it useful, auditable, and safe for public release. It must not contain enterprise-only implementation details or private planning material.
 
@@ -16,7 +16,7 @@ Scout is the public face of KynticAI. Keep it useful, auditable, and safe for pu
 - `docs/` - public documentation, API notes, diagrams, and brand assets.
 - `deploy/` - Docker and deployment configuration.
 - `scripts/` - local setup, demo, cloud validation, and automation scripts.
-- `samples/` - public example integrations and fixtures.
+- `samples/` and `examples/` - public examples/reference consumers and fixtures. Example business logic is not Scout core behaviour.
 
 ## Build/Test Commands
 
@@ -72,16 +72,17 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - Public brand is `KynticAI`, always with `AI`.
 - Product tier name is `KynticAI Scout`.
 - Use British English for user-facing copy.
-- Public positioning: context infrastructure for AI-enabled products. Scout does not call an AI model.
+- Public positioning: customer-controlled context infrastructure for software and AI-enabled products. Scout core does not call an AI model.
+- Product progression: **Scout — Explore**, **Fortress — Prove**, **Elite — Scale**. Cloud/control-plane services are supporting components, not the third product.
 - Keep the Aged Book/Sovereign Rust visual direction when touching public UI or docs.
 - Hard logo rule: every public image, screenshot, social card, README graphic, or generated marketing asset must use the approved KynticAI logo file (`docs/images/brand/kynticai-logo-mark.png` or `docs/images/brand/kynticai-logo-lockup.png`). Do not redraw, approximate, or AI-generate the logo; overlay the approved file after generating any background imagery.
 
-## Current Sprint Priorities
+## Current Work Tracking
 
-- V2-003: keep this root AGENTS.md current after meaningful sessions.
-- OSS-021: keep user-facing brand text aligned to `KynticAI`.
-- OSS-013: GitHub Actions CI/CD is currently disabled (`*.yml` renamed to `*.yml.disabled`) because the GitHub account is locked due to a billing issue that prevents Actions jobs from starting; re-enable and harden it when the lock is resolved.
-- OSS-015 and OSS-019: public docs and connector authoring remain upcoming public-facing work.
+- Durable rules belong in this file.
+- Current implementation work belongs in `docs/work-packages/README.md` and GitHub issues/projects.
+- Do not add branch names, temporary PR state, sprint checklists, or mutable "current truth" here.
+- GitHub Actions remains an external operational constraint until a real workflow can start; see WP-026 rather than duplicating status here.
 
 ## State/Update Expectations
 
