@@ -888,6 +888,14 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                     ["eventId"] = [exception.EventId]
                 });
         }
+        catch (NotSupportedException exception)
+        {
+            return Error(
+                EndpointHttpContext.Current,
+                StatusCodes.Status501NotImplemented,
+                "feature.external_consumer_required",
+                exception.Message);
+        }
         catch (InvalidOperationException exception)
         {
             return Error(EndpointHttpContext.Current, StatusCodes.Status400BadRequest, "request.invalid", exception.Message);
