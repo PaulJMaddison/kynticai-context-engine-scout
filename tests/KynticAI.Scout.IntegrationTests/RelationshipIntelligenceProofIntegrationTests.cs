@@ -1126,6 +1126,8 @@ public sealed class RelationshipIntelligenceProofIntegrationTests
                 // sales next-action heuristics). These Proof tests exercise the reference
                 // implementation against the public API, so swap in the real reference service.
                 services.RemoveAll<INextActionIntelligenceService>();
+                services.AddScoped<BasicRelationshipEngine>();
+                services.AddScoped<EnterpriseRelationshipEngineHandoff>();
                 services.AddScoped<INextActionIntelligenceService, NextActionIntelligenceService>();
 
                 TestSeedHelper.UseFastPasswordHashing(services);

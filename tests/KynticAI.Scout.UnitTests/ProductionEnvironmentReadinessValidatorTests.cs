@@ -186,7 +186,7 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
 
         Assert.True(report.ProductionShapeRequired);
         Assert.False(report.ReadyForProductionStyleDeployment);
-        var check = Assert.Single(report.Checks.Where(x => x.Key == "customerops-reference-data"));
+        var check = Assert.Single(report.Checks, x => x.Key == "customerops-reference-data");
         Assert.Equal("Blocked", check.Status);
         Assert.True(check.BlocksProduction);
     }
