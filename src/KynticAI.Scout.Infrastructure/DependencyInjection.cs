@@ -9,6 +9,7 @@ using KynticAI.Scout.Infrastructure.Onboarding;
 using KynticAI.Scout.Infrastructure.Persistence;
 using KynticAI.Scout.Infrastructure.Selectors;
 using KynticAI.Scout.Infrastructure.Services;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using KynticAI.Scout.Infrastructure.Configuration;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -36,12 +37,24 @@ public static class DependencyInjection
 
         services.AddDbContext<ScoutDbContext>(options =>
             DatabaseProviderConfigurator.ConfigureScout(options, configuration));
-
-        services.AddDbContext<CustomerOpsDbContext>(options =>
-            DatabaseProviderConfigurator.ConfigureCustomerOps(options, configuration));
-
         services.AddScoped<IScoutDbContext>(provider => provider.GetRequiredService<ScoutDbContext>());
-        services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+
+        var referenceDataEnabled =
+            string.Equals(platformOptions.Mode, PlatformModes.LocalDemo, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(platformOptions.Mode, "Demo", StringComparison.OrdinalIgnoreCase)
+            || configuration.GetValue<bool>("ReferenceData:CustomerOpsEnabled");
+
+        if (referenceDataEnabled)
+        {
+            services.AddDbContext<CustomerOpsDbContext>(options =>
+                DatabaseProviderConfigurator.ConfigureCustomerOps(options, configuration));
+            services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+            services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
+        }
+        else
+        {
+            services.AddScoped<IOperationalReferenceDataProvider, NullOperationalReferenceDataProvider>();
+        }
         services.AddScoped<IPlatformRuntimeOptions, PlatformRuntimeOptions>();
         var dataProtection = services
             .AddDataProtection()
@@ -105,8 +118,6 @@ public static class DependencyInjection
         services.AddSingleton<IHostedService>(provider => provider.GetRequiredService<BackgroundJobMetrics>());
         services.AddScoped<ContextRecomputeProcessor>();
         services.AddScoped<ISalesSupportAgentService, SalesSupportAgentService>();
-        services.AddScoped<IStructuredLlmClient, MockStructuredLlmClient>();
-        services.AddScoped<IStructuredLlmClientRegistry, StructuredLlmClientRegistry>();
 
         // Keep the existing selector implementation as the derivation engine, but make source
         // capture a separate decorator so source truth is durably retained before Scout's
