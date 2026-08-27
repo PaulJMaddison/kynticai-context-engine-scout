@@ -26,7 +26,7 @@ dashboards, and internal applications.
 | **Semantic Facts** | Discrete governed units of business meaning with audit metadata |
 | **GraphQL + REST APIs** | Every context surface available through both query styles |
 | **TypeScript & .NET SDKs** | Typed client libraries for integration teams |
-| **Relationship JSON** | Exact linked records, relationships, attribution-path evidence, citations, masking decisions, and next-best-action context — Scout does not call an AI model |
+| **Relationship JSON** | Exact linked records, relationships, attribution-path evidence, citations, masking decisions, and governed context for downstream decisions — Scout core does not call an AI model |
 | **Connector Framework** | Generic SQL, REST, CSV, mock connectors and extension points |
 | **Audit & Provenance** | Every read, recompute, and context access is traceable |
 | **Blueprint Import** | AI-generated configuration validated and imported without calling AI APIs |
@@ -51,21 +51,21 @@ Existing Systems ──► Connectors ──► Selector Engine ──► Semant
                                                workflows, agents)
 ```
 
-For the demo sales workflow, exact authorised data includes normalised email
-address, CRM contact/account, account registration/profile, sales activity,
-opportunities, email replies, meetings booked, web conversion and pricing-page
-events, support tickets, product usage summaries, billing health, and won/lost
-outcome signals. Fortress capabilities outside the open-core deliverable
-handle private production scale, canonical relationship/path weighting,
-outcome matching, and governed JSON handoff for approved customer workflows.
+The repository includes a clearly labelled fictional sales reference example
+under `examples/KynticAI.Scout.Reference.Sales`. That example may use
+authorised demo records to show relationship weighting and next-action logic,
+but those sales weights and recommendations are not Scout core platform
+behaviour. Fortress/private capabilities outside the open-core deliverable
+handle private production scale and advanced governed analysis.
 
 An optional hosted Cloud/control plane manages only commercial metadata —
 accounts, licences, downloads, support access, update channels, and optional
 aggregate usage. It is not required for the data plane and must not receive raw
 customer data by default.
 
-Clarity and Importance are separate KynticAI products and are not required for
-Context Engine · Scout, Fortress, or Cloud.
+The canonical KynticAI progression is **Scout — Explore**, **Fortress — Prove**,
+and **Elite — Scale**. Optional Cloud/control-plane services are supporting
+infrastructure, not a replacement product tier.
 
 ## Licence
 

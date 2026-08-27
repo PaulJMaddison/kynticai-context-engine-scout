@@ -8,18 +8,15 @@ for TypeScript and .NET. Use GraphQL when consumers need shaped context
 queries. Use REST for conventional HTTP integrations, machine clients,
 event ingestion, and OpenAPI-based tooling.
 
-The versioned REST surface also exposes `POST /api/v1/intelligence/next-action`
-for the customer data-plane demo flow. It links exact authorised records such
-as CRM contact/account, email engagement, web conversion, opportunities,
-support, usage, billing, and won/lost outcome signals into relationship JSON
-with relationships, attribution-path evidence, Scout basic fallback-only signals,
-provenance, governance decisions, and a recommended next action. Canonical
-relationship-set analysis belongs to proprietary analysis modules outside the
-open-core deliverable. Raw records stay in
-the data plane; optional
-Cloud/control-plane payloads are aggregate usage metadata only and exclude
-relationship types, weighted signals, recommendations, confidence, caveats,
-and citation IDs.
+The canonical machine REST surface is `/api/v1`. Scout core exposes governed
+context, facts, snapshots, source-event ingestion, selectors, audit and related
+data-plane APIs there. The historical
+`POST /api/v1/intelligence/next-action` route is retained only as a
+compatibility endpoint and returns `501 feature.external_consumer_required`.
+Sales/next-action scoring and recommendation construction belong in the
+explicit reference consumer or another customer-owned/private consumer, not in
+Scout core. Raw customer records stay in the data plane by default; optional
+control-plane payloads are aggregate metadata only.
 
 ## Public Surfaces
 

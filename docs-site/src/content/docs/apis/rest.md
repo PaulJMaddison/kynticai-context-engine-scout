@@ -3,7 +3,7 @@ title: REST API
 description: Public REST endpoints, authentication, pagination, and error shapes for KynticAI Scout.
 ---
 
-Scout exposes two REST surfaces:
+Scout exposes two REST surfaces. `/api/v1` is the canonical machine REST API; `/api/rest` is legacy compatibility only.
 
 | Surface | Prefix | Status |
 |---|---|---|
@@ -49,7 +49,7 @@ The versioned API is implemented in
 | `GET` | `/api/v1/context/accounts/{externalAccountId}/facts` | `context:read` | Fetch account semantic facts. |
 | `GET` | `/api/v1/context/snapshots/{snapshotId}` | `context:read` | Fetch a context snapshot. |
 | `POST` | `/api/v1/context/users/{externalUserId}/ai-safe-context-package` | `context:read` | Fetch a scoped context package. |
-| `POST` | `/api/v1/intelligence/next-action` | `context:read` | Generate exact linked records, relationships, attribution-path evidence, Scout basic fallback-only signals, and a recommended next action. |
+| `POST` | `/api/v1/intelligence/next-action` | `context:read` | Legacy compatibility endpoint. Scout core returns `501 feature.external_consumer_required`; build next-action logic in a reference/customer-owned consumer using governed context. |
 | `POST` | `/api/v1/context/recompute` | `context:write` | Queue recomputation. |
 | `POST` | `/api/v1/selectors/preview` | `selectors:write` | Preview a selector. |
 | `POST` | `/api/v1/selectors/validate` | `selectors:write` | Validate a selector. |

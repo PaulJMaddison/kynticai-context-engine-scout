@@ -36,15 +36,15 @@ KynticAI Score is a separate companion product. A public Score contract/client m
 
 The 2026-08-27 architecture review is tracked in [work-packages/README.md](work-packages/README.md).
 
-Priorities are:
-
-1. make Scout/Fortress/Elite and Discovery ownership consistent everywhere;
-2. make the Scout core inference-free in runtime behaviour;
-3. remove the fictional CustomerOps database and sales heuristics from mandatory production architecture;
-4. separate deployment mode from optional control-plane/commercial flags;
-5. make workspace semantics truthful;
-6. prove hosted key persistence and atomic cross-instance event idempotency;
-7. simplify repository/API boundaries after those architectural changes.
+The taxonomy, inference boundary, single-production-database shape, runtime-mode
+semantics, tenant/workspace security wording, Score boundary and canonical
+`/api/v1` direction are implemented on the review branch. Sales/reference
+logic and repository-topology extraction are implementation-complete pending
+branch validation. Data Protection persistence has deterministic local proof
+implemented but still needs the branch test pass. Cross-instance source-event
+idempotency remains **Partial** until real local PostgreSQL concurrency proof
+passes, and CI activation remains **Blocked** by the external GitHub Actions
+restriction.
 
 ## Directional priorities
 

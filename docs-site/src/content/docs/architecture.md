@@ -40,10 +40,9 @@ Approved source systems
   -> selector execution
   -> semantic facts and exact data items
   -> relationships, attribution paths, and outcomes
-  -> optional Scout basic fallback-only signals or Fortress canonical analysis
-  -> governed JSON and ranked next-action options for an approved consumer
-  -> context snapshots and packages
+  -> governed context snapshots and packages
   -> GraphQL / REST / SDK consumers
+  -> optional reference/customer-owned/private consumers for recommendation or model work
 ```
 
 The API is an ASP.NET Core application. The admin console is a Vite React
@@ -95,7 +94,7 @@ Important controls include:
 - confidence and freshness on facts
 - audit records for context and administration activity
 - provenance on facts and context packages
-- support for next-best-action relationship JSON without sending raw data to Cloud
+- source-traced relationship/evidence JSON that downstream consumers can use without sending raw data to a control plane
 - production readiness checks for unsafe development settings
 
 ## Open Source And Enterprise
@@ -104,8 +103,7 @@ Scout defines the public extension contracts. Fortress/private commercial
 modules live outside this repository. The public docs describe only the
 category boundary: canonical relationship-set analysis, vendor-specific
 connectors, enterprise identity, managed deployment support, and advanced
-governance belong outside Scout. Clarity and Importance are separate products
-and are not required for this UCL path.
+governance belong outside Scout. Fortress and Elite remain separate KynticAI product tiers outside this Scout repository; optional control-plane services are supporting infrastructure rather than a product tier.
 
 See [Open Source vs Enterprise](/concepts/open-source-vs-enterprise/) for
 the support boundary and [Connector Authoring](/connectors/authoring/) for
