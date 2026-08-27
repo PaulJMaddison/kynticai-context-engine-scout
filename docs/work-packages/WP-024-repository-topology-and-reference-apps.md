@@ -43,6 +43,14 @@ Do not perform gratuitous moves that create package churn without improving clar
 7. Verify normal local build/test scripts discover every moved package.
 8. Remove obsolete duplicate assets/packages only when equivalence is proven.
 
+## Implementation note (2026-08-27)
+
+The repository now has an explicit `examples/` category. The fictional
+sales/next-action implementation lives in
+`examples/KynticAI.Scout.Reference.Sales`, is built by the solution, and is referenced
+only by tests that deliberately exercise the example. It is not registered by Scout's
+production/core dependency injection. The root README documents the distinction.
+
 ## Acceptance criteria
 
 - [ ] A contributor can identify Scout core without reading the whole repo.
