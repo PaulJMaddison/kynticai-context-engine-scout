@@ -115,7 +115,7 @@ Bootstrap__SeedDemoData=true `
 dotnet run --project src/KynticAI.Scout.Api -- seed-demo
 ```
 
-Do not set `Bootstrap__SeedDemoData=true` in hosted SaaS deployments.
+Do not set `Bootstrap__SeedDemoData=true` in production data-plane deployments.
 
 ## Frontend Static Build
 
@@ -152,7 +152,7 @@ Use `/health/ready` for Render and other rolling deployment platforms. It report
 - `ReferenceData__CustomerOpsEnabled=false`
 - `Auth__SigningKey`: high-entropy secret, at least 48 bytes recommended.
 - `DataProtection__KeyRingPath`: persistent file-system path or mounted volume for ASP.NET Data Protection keys.
-- `DataProtection__RequirePersistentKeys=true`: required for Production/SaaS mode so protected connector credentials remain readable after restarts.
+- `DataProtection__RequirePersistentKeys=true`: required for production data-plane modes so protected connector credentials remain readable after restarts.
 - `Cors__AllowedOrigins__0`: exact frontend origin, no trailing slash.
 - `RateLimits__*`: tune auth and GraphQL limits per plan and deployment size.
 - `Telemetry__OtlpEndpoint`: optional OTLP collector endpoint.
