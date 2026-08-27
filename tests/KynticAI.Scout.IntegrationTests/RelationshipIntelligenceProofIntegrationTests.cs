@@ -13,6 +13,7 @@ using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Domain.Saas;
 using KynticAI.Scout.Infrastructure.Auth;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Reference.Sales;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
