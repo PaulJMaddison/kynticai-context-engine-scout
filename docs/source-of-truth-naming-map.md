@@ -1,67 +1,87 @@
-# KynticAI Workspace Naming Map — Source of Truth
+# KynticAI Product and Naming Map — Source of Truth
 
-This document is the canonical source of truth for product, brand, and artefact names used across the KynticAI Scout public repository, its docs, demo copy, and the documentation site. When in doubt about a name, follow this map.
+This document is the canonical source of truth for current public product names and boundaries in the KynticAI Scout repository.
 
-## Purpose
+If another current document contradicts this map, update that document. Historical release notes may retain older terminology only when they are clearly historical.
 
-- Every user-facing name in the public repo must match the spellings and rules below.
-- This map is referenced by the root README, the product positioning and commercial readiness documents, and the docs-site README.
-- If a document contradicts this map, the document should change, not this map.
+## Product line
 
-## Product and brand names
+KynticAI has three products in this progression:
 
-| Name | Canonical spelling | When to use |
+| Product | Stage | Public meaning |
 | --- | --- | --- |
-| Public brand | `KynticAI` | The company and public brand, always written with `AI`. Never write bare "Kyntic" in user-facing copy. |
-| Product line | `Context Engine` | The buyer-facing architecture that turns authorised raw data into source-traced, governed next-step briefs. |
-| Open-core product tier | `KynticAI Scout` | The open-source, MIT-licensed public product: the open-core data plane, local demo, admin console, APIs, SDKs, and docs. |
-| Universal Context Layer | `UCL` | The conceptual layer and architecture: source systems -> customer-owned data plane -> governed context for approved consumers. Write the full term once, then use `UCL`. |
+| **KynticAI Scout** | **Explore** | The open-source, MIT-licensed product in this repository. Scout connects to authorised sources, retains approved evidence locally, maps and links information, and exposes reusable context through APIs and SDKs. |
+| **KynticAI Fortress** | **Prove** | The private production product for governed, advanced analysis and private enterprise extensions. Fortress implementation does not belong in this public repository. |
+| **KynticAI Elite** | **Scale** | The enterprise scale offering for programmes spanning multiple systems, teams, divisions or security boundaries. Elite implementation does not belong in this public repository. |
 
-Rule: `KynticAI` always carries the `AI`. Plain "Kyntic" is forbidden in all user-facing copy, docs, and demo text.
+**Cloud is not the third product.** "Cloud" and "control plane" describe optional hosted/commercial services that may support Scout, Fortress or Elite. They must not be used as a replacement product name for Elite.
 
-## Artefact and product names
+## Scout
 
-| Name | Canonical usage |
-| --- | --- |
-| UCL data plane | The customer-owned data-plane layer that Scout implements. |
-| Customer data plane | The same layer seen from the customer's perspective: exact data items, relationships, attribution paths, provenance, audit, and local APIs stay customer-controlled by default. |
-| Control plane | The optional hosted commercial/control-plane layer (Scout Cloud). It manages accounts, licences, downloads, support access, update channels, and optional aggregate usage metadata only. It is never a data-plane store. |
-| Open core | The public, MIT-licensed Scout core in this repository. |
-| Context Engine · Scout | Buyer-facing copy for the free/open-source local proof path. Use `UCL` for repository history, architecture lineage, and existing technical contract names. |
-| Fortress | Private sovereign production runtime. Route production/private scale, private connectors, advanced relationship/path weighting, outcome matching, and canonical scoring to Fortress. |
-| Private Enterprise modules | Scoped paid/private extensions: private connectors, governance, identity, deployment packs, and advanced analysis. They live outside the public repo. |
-| Cloud | Optional commercial/control-plane support (Scout Cloud). Not required to run the data plane; must not receive raw customer data or derived relationship intelligence by default. |
-| KynticAI Discovery MCP | The buyer-facing, metadata-only wrapper for IT-manager-led discovery: local codebase audit, connector catalogue inspection, manifest validation, metadata quality report, and Discovery Signature review. |
-| KynticAI Score | A separate KynticAI product with its own public API contract (`schema/kyntic-score.openapi.yaml`). Scout does not calculate scores itself. |
-| n8n node | The public n8n integration node for the Scout data plane. |
-| Connector Catalogue | The public connector catalogue page and API surface (`GET /api/v1/connectors/catalogue`). |
-| Connector marketplace | The broader concept of catalogue listings, placeholders, and commercial entries. Prefer "Connector Catalogue" for the public page. |
-| Paid pilot | The supported first commercial offer: a scoped, implementation-led paid pilot that keeps customer operational data in the customer data plane by default. |
-| Pilot setup wizard | The guided buyer onboarding flow used to install and register a paid pilot data plane. |
-| Clarity and Importance | Separate KynticAI products. They are not required UCL dependencies and must not be presented as part of the open core. |
+Use `KynticAI Scout` for the public product.
 
-## Naming maturity rules
+Scout is customer-controlled context infrastructure. Its core responsibilities are:
 
-Names in the tables above are approved for user-facing copy. The following must never appear in public copy, docs, or demo text:
+- connect to or receive authorised source data;
+- retain approved source evidence locally;
+- map source fields into reusable business facts;
+- link related records;
+- record where information came from and when it was observed;
+- expose the resulting context through normal APIs and SDKs;
+- provide safe extension points for private products without shipping their implementation.
 
-- the private engine codename and internal engine short names (refer to them generically as "the private engine" when a reference is unavoidable);
-- private vector-database, embedding, and vector-pipeline product or implementation terms (refer to them generically, for example "the private relationship-analysis implementation");
-- internal project keys, customer names, customer-specific mappings, paid connector implementation details, credentials, tokens, or support bundles.
+Scout core **does not execute an AI model**. Customers may feed Scout output into their own applications, workflows, agents or model runtimes.
 
-Additional rules:
+## Fortress
 
-- Always write `KynticAI`, never bare "Kyntic", in user-facing copy.
-- Use British English spellings in all user-facing copy: `behaviour`, `licence`, `organisation`, `prioritisation`. Do not use American spellings such as "behavior", "organization", or "prioritization".
-- Do not claim complete self-serve SaaS, vendor-certified connectors, customer traction, or production capabilities that the public open core does not ship.
-- Cloud must be described as optional commercial/control-plane support, never as a hosted data plane or a raw customer-data store.
-- Scout does not call an AI model. Position it as context infrastructure for AI-enabled products.
+Use `KynticAI Fortress` for the private Prove product.
 
-## Consistency requirements
+Public Scout documentation may describe the boundary at a high level, but must not publish Fortress source code, private algorithms, private connector implementations, private deployment details or commercial buyer workflow internals.
 
-This map is the single source of truth. Enforced references:
+## Elite
 
-- `README.md` (repo root) links here as `docs/source-of-truth-naming-map.md`.
-- `docs/product-positioning.md` and `docs/commercial-readiness-summary.md` link here as `source-of-truth-naming-map.md` (same directory).
-- `docs-site/README.md` links here as `../docs/source-of-truth-naming-map.md`.
+Use `KynticAI Elite` for the Scale product.
 
-Writers should copy canonical names from this map rather than inventing variants. When a name change is required, update this map first, then update the referencing documents.
+Elite is the product name for organisation-wide scale. Do not call the third product Cloud, PrivateCloud, assisted private tier or similar legacy names in current public copy.
+
+## Cloud / control plane
+
+Use `control plane` for an optional hosted service that handles commercial and operational metadata such as:
+
+- account/licence/entitlement state;
+- downloads and update channels;
+- support access;
+- deployment registration and safe health/version metadata;
+- explicitly approved aggregate usage counters.
+
+The control plane is **not** the Scout data store. It must not receive raw customer operational records, connector credentials, retained source evidence, context facts, relationship intelligence, prompts or generated customer content by default.
+
+## Discovery tooling
+
+Three concepts must remain distinct:
+
+1. **Discovery Agent** — the generic local codebase audit/handover tool in `apps/discovery-agent`. Public.
+2. **Scout Discovery MCP** — the metadata-only Scout connector/catalogue inspection package in `packages/typescript/scout-discovery-mcp`. Public.
+3. **KynticAI Discovery MCP** — the commercial buyer/readiness workflow, including Discovery Signature generation, commercial readiness routing and private customer handoff. Private; belongs with Fortress/private product code and must not be implemented in Scout.
+
+Public Scout code may document how to inspect metadata. It must not recreate the commercial buyer workflow.
+
+## Companion products
+
+`KynticAI Score` is a separate KynticAI product. Scout may carry a public compatibility contract/client while that is useful, but Scout does not calculate KynticAI Score results itself and Score must not be listed as a Scout engine capability.
+
+Clarity and Importance are separate KynticAI products and are not required Scout dependencies.
+
+## Technical names
+
+Existing stable contract names such as `UCL` may remain where they are part of repository history, schemas or compatibility contracts.
+
+Use plain language in new public copy. Avoid turning internal architecture terms into additional product names.
+
+## Brand rules
+
+- Always write **KynticAI**, never bare "Kyntic", in user-facing copy.
+- Use British English spellings.
+- Do not claim self-serve SaaS, vendor certification, customer traction or private capabilities the public repo does not ship.
+- Do not expose private engine codenames, private vector/embedding internals, customer-specific mappings, credentials, tokens or support bundles.
+- Use **Scout → Fortress → Elite** consistently in current product copy.
