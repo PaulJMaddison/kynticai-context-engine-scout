@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/KynticAI.Scout.Reference.Sales/KynticAI.Scout.Reference.Sales.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/KynticAI.Scout.Api/KynticAI.Scout.Api.csproj" />
     <Project Path="src/KynticAI.Scout.Application/KynticAI.Scout.Application.csproj" />
