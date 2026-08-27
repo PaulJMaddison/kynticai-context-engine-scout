@@ -5,7 +5,7 @@ namespace KynticAI.Scout.Infrastructure.Configuration;
 /// commands and the configured startup options.
 ///
 /// Scout ships a single-store production data plane. The explicit `migrate` /
-/// `bootstrap` / `init` / `migrate-database` command must force database migration and
+/// `bootstrap` / `init` / `migrate-database` command, and the explicit demo-seed command, must force database initialisation and
 /// bootstrap regardless of the normal <see cref="BootstrapOptions.ApplyMigrationsOnStartup"/>
 /// startup setting, so that a deploy-time command (for example Render's
 /// <c>preDeployCommand</c>) reliably creates the Scout schema before connector-catalogue
@@ -33,7 +33,7 @@ public static class BootstrapCommandResolver
         bool explicitSeedDemoCommand)
         => new BootstrapOptions
         {
-            ApplyMigrationsOnStartup = explicitMigrationCommand || configured.ApplyMigrationsOnStartup,
+            ApplyMigrationsOnStartup = explicitMigrationCommand || explicitSeedDemoCommand || configured.ApplyMigrationsOnStartup,
             SeedDemoData = explicitSeedDemoCommand || configured.SeedDemoData
         };
 }
