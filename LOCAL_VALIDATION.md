@@ -142,17 +142,25 @@ cargo run -p ucl-scout-upgrade --bin scout-journal-validate -- `
 
 The Fortress validator must verify the whole-file SHA-256, row count, connector set, `exact-text.v1`, capture hashes, source/connector identity, FULL_SOURCE origin, history fidelity and source-position class. A development fixture escape hatch must never be used for a customer cutover.
 
-### 6. Required disposable-cloud proof
+### 6. Real PostgreSQL proof
 
-The checked-in GCP harness lives under `scripts/cloud-tests/` and the full runbook is:
+Provider-specific concurrency and migration behaviour must be proven against a real
+**local** PostgreSQL instance before the corresponding work package is marked complete.
 
-```text
-docs/testing/gcp-precloud-validation.md
-```
+Use an existing local PostgreSQL service or local Docker/PostgreSQL composition when
+available. Do not provision GCP, Azure, AWS, or any other cloud infrastructure as part
+of the normal validation workflow.
 
-It runs the actual Release build/test/EF/PostgreSQL migration path on an ephemeral London Compute Engine VM with a two-hour automatic-delete limit. The required synthetic acceptance matrix covers 100k rows, anti-resurrection, concurrent pause/cutover, tamper/fail-closed behaviour and crash/restart. A 1m-row pass is optional.
+The local PostgreSQL proof should cover:
 
-The cloud suite uses the mock LLM provider because source continuity/cutover correctness is deterministic and model-independent.
+- schema migration against the current Scout model;
+- source-event cross-instance idempotency with independent connections/DbContexts;
+- concurrent duplicate submissions and creation-only side-effect counts;
+- connector-capture ownership/lease behaviour that depends on PostgreSQL;
+- the Scout → Fortress local export/replay invariants described above.
+
+If local PostgreSQL is unavailable, report those provider-specific checks as blocked
+rather than substituting an in-memory provider or provisioning cloud infrastructure.
 
 ## Connector semantics that tests must preserve
 
@@ -169,7 +177,7 @@ Never promote snapshot pagination into fake historical CDC. A Scout -> Fortress 
 
 GitHub Actions is currently disabled: the repository workflows are stored as `.disabled`. A temporary validation workflow attempted during the 2026-08-16 code review did not receive a runner and executed zero steps, so it was removed immediately and no workflow/config change remains.
 
-Do not treat that infrastructure failure as either a code pass or a code failure. Use the local commands above or the disposable GCP runbook for the executable gate.
+Do not treat that infrastructure failure as either a code pass or a code failure. Use the local commands above for executable validation.
 
 A quick non-integration test run is:
 
@@ -185,16 +193,13 @@ dotnet test .\KynticAI.Scout.slnx --no-restore --filter "Category!=Integration"
 | README screenshot capture | Opt-in browser | `cd apps\web; node .\.capture-readme-screenshots.mjs` | `KYNTIC_RUN_BROWSER_TESTS=1` |
 | Docker/PostgreSQL production rehearsal | Opt-in container | `.\scripts\production-rehearsal.ps1 -RunDocker` | `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1` |
 | Scout continuity PostgreSQL fixture/export | Opt-in local/container | run FULL_SOURCE capture + `KynticAI.Scout.UpgradeExport` | `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1` |
-| Disposable GCP pre-cloud proof | Opt-in cloud | `scripts/cloud-tests/gcp-precloud-setup.sh` then `gcp-precloud-run.sh` | explicit Google Cloud project/billing setup |
 | Enterprise connector smoke in paid-pilot rehearsal | Opt-in external/live | `.\scripts\paid-pilot-local-rehearsal.ps1` | `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1` unless `-SkipEnterpriseConnectorSmoke` is supplied |
 
 ## Required Environment Variables
 
 The safe default path requires no environment variables beyond local SDK/toolchain availability. Browser proof requires `KYNTIC_RUN_BROWSER_TESTS=1`. Docker/PostgreSQL and enterprise connector proof require `KYNTIC_RUN_EXTERNAL_DOTNET_TESTS=1`.
 
-The local upgrade exporter may use `SCOUT_UPGRADE_CONNECTION_STRING` and `SCOUT_CUTOVER_TOKEN`; keep both outside the repository and point the connection string only at the customer-local/disposable PostgreSQL instance being validated.
-
-The GCP harness requires `GCP_PROJECT_ID`; the optional budget helper additionally requires `GCP_BILLING_ACCOUNT_ID`.
+The local upgrade exporter may use `SCOUT_UPGRADE_CONNECTION_STRING` and `SCOUT_CUTOVER_TOKEN`; keep both outside the repository and point the connection string only at a customer-local or local test PostgreSQL instance being validated.
 
 ## Expected Outputs
 
@@ -210,10 +215,10 @@ The continuity proof additionally requires:
 - anti-resurrection proof;
 - concurrent cutover proof;
 - successful Fortress journal validation;
-- disposable-cloud 100k reconciliation and teardown before production use.
+- any scale/reconciliation proof that is required for a release and can be run safely on the available local test environment.
 
 ## Known Partial/Blocked Proofs
 
 The 2026-08-16 direct-GitHub review fixed the stale export/cutover race, added the ownership migration and reconciled the EF model snapshot. Static concurrency paths were reviewed directly in the branch.
 
-This environment could not complete a real .NET build/test: local Git/DNS access was unavailable and GitHub Actions did not allocate a runner. Therefore the code remains **AUTHORED / EXECUTABLE VALIDATION REQUIRED** until the local or GCP gates above pass. Do not infer runtime-green status from the static review.
+Historical reviews sometimes could not complete executable validation because the required local toolchain or provider was unavailable. Current branch status must therefore be based only on commands that were actually run. Do not infer runtime-green status from static review, and do not provision cloud infrastructure merely to fill a missing local proof.
