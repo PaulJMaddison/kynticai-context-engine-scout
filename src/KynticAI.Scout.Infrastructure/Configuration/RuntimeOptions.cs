@@ -42,6 +42,17 @@ public static class PlatformModes
             || string.Equals(mode, ManagedDataPlane, StringComparison.OrdinalIgnoreCase)
             || string.Equals(mode, BackendOnly, StringComparison.OrdinalIgnoreCase)
             || string.Equals(mode, SaaS, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Returns true when selecting the mode outside a Production host should
+    /// still opt the process into production-shape security/readiness checks.
+    /// BackendOnly is retained as a development compatibility mode and does
+    /// not opt in by itself.
+    /// </summary>
+    public static bool RequiresProductionShape(string? mode)
+        => string.Equals(mode, SelfHosted, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, ManagedDataPlane, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, SaaS, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class FeatureFlagOptions
