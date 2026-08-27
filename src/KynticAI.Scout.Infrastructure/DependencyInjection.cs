@@ -125,7 +125,7 @@ public static class DependencyInjection
         services.AddSingleton<BackgroundJobMetrics>();
         services.AddSingleton<IHostedService>(provider => provider.GetRequiredService<BackgroundJobMetrics>());
         services.AddScoped<ContextRecomputeProcessor>();
-        services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
+        services.AddScoped<ISalesContextPackageService, CompatibilityContextPackageService>();
 
         // Keep the existing selector implementation as the derivation engine, but make source
         // capture a separate decorator so source truth is durably retained before Scout's

@@ -9,7 +9,6 @@ namespace KynticAI.Scout.Reference.Sales;
 
 public sealed class SalesSupportAgentService(
     SalesReferenceContextOptions options)
-    : ISalesSupportAgentService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

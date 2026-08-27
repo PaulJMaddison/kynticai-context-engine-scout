@@ -33,7 +33,7 @@ public sealed class ScoutService(
     IValidator<RunScheduledRecomputeInput> runScheduledRecomputeValidator,
     IValidator<SourceSystemEventInput> sourceSystemEventValidator,
     IValidator<UpsertPromptTemplateInput> upsertPromptTemplateValidator,
-    ISalesSupportAgentService salesSupportAgentService,
+    ISalesContextPackageService salesSupportAgentService,
     ICurrentActorService currentActorService,
     IConnectorRegistry connectorRegistry,
     IConnectorCredentialStore credentialStore,

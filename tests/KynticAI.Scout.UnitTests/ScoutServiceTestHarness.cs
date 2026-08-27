@@ -61,7 +61,7 @@ internal sealed class ScoutServiceTestHarness : IAsyncDisposable
         services.AddScoped<IPlatformRuntimeOptions>(_ => new TestPlatformRuntimeOptions(mode, featureFlags));
         services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
         services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
-        services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
+        services.AddScoped<ISalesContextPackageService, CompatibilityContextPackageService>();
         services.AddScoped<ContextRecomputeProcessor>();
         services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
         services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();

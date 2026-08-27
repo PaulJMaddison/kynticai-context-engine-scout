@@ -17,7 +17,7 @@ namespace KynticAI.Scout.Infrastructure.ContextPackages;
 /// </summary>
 public sealed class CompatibilityContextPackageService(
     IOptions<ContextPackageOptions> options)
-    : ISalesSupportAgentService
+    : ISalesContextPackageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -152,40 +152,6 @@ public sealed class CompatibilityContextPackageService(
             WeakSignalMessages: weakSignalMessages,
             Facts: factResults,
             ContextPackageJson: JsonSerializer.Serialize(contextPackagePayload, JsonOptions));
-    }
-
-    public SalesSupportPromptEnvelope BuildPromptEnvelope(
-        PromptTemplate promptTemplate,
-        SalesContextPackageResult contextPackage,
-        string modelName,
-        string providerName)
-        => throw new NotSupportedException(
-            "Scout core does not build AI model prompts. Build prompt/model orchestration in a customer-owned or reference consumer.");
-
-    public Task<SalesSupportGenerationArtifact> GenerateAsync(
-        PromptTemplate promptTemplate,
-        SalesContextPackageResult contextPackage,
-        SalesSupportPromptEnvelope promptEnvelope,
-        string? providerName,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        const string reason =
-            "Scout core does not execute AI models. Send governed context to a customer-owned or reference consumer.";
-
-        return Task.FromResult(new SalesSupportGenerationArtifact(
-            ProviderName: string.IsNullOrWhiteSpace(providerName) ? "external" : providerName.Trim(),
-            ModelName: "external",
-            SalesObjective: contextPackage.SalesObjective,
-            Confidence: 0m,
-            AttemptCount: 0,
-            HumanReviewRecommended: true,
-            ContextPackageJson: contextPackage.ContextPackageJson,
-            OutputJson: "{}",
-            ProvenanceJson: "[]",
-            ValidationErrorsJson: JsonSerializer.Serialize(new[] { reason }, JsonOptions),
-            FailureReason: reason));
     }
 
     private static object? DeserializeJsonValue(string json)

@@ -312,7 +312,7 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
             services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
             services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
-            services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
+            services.AddScoped<ISalesContextPackageService, CompatibilityContextPackageService>();
             services.AddScoped<ContextRecomputeProcessor>();
             services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
             services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();
