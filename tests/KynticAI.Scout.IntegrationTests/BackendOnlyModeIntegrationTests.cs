@@ -22,7 +22,7 @@ namespace KynticAI.Scout.IntegrationTests;
 public sealed class BackendOnlyModeIntegrationTests
 {
     [Fact]
-    public async Task BackendOnlyMode_DoesNotSeedDemoData_UnlessExplicitlyEnabled()
+    public async Task BackendOnlyMode_DoesNotRequireCustomerOpsReferenceDatabase()
     {
         await using var factory = new BackendOnlyWebApplicationFactory(seedDemoData: false);
         using var client = factory.CreateClient();
@@ -35,10 +35,10 @@ public sealed class BackendOnlyModeIntegrationTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var contextDbContext = scope.ServiceProvider.GetRequiredService<ScoutDbContext>();
-        var customerOpsDbContext = scope.ServiceProvider.GetRequiredService<CustomerOpsDbContext>();
+        var customerOpsDbContext = scope.ServiceProvider.GetService<CustomerOpsDbContext>();
 
         Assert.Equal(0, await contextDbContext.Tenants.CountAsync());
-        Assert.Equal(0, await customerOpsDbContext.CustomerOpsTenants.CountAsync());
+        Assert.Null(customerOpsDbContext);
     }
 
     [Fact]
@@ -187,6 +187,7 @@ public sealed class BackendOnlyModeIntegrationTests
                     ["Platform:EnableOpenApi"] = "true",
                     ["Bootstrap:ApplyMigrationsOnStartup"] = "false",
                     ["Bootstrap:SeedDemoData"] = "false",
+                    ["ReferenceData:CustomerOpsEnabled"] = seedDemoData ? "true" : "false",
                     ["Auth:Issuer"] = "KynticAI.Scout.Tests",
                     ["Auth:Audience"] = "KynticAI.Scout.Tests",
                     ["Auth:SigningKey"] = "scout-tests-signing-key-1234567890",
@@ -218,12 +219,16 @@ public sealed class BackendOnlyModeIntegrationTests
 
                 services.AddDbContext<ScoutDbContext>(options =>
                     options.UseInMemoryDatabase(databaseName, databaseRoot));
-                services.AddDbContext<CustomerOpsDbContext>(options =>
-                    options.UseInMemoryDatabase($"{databaseName}-ops", databaseRoot));
                 services.AddScoped<KynticAI.Scout.Application.Abstractions.IScoutDbContext>(provider =>
                     provider.GetRequiredService<ScoutDbContext>());
-                services.AddScoped<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>(provider =>
-                    provider.GetRequiredService<CustomerOpsDbContext>());
+
+                if (seedDemoData)
+                {
+                    services.AddDbContext<CustomerOpsDbContext>(options =>
+                        options.UseInMemoryDatabase($"{databaseName}-ops", databaseRoot));
+                    services.AddScoped<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>(provider =>
+                        provider.GetRequiredService<CustomerOpsDbContext>());
+                }
 
                 if (seedDemoData)
                 {
