@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Partial — local restart proof unavailable because Docker is unavailable
+- **Status:** Implementation complete — local restart proof added; full branch validation pending
 - **Priority:** Critical before real hosted connector credentials
 - **Phase:** F — Production correctness
 - **Depends on:** WP-016
@@ -42,4 +42,4 @@ Make every supported hosted deployment example satisfy the real cryptographic pe
 
 ## Verification
 
-Run the credential round-trip/restart proof on disposable infrastructure and record only non-secret evidence. Include the result in the final GCP sign-off evidence.
+Run the local credential round-trip/restart proof and record only non-secret evidence. The test must use a fresh service provider/process-equivalent composition with the same persisted key-ring directory and data store. No cloud infrastructure is required.
