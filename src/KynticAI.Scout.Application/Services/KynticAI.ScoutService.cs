@@ -1263,6 +1263,13 @@ public sealed class ScoutService(
                 && string.Equals(duplicate.ExternalUserId?.Trim(), input.ExternalUserId?.Trim(), StringComparison.Ordinal)
                 && string.Equals(duplicate.ExternalAccountId?.Trim(), input.ExternalAccountId?.Trim(), StringComparison.Ordinal)
                 && duplicate.WorkspaceId == workspace?.Id
+                // An explicitly supplied data source is part of immutable event identity.
+                // Older/retry callers may omit it, in which case the source-system/event-id
+                // identity remains authoritative and the stored binding is retained.
+                && (!input.DataSourceId.HasValue || duplicate.DataSourceId == input.DataSourceId)
+                // ObservedAtUtc describes when the source observed the event, not delivery
+                // identity. Retries may legitimately carry a different observation timestamp;
+                // the first retained event remains the authoritative evidence record.
                 && JsonPayloadsEquivalent(duplicate.PayloadJson, input.PayloadJson);
             if (!sameLogicalEvent)
             {

@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Complete
 - **Priority:** Medium
 - **Phase:** H — Maintainability and developer experience
 - **Depends on:** WP-013, WP-014, WP-017

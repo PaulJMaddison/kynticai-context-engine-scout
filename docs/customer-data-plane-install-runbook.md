@@ -39,7 +39,9 @@ Run:
 
 ## Database Setup And Migrations
 
-- create separate scout and customer-ops databases/schemas where possible
+- use one Scout PostgreSQL database for Scout state, retained evidence, capture checkpoints,
+  connector configuration and Data Protection-dependent configuration; fictional CustomerOps
+  data is LocalDemo/reference-only and is not a production prerequisite
 - run migrations from a controlled admin job before starting the new application version
 - disable demo seed data
 - capture migration logs with secrets redacted

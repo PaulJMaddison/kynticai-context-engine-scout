@@ -206,7 +206,7 @@ curl http://127.0.0.1:5198/health/ready
 Expected response:
 
 ```json
-{"status":"ok","service":"KynticAI.Scout.Api","checks":[{"name":"scout-db","status":"ok"},{"name":"customer-ops-db","status":"ok"}]}
+{"status":"ok","service":"KynticAI.Scout.Api","checks":[{"name":"scout-db","status":"ok"}]}
 ```
 
 ### Platform Configuration

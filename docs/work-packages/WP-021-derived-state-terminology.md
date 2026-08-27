@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** G — Semantic and documentation truth
 - **Depends on:** WP-014, WP-015

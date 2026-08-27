@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Complete — tenant boundary; workspace remains organisational only
 - **Priority:** Critical before multi-workspace production use
 - **Phase:** F — Production correctness
 - **Depends on:** WP-016

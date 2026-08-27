@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Partial — local restart proof unavailable because Docker is unavailable
 - **Priority:** Critical before real hosted connector credentials
 - **Phase:** F — Production correctness
 - **Depends on:** WP-016

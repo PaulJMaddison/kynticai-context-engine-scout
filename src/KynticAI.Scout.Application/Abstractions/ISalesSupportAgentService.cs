@@ -26,6 +26,10 @@ public interface ISalesSupportAgentService
         CancellationToken cancellationToken);
 }
 
+public sealed record LlmPromptMessage(
+    string Role,
+    string Content);
+
 public sealed record SalesSupportPromptEnvelope(
     IReadOnlyList<LlmPromptMessage> Messages,
     string InputJson);

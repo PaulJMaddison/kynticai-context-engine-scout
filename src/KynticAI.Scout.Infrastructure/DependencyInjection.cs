@@ -49,14 +49,18 @@ public static class DependencyInjection
             services.AddDbContext<CustomerOpsDbContext>(options =>
                 DatabaseProviderConfigurator.ConfigureCustomerOps(options, configuration));
             services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+            services.AddScoped<IOptionalCustomerOpsDatabase>(provider =>
+            {
+                var database = provider.GetRequiredService<CustomerOpsDbContext>().Database;
+                return new OptionalCustomerOpsDatabase(database.IsRelational() ? database.GetDbConnection() : null);
+            });
             services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
         }
         else
         {
-            // Production has no fictional CustomerOps reference store. Register the optional
-            // reference-database dependency as null so connectors that support the demo-only
-            // 'customerOpsDatabase' mode can still construct without a second database.
-            services.AddScoped<ICustomerOpsDbContext>(_ => null!);
+            // Production has no fictional CustomerOps reference store. The explicit optional
+            // database abstraction keeps connector construction total without a null DI factory.
+            services.AddScoped<IOptionalCustomerOpsDatabase>(_ => new OptionalCustomerOpsDatabase(null));
             services.AddScoped<IOperationalReferenceDataProvider, NullOperationalReferenceDataProvider>();
         }
         services.AddScoped<IPlatformRuntimeOptions, PlatformRuntimeOptions>();

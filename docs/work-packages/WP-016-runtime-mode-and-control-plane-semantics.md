@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** E — Architectural truth and product boundary
 - **Depends on:** WP-012

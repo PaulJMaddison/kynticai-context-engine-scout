@@ -311,8 +311,6 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
             services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
             services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
-            services.AddScoped<IStructuredLlmClient, MockStructuredLlmClient>();
-            services.AddScoped<IStructuredLlmClientRegistry, StructuredLlmClientRegistry>();
             services.AddScoped<ISalesSupportAgentService, SalesSupportAgentService>();
             services.AddScoped<ContextRecomputeProcessor>();
             services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
@@ -325,14 +323,6 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddSingleton<IContextRecomputeQueue>(provider => provider.GetRequiredService<ContextRecomputeQueue>());
             services.AddSingleton<ICurrentActorService>(new TestCurrentActorService(ActorContext.System()));
             services.AddScoped<IPlatformRuntimeOptions>(_ => new TestPlatformRuntimeOptions("BackendOnly", "open-core-apis"));
-            services.AddSingleton<IOptions<LlmOptions>>(Options.Create(new LlmOptions
-            {
-                DefaultProvider = "mock",
-                DefaultModel = "gpt-5.5",
-                MaxAttempts = 2,
-                LowConfidenceThreshold = 0.75m,
-                MinimumStrongFacts = 3
-            }));
             services.AddSingleton<IOptions<ContextPackageOptions>>(Options.Create(new ContextPackageOptions()));
             services.AddScoutApplication();
 

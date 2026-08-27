@@ -13,6 +13,8 @@ public static class RestEndpointRouteBuilderExtensions
             .RequireAuthorization();
         restGroup.AddEndpointFilter(async (context, next) =>
         {
+            context.HttpContext.Response.Headers["Deprecation"] = "true";
+            context.HttpContext.Response.Headers["Link"] = "</api/v1>; rel=successor-version";
             // The legacy REST surface predates machine-client scopes. Keep it available to human
             // operators for compatibility, but require machine clients to use the scoped /api/v1
             // contract instead of silently bypassing their declared scopes here.

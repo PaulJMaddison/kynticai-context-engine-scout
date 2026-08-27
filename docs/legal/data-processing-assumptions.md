@@ -41,7 +41,7 @@ Support bundles should be redacted locally before sharing. If a customer asks fo
 
 ## Backups, Export, And Delete
 
-The customer should own backup and restore for the customer data plane unless the SOW says otherwise. Restore rehearsals should include the scout database, any customer-ops/source database used by the pilot, and ASP.NET Data Protection keys where protected credentials depend on them.
+The customer should own backup and restore for the customer data plane unless the SOW says otherwise. Restore rehearsals should include the Scout database, retained Scout evidence, capture checkpoints/ownership state, connector configuration, and ASP.NET Data Protection keys where protected credentials depend on them. Upstream CRM/ERP/support/warehouse systems remain under the customer's existing backup and recovery ownership; retained Scout evidence is not a full backup of an upstream source unless the connector contract explicitly guarantees that.
 
 Offboarding should define export format, deletion or return of support bundles, licence expiry or revocation, credential revocation, temporary access removal, and retained audit records.
 

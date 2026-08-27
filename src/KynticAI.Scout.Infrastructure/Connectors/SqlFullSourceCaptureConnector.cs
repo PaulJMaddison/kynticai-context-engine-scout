@@ -29,7 +29,7 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 /// </summary>
 internal sealed class SqlFullSourceCaptureConnector(
     ScoutDbContext scoutDbContext,
-    ICustomerOpsDbContext? customerOpsDbContext) : IUpgradeSourceCaptureConnector
+    IOptionalCustomerOpsDatabase? customerOpsDatabase = null) : IUpgradeSourceCaptureConnector
 {
     private const string CursorKind = "sql-keyset-v1";
     private const int CaptureCommandTimeoutSeconds = 240;
@@ -80,7 +80,7 @@ internal sealed class SqlFullSourceCaptureConnector(
         var cursor = ParseCursor(request.ContinuationToken, tableName, recordIdColumn);
         var connection = await OpenConnectionAsync(configuration, request.Credentials, cancellationToken);
         var dispose = connection != scoutDbContext.Database.GetDbConnection()
-            && (customerOpsDbContext is null || connection != customerOpsDbContext.Database.GetDbConnection());
+            && connection != customerOpsDatabase?.Connection;
 
         try
         {
@@ -225,9 +225,9 @@ internal sealed class SqlFullSourceCaptureConnector(
         return mode.Trim().ToLowerInvariant() switch
         {
             "currentdatabase" => await OpenSharedAsync(scoutDbContext.Database.GetDbConnection(), cancellationToken),
-            "customeropsdatabase" => customerOpsDbContext is null
+            "customeropsdatabase" => customerOpsDatabase?.Connection is null
                 ? throw new InvalidOperationException("The 'customerOpsDatabase' full-capture mode is only available when the optional CustomerOps reference data store is enabled.")
-                : await OpenSharedAsync(customerOpsDbContext.Database.GetDbConnection(), cancellationToken),
+                : await OpenSharedAsync(customerOpsDatabase!.Connection!, cancellationToken),
             "connectionstring" => await OpenExternalAsync(configuration["connectionString"]?.GetValue<string>() ?? credentials["connectionString"]?.GetValue<string>(), cancellationToken),
             _ => throw new InvalidOperationException($"SQL connector mode '{mode}' is not supported for full capture.")
         };

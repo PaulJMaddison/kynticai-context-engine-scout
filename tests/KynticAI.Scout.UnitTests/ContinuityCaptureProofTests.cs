@@ -9,6 +9,7 @@ using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Domain.Saas;
 using KynticAI.Scout.Infrastructure.Connectors;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -770,7 +771,7 @@ public sealed class ContinuityCaptureProofTests
 
             var connector = new SqlFullSourceCaptureConnector(
                 new ScoutDbContext(new DbContextOptionsBuilder<ScoutDbContext>().UseSqlite(sqlite).Options, clock),
-                new CustomerOpsDbContext(new DbContextOptionsBuilder<CustomerOpsDbContext>().UseSqlite(sqlite).Options));
+                new OptionalCustomerOpsDatabase(new CustomerOpsDbContext(new DbContextOptionsBuilder<CustomerOpsDbContext>().UseSqlite(sqlite).Options).Database.GetDbConnection()));
             return new ConnectorFixture(installation, dataSource, configuration, sqlite, connector);
         }
     }

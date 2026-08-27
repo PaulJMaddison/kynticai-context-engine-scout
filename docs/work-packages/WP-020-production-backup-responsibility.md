@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Complete
 - **Priority:** High
 - **Phase:** F — Production correctness
 - **Depends on:** WP-014

@@ -2,6 +2,13 @@
 
 The KynticAI Scout exposes a REST API and a GraphQL endpoint. When OpenAPI is enabled, interactive documentation is available through both Swagger UI and Scalar.
 
+## API surface policy
+
+- `/api/v1` is the canonical stable machine REST contract.
+- `/graphql` is the supported secondary query/mutation surface.
+- `/api/rest` is a legacy compatibility surface; it receives no new features and
+  returns `Deprecation: true` with a successor link to `/api/v1`.
+
 ## Viewing API Docs Locally
 
 Start the API in Development mode (OpenAPI is enabled by default):

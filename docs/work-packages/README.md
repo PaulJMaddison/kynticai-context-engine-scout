@@ -47,20 +47,20 @@ coding agent.
 | WP-009 | Roadmap and changelog reconciliation | D | Medium | WP-007 | Complete |
 | WP-010 | Missing user documentation | D | Medium | — | Complete |
 | WP-011 | Connector authoring and marketplace documentation | D | Medium | — | Complete |
-| WP-012 | Canonical product taxonomy and Discovery boundary | E | Critical | — | Planned |
-| WP-013 | Make the Scout inference boundary real | E | Critical | WP-012 | Planned |
-| WP-014 | Decouple CustomerOps demo data from production Scout | E | Critical | WP-012 | Planned |
-| WP-015 | Extract sales next-action heuristics from Scout core | E | High | WP-014 | Planned |
-| WP-016 | Separate runtime mode from control-plane features | E | High | WP-012 | Planned |
-| WP-017 | Make workspace isolation truthful and enforceable | F | Critical | WP-016 | Planned |
-| WP-018 | Make hosted Data Protection persistence real | F | Critical | WP-016 | Planned |
-| WP-019 | Atomic cross-instance source-event idempotency | F | Critical | — | Planned |
-| WP-020 | Correct production backup/source responsibility | F | High | WP-014 | Planned |
-| WP-021 | Separate source truth from derived Scout state | G | High | WP-014, WP-015 | Planned |
-| WP-022 | Remove stale repository state and correct release truth | G | High | WP-012 | Planned |
-| WP-023 | Clarify KynticAI Score as a companion product | G | Medium | WP-012 | Planned |
-| WP-024 | Make core, examples, tools and integrations obvious | H | Medium | WP-013, WP-014, WP-015, WP-023 | Planned |
-| WP-025 | Rationalise REST, GraphQL and SDK surfaces | H | Medium | WP-013, WP-014, WP-017 | Planned |
+| WP-012 | Canonical product taxonomy and Discovery boundary | E | Critical | — | Complete |
+| WP-013 | Make the Scout inference boundary real | E | Critical | WP-012 | Complete |
+| WP-014 | Decouple CustomerOps demo data from production Scout | E | Critical | WP-012 | Complete |
+| WP-015 | Extract sales next-action heuristics from Scout core | E | High | WP-014 | Complete |
+| WP-016 | Separate runtime mode from control-plane features | E | High | WP-012 | Complete |
+| WP-017 | Make workspace isolation truthful and enforceable | F | Critical | WP-016 | Complete (tenant boundary; workspace organisational only) |
+| WP-018 | Make hosted Data Protection persistence real | F | Critical | WP-016 | Partial (local restart proof unavailable) |
+| WP-019 | Atomic cross-instance source-event idempotency | F | Critical | — | Partial (real PostgreSQL concurrency proof unavailable) |
+| WP-020 | Correct production backup/source responsibility | F | High | WP-014 | Complete |
+| WP-021 | Separate source truth from derived Scout state | G | High | WP-014, WP-015 | Complete |
+| WP-022 | Remove stale repository state and correct release truth | G | High | WP-012 | Complete |
+| WP-023 | Clarify KynticAI Score as a companion product | G | Medium | WP-012 | Complete |
+| WP-024 | Make core, examples, tools and integrations obvious | H | Medium | WP-013, WP-014, WP-015, WP-023 | Complete |
+| WP-025 | Rationalise REST, GraphQL and SDK surfaces | H | Medium | WP-013, WP-014, WP-017 | Complete |
 | WP-026 | Activate continuous integration when GitHub permits it | H | High | WP-022 + external unblock | Blocked |
 
 ## Phase summary

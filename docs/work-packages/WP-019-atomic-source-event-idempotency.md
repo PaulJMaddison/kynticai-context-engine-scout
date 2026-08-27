@@ -20,6 +20,10 @@ The implementation is already in place and was verified this session:
 - Exact duplicates return an idempotent `SourceSystemEventAcceptedResult(IsDuplicate: true)`;
   a conflicting payload for the same logical event raises `SourceSystemEventConflictException`
   (documented conflict policy; historical truth is never silently overwritten).
+- Explicit `DataSourceId` is part of immutable event identity and a different explicit value is
+  a conflict. `ObservedAtUtc` is intentionally delivery-tolerant: retries may differ because it
+  describes source observation rather than event identity, while the first retained event keeps
+  the authoritative observation timestamp.
 - Persistence and all creation-only side effects (audit, usage, user signal, selector
   executions, recompute job) commit in one atomic transaction; the recompute queue enqueue
   happens once, after commit.

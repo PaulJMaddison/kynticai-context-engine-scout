@@ -10,6 +10,7 @@ using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.Persistence;
 using KynticAI.Scout.Infrastructure.Connectors;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using KynticAI.Scout.Infrastructure.Selectors;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -144,7 +145,7 @@ public sealed class DualDatabaseDemoIntegrationTests
         services.AddHttpClient("scout-connectors");
         services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
         services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();
-        services.AddScoped<IConnectorPlugin>(_ => new SqlConnectorPlugin(contextDbContext, customerOpsDbContext));
+        services.AddScoped<IConnectorPlugin>(_ => new SqlConnectorPlugin(contextDbContext, new OptionalCustomerOpsDatabase(customerOpsDbContext.Database.GetDbConnection())));
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorCredentialStore, ProtectedConnectorCredentialStore>();
         services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
