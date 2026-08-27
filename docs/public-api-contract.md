@@ -2,7 +2,7 @@
 
 This page explains the public KynticAI Scout API contract for context consumers, selector tooling, provenance review, machine-to-machine access, and SDK usage.
 
-Scout does not need to call an AI model to be useful. The core contract is that a customer-owned data plane turns approved operational signals into exact data items, relationships, attribution paths, outcomes, governed semantic context, and local JSON packages, then exposes that context to customer-owned apps, reports, workflows, agents, local LLMs, and AI tools through GraphQL, REST, SDKs, and context packages.
+Scout core does not call an AI model. Its contract is to turn approved operational signals into source-traced context and expose that context to customer-owned apps, reports, workflows, agents and model runtimes through REST, GraphQL and SDKs.
 
 ## Boundary
 
@@ -10,7 +10,9 @@ The public repo includes the open-core API surface, SDK scaffolds, selector engi
 
 It does not include paid enterprise connector implementations, hosted account management, live billing, production SSO, vendor-certified connector packs, customer-specific mappings, or managed SaaS operations.
 
-For next-best-action workflows, exact authorised data and derived relationship intelligence remain in the customer data plane: normalised email address, CRM contact/account, account registration/profile, sales activity, opportunities, email replies, meetings booked, web conversion and pricing-page events, support tickets, product usage summaries, billing health, won/lost outcome signals, relationship types, attribution paths, `BasicRelationshipEngine` fallback signals, extension handoff artefacts, recommendations, confidence, caveats, citations, local evidence packages, prompts, generated content, and per-entity relationship metadata. Optional Cloud/control-plane payloads are aggregate usage payloads only: tenant/control-plane identifiers, package version, feature usage counters, health/status, timestamps, and audit/control-plane event metadata. Advanced relationship-set analysis, attribution-path comparison, outcome matching, and governed JSON handoff belong to private extensions, not this open-core Scout contract.
+Sales next-action scoring, fixed sales/RevOps weights and model-generated recommendations are reference-consumer concerns rather than Scout core behaviour. The legacy public next-action contract is retained during the compatibility transition but returns an explicit external-consumer-required response from the core runtime.
+
+Optional control-plane payloads are limited to allowlisted commercial/operational metadata and aggregate counters. Raw customer records, retained source evidence, context facts, per-entity relationship intelligence, prompts and generated customer content remain local by default.
 
 The existing v1 DTOs, schemas, validators, and cross-domain golden fixtures are documented in [UCL Evidence Pack Contract v1](evidence-pack-contract-v1.md). That contract name is an implementation envelope; the product story is relationship sets and attribution paths first.
 
@@ -18,7 +20,7 @@ The existing v1 DTOs, schemas, validators, and cross-domain golden fixtures are 
 
 Every context lookup is tenant-scoped. Human operators normally inherit their tenant from the signed-in JWT. API clients can request a tenant through query/input only when their credentials and role allow it.
 
-Workspace concepts exist for API clients, event ingestion, webhook secrets, onboarding, and future control-plane metadata. Current context facts and snapshots are tenant-scoped in the open core. Treat workspace scoping for context facts as a future hardening area, not a production promise.
+Workspace concepts exist for API clients, event ingestion, webhook secrets and onboarding, but **Tenant is the current security boundary**. Workspaces are organisational groupings, not a promise of hard data isolation. Deploy separate tenants for mutually untrusted groups. Production readiness blocks `SaaS:RequireWorkspaceScope=true` until end-to-end workspace isolation exists.
 
 ## Machine-To-Machine Auth
 
@@ -156,7 +158,7 @@ curl -X POST "http://127.0.0.1:5198/api/v1/context/users/123/ai-safe-context-pac
   }'
 ```
 
-Generate next-action relationship JSON from exact linked records in the customer data plane:
+Legacy next-action endpoint:
 
 ```bash
 curl -X POST "http://127.0.0.1:5198/api/v1/intelligence/next-action?tenantSlug=demo" \
@@ -165,14 +167,14 @@ curl -X POST "http://127.0.0.1:5198/api/v1/intelligence/next-action?tenantSlug=d
   -d '{
     "tenant": "demo",
     "subjectType": "email",
-    "subjectIdentifier": "avery.stone@larkspur-logistics.example",
+    "subjectIdentifier": "avery.stone@example.invalid",
     "objective": "sale",
     "purpose": "customer_outreach",
     "actorRole": "sales_rep"
   }'
 ```
 
-The response includes `exactLinkedRecords`, `relationships`, `similarWonLostPatterns`, `BasicRelationshipEngine` fallback `weightedSignals`, `recommendedNextAction`, `provenance`, `governance`, and `evidencePack`. Deterministic links cover email-to-contact, contact-to-account, account-to-opportunity, account/contact-to-activity, contact-to-email-engagement, account/contact-to-web-conversion, account/contact-to-support-ticket, account/contact-to-product-usage, account-to-billing, and account/contact-to-outcome. Those links are the local relationship-set foundation; attribution-path evidence describes what happened and in what order. `evidencePack.localDerivedEvidencePackageJson` is the customer-local derived relationship/evidence package and includes `relationshipWeighting` metadata declaring `scope: "basic-public-fallback-only"` and `scoutWeightsAreCanonical: false`. The legacy `evidencePack.enterpriseRelationshipEngineHandoffJson` field is a compatibility envelope for private-extension proof runners; it includes candidate relationships, provenance, fallback weight scope, and required private-extension outputs, with `requiresLiveEnterpriseService: false` and `enterpriseOnlyInternalsIncluded: false`. `evidencePack.cloudAggregateUsagePayloadJson` is the optional Cloud aggregate usage payload; it carries only control-plane usage metadata such as payload/package version, tenant slug, feature/event/status, timestamps, feature counters, governance counters, and explicit boundary flags. It must not carry raw records, context facts/snapshots, local evidence packs, prompts, generated content, recommendations, citation IDs, weighted signals, attribution paths, confidence, caveats, relationship type names, or per-entity relationship metadata. `cloudPayloadContainsRawCustomerData` remains `false`.
+The core runtime now returns `501 feature.external_consumer_required`. The endpoint is retained temporarily so existing clients fail clearly rather than silently receiving changed scoring semantics. Build next-action logic in a customer-owned/reference consumer using Scout's governed context APIs.
 
 Look up audit and provenance activity:
 
@@ -236,9 +238,9 @@ Errors use the v1 envelope:
 
 ## GraphQL Examples
 
-GraphQL samples live in [samples/graphql/demo-queries.graphql](../samples/graphql/demo-queries.graphql). They cover user context, account context, context snapshots, semantic catalogues, selector preview, selector validation, recomputation, audit events, governed context packages, prompt templates, and the mock agent-run path.
+GraphQL samples live in [samples/graphql/demo-queries.graphql](../samples/graphql/demo-queries.graphql). They cover user context, account context, context snapshots, semantic catalogues, selector preview, selector validation, recomputation, audit events and governed context packages.
 
-Use `salesContextPackage` when the consumer only needs grounded context. Use `createAgentRun` only for the example AI workflow where Scout calls the configured mock or provider-backed structured LLM client.
+Use `salesContextPackage` only as a compatibility name for preparing grounded context. Model execution belongs in the consuming application. The legacy `createAgentRun` mutation is retained for compatibility but Scout core no longer executes a provider-backed model.
 
 Direct semantic fact lookup is available when the consumer needs a narrow attribute rather than the full context payload:
 
