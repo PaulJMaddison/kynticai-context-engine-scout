@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using KynticAI.Scout.Application.Abstractions;
@@ -14,8 +13,6 @@ public sealed class SalesSupportAgentService(
     IOptions<ContextPackageOptions> options)
     : ISalesSupportAgentService
 {
-    private static readonly ActivitySource ActivitySource = new("KynticAI.Scout.Ai");
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
