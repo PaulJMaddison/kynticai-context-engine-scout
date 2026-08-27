@@ -14,7 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IScoutUpgradeCompatibilityService, ScoutUpgradeCompatibilityService>();
         services.AddScoped<BasicRelationshipEngine>();
         services.AddScoped<EnterpriseRelationshipEngineHandoff>();
-        services.AddScoped<INextActionIntelligenceService, NextActionIntelligenceService>();
+        services.AddScoped<INextActionIntelligenceService, DisabledNextActionIntelligenceService>();
         services.AddScoped<IBlueprintImportService, BlueprintImportService>();
         services.AddScoped<IBillingPlanCatalog, BillingPlanCatalog>();
         services.AddScoped<IUsageMeteringService, UsageMeteringService>();
