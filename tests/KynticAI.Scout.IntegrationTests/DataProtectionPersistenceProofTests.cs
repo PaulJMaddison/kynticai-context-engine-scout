@@ -140,4 +140,91 @@ public sealed class DataProtectionPersistenceProofTests
             // Best-effort temp cleanup.
         }
     }
+    [Fact]
+    public async Task ProtectedConnectorCredential_FailsClosed_WhenKeyRingIsReplaced()
+    {
+        var originalKeyRingPath = NewKeyRingDirectory();
+        var replacementKeyRingPath = NewKeyRingDirectory();
+        var dbPath = NewDatabase();
+        Directory.CreateDirectory(originalKeyRingPath);
+        Directory.CreateDirectory(replacementKeyRingPath);
+
+        Guid tenantId;
+        string secretReference;
+
+        using (var provider = BuildProvider(originalKeyRingPath, dbPath))
+        {
+            await using var scope = provider.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ScoutDbContext>();
+            await dbContext.Database.EnsureCreatedAsync();
+
+            var tenant = Tenant.Create("dp-fail-closed", "Data Protection Fail Closed", DateTime.UtcNow);
+            dbContext.Tenants.Add(tenant);
+            var dataSource = DataSource.Create(
+                tenant.Id,
+                "CRM API",
+                "test",
+                DataSourceKind.Crm,
+                """{"connectorType":"restApi"}""",
+                DateTime.UtcNow);
+            dbContext.DataSources.Add(dataSource);
+            await dbContext.SaveChangesAsync();
+
+            tenantId = tenant.Id;
+            var store = scope.ServiceProvider.GetRequiredService<IConnectorCredentialStore>();
+            var references = await store.PersistCredentialsAsync(
+                tenant.Id,
+                dataSource.Id,
+                "restApi",
+                new JsonObject { ["apiKey"] = "do-not-leak-this-secret" },
+                CancellationToken.None);
+            secretReference = references["apiKey"]!.GetValue<string>();
+        }
+
+        using (var provider = BuildProvider(replacementKeyRingPath, dbPath))
+        {
+            await using var scope = provider.CreateAsyncScope();
+            var store = scope.ServiceProvider.GetRequiredService<IConnectorCredentialStore>();
+            var exception = await Assert.ThrowsAnyAsync<System.Security.Cryptography.CryptographicException>(() =>
+                store.ResolveConfigurationSecretsAsync(
+                    tenantId,
+                    new JsonObject
+                    {
+                        ["connectorType"] = "restApi",
+                        ["credentials"] = new JsonObject { ["apiKey"] = secretReference }
+                    },
+                    CancellationToken.None));
+
+            Assert.DoesNotContain("do-not-leak-this-secret", exception.Message, StringComparison.Ordinal);
+        }
+
+        SqliteConnection.ClearAllPools();
+        foreach (var path in new[] { originalKeyRingPath, replacementKeyRingPath })
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+                // Best-effort temp cleanup.
+            }
+        }
+
+        try
+        {
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Best-effort temp cleanup.
+        }
+    }
+
 }
