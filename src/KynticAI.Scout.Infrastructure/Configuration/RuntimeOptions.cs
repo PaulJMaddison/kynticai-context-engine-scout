@@ -20,9 +20,28 @@ public static class PlatformModes
 {
     public const string LocalDemo = "LocalDemo";
 
+    /// <summary>
+    /// Customer-controlled production/data-plane deployment.
+    /// </summary>
+    public const string SelfHosted = "SelfHosted";
+
+    /// <summary>
+    /// Production data plane operated as a managed deployment. This does not
+    /// imply that the optional KynticAI commercial control plane is enabled.
+    /// </summary>
+    public const string ManagedDataPlane = "ManagedDataPlane";
+
+    // Compatibility aliases retained for existing configuration. New
+    // deployments should use SelfHosted or ManagedDataPlane.
     public const string BackendOnly = "BackendOnly";
 
     public const string SaaS = "SaaS";
+
+    public static bool IsProductionDataPlane(string? mode)
+        => string.Equals(mode, SelfHosted, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, ManagedDataPlane, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, BackendOnly, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(mode, SaaS, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class FeatureFlagOptions
