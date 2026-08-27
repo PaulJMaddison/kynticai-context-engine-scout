@@ -91,6 +91,22 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
     }
 
     [Fact]
+    public void Production_shape_blocks_workspace_scope_claim_until_end_to_end_isolation_exists()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>
+            {
+                ["SaaS:RequireWorkspaceScope"] = "true"
+            }),
+            new TestHostEnvironment("Production"));
+
+        Assert.False(report.ReadyForProductionStyleDeployment);
+        Assert.Contains(report.Checks, check =>
+            check.Key == "workspace-isolation"
+            && check.Status == "Blocked");
+    }
+
+    [Fact]
     public void Production_shape_blocks_placeholder_signing_key()
     {
         var report = ProductionEnvironmentReadinessValidator.GetReport(
