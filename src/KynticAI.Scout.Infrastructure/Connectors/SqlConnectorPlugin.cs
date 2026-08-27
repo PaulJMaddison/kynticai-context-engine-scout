@@ -19,7 +19,7 @@ internal sealed class SqlConnectorPlugin(
 
     public override string DisplayName => "SQL Database Connector";
 
-    public override string Description => "Fetches subject rows from the current context database, customer operations database, or an external PostgreSQL connection. Optional explicit whole-source capture settings preserve a broader customer-permitted projection for seamless tier continuity.";
+    public override string Description => "Fetches subject rows from the current Scout database, the fictional LocalDemo CustomerOps reference database, or an explicit external PostgreSQL connection. Optional explicit whole-source capture settings preserve a broader customer-permitted projection for seamless tier continuity.";
 
     public override IReadOnlyList<string> Aliases => ["sqlTable", "postgresql"];
 
@@ -32,7 +32,12 @@ internal sealed class SqlConnectorPlugin(
             ["required"] = new JsonArray("mode", "tableName", "userIdColumn", "columns"),
             ["properties"] = new JsonObject
             {
-                ["mode"] = new JsonObject { ["type"] = "string" },
+                ["mode"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["enum"] = new JsonArray("currentDatabase", "customerOpsDatabase", "connectionString"),
+                    ["description"] = "Required. customerOpsDatabase is available only when the fictional LocalDemo/reference store is enabled; production sources should use an explicit approved mode."
+                },
                 ["tableName"] = new JsonObject { ["type"] = "string" },
                 ["userIdColumn"] = new JsonObject { ["type"] = "string" },
                 ["tenantSlugColumn"] = new JsonObject { ["type"] = "string" },
@@ -158,6 +163,11 @@ internal sealed class SqlConnectorPlugin(
         else if (!IsSupportedMode(mode))
         {
             errors.Add($"SQL connector mode '{mode}' is not supported.");
+        }
+        else if (string.Equals(mode, "customerOpsDatabase", StringComparison.OrdinalIgnoreCase)
+            && customerOpsDatabase?.Connection is null)
+        {
+            errors.Add("SQL connector mode 'customerOpsDatabase' is LocalDemo/reference-only and is unavailable because the optional CustomerOps reference store is disabled.");
         }
 
         if (string.Equals(mode, "connectionString", StringComparison.OrdinalIgnoreCase)

@@ -236,6 +236,33 @@ public sealed class ConnectorPluginModelTests
         Assert.Contains(result.Errors, error => error.Contains("mode is required", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task SqlConnector_RejectsCustomerOpsMode_WhenReferenceStoreIsUnavailable()
+    {
+        using var provider = CreateServices().BuildServiceProvider();
+        var plugin = provider.GetRequiredService<IConnectorRegistry>().GetRequiredPlugin("sqlDatabase");
+
+        var result = await plugin.ValidateConfigurationAsync(
+            new ConnectorConfigurationValidationRequest(
+                "sqlDatabase",
+                DataSourceKind.SqlMetric,
+                new JsonObject
+                {
+                    ["mode"] = "customerOpsDatabase",
+                    ["tableName"] = "customer_context_rollups",
+                    ["userIdColumn"] = "external_user_id",
+                    ["columns"] = new JsonArray("health_score")
+                },
+                new JsonObject()),
+            CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Contains("LocalDemo/reference-only", StringComparison.OrdinalIgnoreCase)
+                && error.Contains("disabled", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static ServiceCollection CreateServices()
     {
         var services = new ServiceCollection();

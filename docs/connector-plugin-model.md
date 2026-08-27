@@ -97,6 +97,8 @@ All persisted connector configurations include a canonical `connectorType` field
 
 ### SQL Example
 
+The `customerOpsDatabase` mode below is **LocalDemo/reference-only**. It is rejected when the optional fictional CustomerOps reference store is disabled, including production-shaped Scout. For real external PostgreSQL sources use the explicit `connectionString` mode and keep credentials in the protected credential store.
+
 ```json
 {
   "connectorType": "sqlDatabase",
