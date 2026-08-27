@@ -5,15 +5,12 @@ using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Constants;
 using KynticAI.Scout.Domain.Entities;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace KynticAI.Scout.Infrastructure.AI;
 
 public sealed class SalesSupportAgentService(
-    IStructuredLlmClientRegistry llmClientRegistry,
-    IOptions<LlmOptions> options,
-    ILogger<SalesSupportAgentService> logger)
+    IOptions<LlmOptions> options)
     : ISalesSupportAgentService
 {
     private static readonly ActivitySource ActivitySource = new("KynticAI.Scout.Ai");
@@ -224,111 +221,35 @@ public sealed class SalesSupportAgentService(
         return new SalesSupportPromptEnvelope(messages, inputPayload);
     }
 
-    public async Task<SalesSupportGenerationArtifact> GenerateAsync(
+    public Task<SalesSupportGenerationArtifact> GenerateAsync(
         PromptTemplate promptTemplate,
         SalesContextPackageResult contextPackage,
         SalesSupportPromptEnvelope promptEnvelope,
         string? providerName,
         CancellationToken cancellationToken)
     {
-        using var activity = ActivitySource.StartActivity("sales-support.generate");
-        var llmOptions = options.Value;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var modelName = ExtractModelNameFromEnvelope(promptEnvelope.InputJson) ?? "external";
         var selectedProvider = string.IsNullOrWhiteSpace(providerName)
-            ? llmClientRegistry.DefaultProviderName
+            ? "external"
             : providerName.Trim();
-        var structuredLlmClient = llmClientRegistry.Resolve(selectedProvider);
+        const string reason =
+            "Scout core does not execute AI models. Send the governed context package and prompt envelope " +
+            "to a customer-owned or reference consumer and perform inference there.";
 
-        if (structuredLlmClient is null)
-        {
-            return new SalesSupportGenerationArtifact(
-                ProviderName: selectedProvider,
-                ModelName: llmOptions.DefaultModel,
-                SalesObjective: contextPackage.SalesObjective,
-                Confidence: 0m,
-                AttemptCount: 0,
-                HumanReviewRecommended: true,
-                ContextPackageJson: contextPackage.ContextPackageJson,
-                OutputJson: "{}",
-                ProvenanceJson: "[]",
-                ValidationErrorsJson: JsonSerializer.Serialize(new[] { $"Provider '{selectedProvider}' is not registered in this environment." }, JsonOptions),
-                FailureReason: $"Provider '{selectedProvider}' is not registered in this environment.");
-        }
-
-        var validationErrors = new List<string>();
-        string outputJson = "{}";
-        SalesSupportResponse? parsedResponse = null;
-        var modelName = promptEnvelope.Messages.Count > 0
-            ? ExtractModelNameFromEnvelope(promptEnvelope.InputJson) ?? llmOptions.DefaultModel
-            : llmOptions.DefaultModel;
-
-        for (var attempt = 1; attempt <= llmOptions.MaxAttempts; attempt++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            activity?.SetTag("llm.provider", structuredLlmClient.ProviderName);
-            activity?.SetTag("llm.model", modelName);
-            activity?.SetTag("llm.attempt", attempt);
-
-            try
-            {
-                var response = await structuredLlmClient.GenerateStructuredJsonAsync(new StructuredLlmRequest(
-                    ModelName: modelName,
-                    Messages: promptEnvelope.Messages,
-                    OutputSchemaJson: promptTemplate.OutputSchemaJson,
-                    ContextPackageJson: contextPackage.ContextPackageJson,
-                    CorrelationId: Guid.NewGuid().ToString("N")), cancellationToken);
-
-                outputJson = response.OutputJson;
-                validationErrors = ValidateSalesSupportResponse(outputJson, contextPackage, out parsedResponse);
-                if (validationErrors.Count == 0 && parsedResponse is not null)
-                {
-                    var provenanceJson = BuildProvenanceJson(parsedResponse, contextPackage);
-                    return new SalesSupportGenerationArtifact(
-                        ProviderName: response.ProviderName,
-                        ModelName: modelName,
-                        SalesObjective: contextPackage.SalesObjective,
-                        Confidence: parsedResponse.OverallConfidence,
-                        AttemptCount: attempt,
-                        HumanReviewRecommended: parsedResponse.HumanReviewRecommended,
-                        ContextPackageJson: contextPackage.ContextPackageJson,
-                        OutputJson: outputJson,
-                        ProvenanceJson: provenanceJson,
-                        ValidationErrorsJson: "[]",
-                        FailureReason: null);
-                }
-
-                logger.LogWarning(
-                    "Structured LLM output failed validation on attempt {Attempt}: {ValidationErrors}",
-                    attempt,
-                    string.Join(" | ", validationErrors));
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                validationErrors =
-                [
-                    $"Attempt {attempt} failed: {exception.Message}"
-                ];
-
-                logger.LogWarning(
-                    exception,
-                    "Structured LLM generation failed on attempt {Attempt}.",
-                    attempt);
-            }
-        }
-
-        return new SalesSupportGenerationArtifact(
-            ProviderName: structuredLlmClient.ProviderName,
+        return Task.FromResult(new SalesSupportGenerationArtifact(
+            ProviderName: selectedProvider,
             ModelName: modelName,
             SalesObjective: contextPackage.SalesObjective,
             Confidence: 0m,
-            AttemptCount: llmOptions.MaxAttempts,
+            AttemptCount: 0,
             HumanReviewRecommended: true,
             ContextPackageJson: contextPackage.ContextPackageJson,
-            OutputJson: outputJson,
+            OutputJson: "{}",
             ProvenanceJson: "[]",
-            ValidationErrorsJson: JsonSerializer.Serialize(validationErrors, JsonOptions),
-            FailureReason: validationErrors.Count > 0
-                ? string.Join(" ", validationErrors)
-                : "The LLM did not return a valid grounded sales support response.");
+            ValidationErrorsJson: JsonSerializer.Serialize(new[] { reason }, JsonOptions),
+            FailureReason: reason));
     }
 
     private static string RenderDeveloperPrompt(
