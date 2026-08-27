@@ -63,7 +63,6 @@ Import-EnvFile $EnvFile
 $platformMode = Get-Setting "Platform__Mode"
 $databaseProvider = Get-Setting "Database__Provider"
 $contextConnection = Get-Setting "ConnectionStrings__Scout"
-$customerConnection = Get-Setting "ConnectionStrings__CustomerOps"
 $signingKey = Get-Setting "Auth__SigningKey"
 $demoFallback = Get-Setting "VITE_DEMO_FALLBACK"
 $seedDemoData = Get-Setting "Bootstrap__SeedDemoData"
@@ -80,23 +79,23 @@ if (Is-Placeholder $signingKey -or $signingKey.Length -lt 48) {
 }
 
 if ($platformMode -eq "LocalDemo" -or [string]::IsNullOrWhiteSpace($platformMode)) {
-    $failures.Add("Platform__Mode must be SaaS or BackendOnly for production-style deployment, not LocalDemo.")
+    $failures.Add("Platform__Mode must be SelfHosted or ManagedDataPlane for new production deployments (BackendOnly/SaaS are legacy compatibility values).")
 }
 
 if ($databaseProvider -ne "Postgres") {
     $failures.Add("Database__Provider must be Postgres for production-style deployment.")
 }
 
-if ($contextConnection -match "Data Source=|Sqlite|\.db|\.sqlite" -or $customerConnection -match "Data Source=|Sqlite|\.db|\.sqlite") {
+if ($contextConnection -match "Data Source=|Sqlite|\.db|\.sqlite") {
     $failures.Add("SQLite/local database connection strings are not acceptable for production-style deployment.")
 }
 
-if ([string]::IsNullOrWhiteSpace($contextConnection) -or [string]::IsNullOrWhiteSpace($customerConnection)) {
-    $failures.Add("ConnectionStrings__Scout and ConnectionStrings__CustomerOps must both be configured.")
+if ([string]::IsNullOrWhiteSpace($contextConnection)) {
+    $failures.Add("ConnectionStrings__Scout must be configured.")
 }
 
-if ($contextConnection -notmatch "Host=|Server=|Database=" -or $customerConnection -notmatch "Host=|Server=|Database=") {
-    $failures.Add("PostgreSQL connection strings must be supplied for both scout and customer-ops stores.")
+if ($contextConnection -notmatch "Host=|Server=|Database=") {
+    $failures.Add("ConnectionStrings__Scout must look like a PostgreSQL connection string.")
 }
 
 if (-not $AllowDemoData) {
@@ -125,7 +124,7 @@ Write-Host "VITE_DEMO_FALLBACK: $demoFallback"
 Write-Host "Bootstrap__SeedDemoData: $seedDemoData"
 Write-Host "FeatureFlags__DemoExperience: $demoExperience"
 Write-Host "DataProtection__KeyRingPath configured: $(-not [string]::IsNullOrWhiteSpace($keyRingPath))"
-Write-Host "ConnectionStrings configured: $(-not [string]::IsNullOrWhiteSpace($contextConnection) -and -not [string]::IsNullOrWhiteSpace($customerConnection))"
+Write-Host "Scout connection string configured: $(-not [string]::IsNullOrWhiteSpace($contextConnection))"
 
 foreach ($warning in $warnings) {
     Write-Warning $warning
