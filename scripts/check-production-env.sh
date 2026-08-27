@@ -31,7 +31,6 @@ failures=()
 platform_mode="$(get_setting Platform__Mode || true)"
 database_provider="$(get_setting Database__Provider || true)"
 context_connection="$(get_setting ConnectionStrings__Scout || true)"
-customer_connection="$(get_setting ConnectionStrings__CustomerOps || true)"
 signing_key="$(get_setting Auth__SigningKey || true)"
 demo_fallback="$(get_setting VITE_DEMO_FALLBACK || true)"
 seed_demo_data="$(get_setting Bootstrap__SeedDemoData || true)"
@@ -40,7 +39,10 @@ key_ring_path="$(get_setting DataProtection__KeyRingPath || true)"
 persistent_keys="$(get_setting DataProtection__RequirePersistentKeys || true)"
 
 [ "$demo_fallback" = "false" ] || failures+=("VITE_DEMO_FALLBACK must be false for production-style builds.")
-[ "$platform_mode" != "LocalDemo" ] && [ -n "$platform_mode" ] || failures+=("Platform__Mode must be SaaS or BackendOnly for production-style deployment.")
+case "$platform_mode" in
+  SelfHosted|ManagedDataPlane|BackendOnly|SaaS) ;;
+  *) failures+=("Platform__Mode must be SelfHosted or ManagedDataPlane for new production deployments (BackendOnly/SaaS are legacy compatibility values).") ;;
+esac
 [ "$database_provider" = "Postgres" ] || failures+=("Database__Provider must be Postgres for production-style deployment.")
 [ "$persistent_keys" = "true" ] || failures+=("DataProtection__RequirePersistentKeys must be true.")
 
@@ -48,13 +50,12 @@ if is_placeholder "$signing_key" || [ "${#signing_key}" -lt 48 ]; then
   failures+=("Auth__SigningKey must be a non-placeholder value of at least 48 characters.")
 fi
 
-if printf '%s\n%s' "$context_connection" "$customer_connection" | grep -Eiq 'Data Source=|Sqlite|\.db|\.sqlite'; then
+if printf '%s' "$context_connection" | grep -Eiq 'Data Source=|Sqlite|\.db|\.sqlite'; then
   failures+=("SQLite/local database connection strings are not acceptable for production-style deployment.")
 fi
 
-[ -n "$context_connection" ] && [ -n "$customer_connection" ] || failures+=("ConnectionStrings__Scout and ConnectionStrings__CustomerOps must both be configured.")
+[ -n "$context_connection" ] || failures+=("ConnectionStrings__Scout must be configured.")
 printf '%s' "$context_connection" | grep -Eq 'Host=|Server=|Database=' || failures+=("ConnectionStrings__Scout must look like a PostgreSQL connection string.")
-printf '%s' "$customer_connection" | grep -Eq 'Host=|Server=|Database=' || failures+=("ConnectionStrings__CustomerOps must look like a PostgreSQL connection string.")
 
 if [ "${ALLOW_DEMO_DATA:-false}" != "true" ]; then
   if is_true "$seed_demo_data"; then
@@ -77,7 +78,7 @@ echo "VITE_DEMO_FALLBACK: $demo_fallback"
 echo "Bootstrap__SeedDemoData: $seed_demo_data"
 echo "FeatureFlags__DemoExperience: $demo_experience"
 echo "DataProtection__KeyRingPath configured: $([ -n "$key_ring_path" ] && echo true || echo false)"
-echo "ConnectionStrings configured: $([ -n "$context_connection" ] && [ -n "$customer_connection" ] && echo true || echo false)"
+echo "Scout connection string configured: $([ -n "$context_connection" ] && echo true || echo false)"
 
 if [ "${#failures[@]}" -gt 0 ]; then
   echo
