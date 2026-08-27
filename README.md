@@ -355,8 +355,11 @@ apps/
 src/
   KynticAI.Scout.Api/         HTTP API
   KynticAI.Scout.Domain/      Main business objects and rules
-  KynticAI.Scout.Application/ Application logic
+  KynticAI.Scout.Application/ Core application logic
   KynticAI.Scout.Infrastructure/ Database, connectors and external services
+
+examples/
+  KynticAI.Scout.Reference.Sales/  Fictional sales/next-action reference app logic
 
 packages/
   typescript/scout-sdk/               TypeScript SDK
@@ -370,6 +373,9 @@ docs/                         Documentation
 scripts/                      Development and deployment scripts
 deploy/                       Deployment files
 ```
+
+The `examples/` code demonstrates ways to consume Scout. It is not Scout core behaviour and its sales weights or recommendations are not platform truth.
+
 
 ---
 
@@ -398,10 +404,7 @@ cd packages/typescript/scout-sdk
 npm test
 ```
 
-For the full test process, including the disposable Google Cloud test environment used for the heavier checks, see:
-
-- [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md)
-- [GCP validation guide](docs/testing/gcp-precloud-validation.md)
+For the full local test process, see [LOCAL_VALIDATION.md](LOCAL_VALIDATION.md).
 
 Before using Scout for a customer-facing deployment, also read:
 
