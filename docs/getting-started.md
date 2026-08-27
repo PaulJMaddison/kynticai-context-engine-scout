@@ -60,7 +60,7 @@ Recommended web walkthrough:
 3. Open `/relationship-intelligence` to inspect exact linked records, relationships, citations, masking, and the recommended next action.
 4. Open `/data-sources` to use the connector lab: choose an executable connector, validate the sample configuration, register it, run health, and send a safe source event as a new data item.
 5. Open `/admin/events` to confirm the source event was accepted and stored.
-6. Open `/admin/connectors` to compare executable open-core connectors with enterprise/SaaS catalogue placeholders.
+6. Open `/admin/connectors` to compare executable open-core connectors with private/enterprise catalogue placeholders.
 
 The standard executable connectors in the public Docker build are generic SQL/PostgreSQL, generic REST API with static-response preview support, CSV upload rows, mock CRM, mock billing, mock support, mock payload/signal, in-memory inventory, and the connector authoring template. Vendor-specific CRM, warehouse, support, ERP, email, chat, calendar, analytics, issue, project, and knowledge connectors are catalogue placeholders unless a private/customer package implements them.
 
@@ -345,7 +345,7 @@ Key settings:
 
 | Variable | Description | Default |
 |---|---|---|
-| `Platform__Mode` | `BackendOnly`, `LocalDemo`, or `SaaS` | `BackendOnly` |
+| `Platform__Mode` | `LocalDemo`, `SelfHosted`, or `ManagedDataPlane`; `BackendOnly`/`SaaS` are legacy aliases | `LocalDemo` |
 | `Database__Provider` | `Sqlite` or `Postgres` | `Sqlite` |
 | `Bootstrap__SeedDemoData` | Seed fictional demo data on startup | `false` |
 | `Auth__SigningKey` | JWT signing key (48+ bytes for production) | dev placeholder |
