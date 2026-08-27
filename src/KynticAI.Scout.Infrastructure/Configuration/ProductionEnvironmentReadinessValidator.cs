@@ -31,7 +31,8 @@ public static class ProductionEnvironmentReadinessValidator
         var auth = configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
         var controlPlane = configuration.GetSection(ControlPlaneOptions.SectionName).Get<ControlPlaneOptions>() ?? new ControlPlaneOptions();
         var productionShapeRequired = environment.IsProduction()
-            || PlatformModes.IsProductionDataPlane(platform.Mode);
+            || string.Equals(platform.Mode, PlatformModes.ManagedDataPlane, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(platform.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
 
         var checks = new List<ProductionReadinessCheck>
         {
