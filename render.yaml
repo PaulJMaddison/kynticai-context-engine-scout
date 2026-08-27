@@ -3,10 +3,6 @@ databases:
     plan: basic-256mb
     databaseName: scout_context
     user: scout_context
-  - name: scout-customer-ops-db
-    plan: basic-256mb
-    databaseName: customer_ops
-    user: customer_ops
 
 services:
   - type: web
@@ -17,13 +13,17 @@ services:
     plan: starter
     healthCheckPath: /health/ready
     preDeployCommand: dotnet KynticAI.Scout.Api.dll migrate
+    disk:
+      name: scout-data-protection
+      mountPath: /var/lib/scout/data-protection-keys
+      sizeGB: 1
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_URLS
         value: http://+:8080
       - key: Platform__Mode
-        value: SaaS
+        value: SelfHosted
       - key: Database__Provider
         value: Postgres
       - key: Bootstrap__ApplyMigrationsOnStartup
@@ -34,16 +34,22 @@ services:
         fromDatabase:
           name: scout-db
           property: connectionString
-      - key: ConnectionStrings__CustomerOps
-        fromDatabase:
-          name: scout-customer-ops-db
-          property: connectionString
       - key: Auth__Issuer
         value: Scout
       - key: Auth__Audience
         value: KynticAI.Scout.Api
       - key: Auth__SigningKey
         sync: false
+      - key: ReferenceData__CustomerOpsEnabled
+        value: "false"
+      - key: FeatureFlags__SaaSControlPlane
+        value: "false"
+      - key: FeatureFlags__HostedBillingUsage
+        value: "false"
+      - key: ContextPackages__LowConfidenceThreshold
+        value: "0.75"
+      - key: ContextPackages__MinimumStrongFacts
+        value: "3"
       - key: Cors__AllowedOrigins__0
         value: https://kynticai-scout-web.onrender.com
       - key: SaaS__PublicBaseUrl
