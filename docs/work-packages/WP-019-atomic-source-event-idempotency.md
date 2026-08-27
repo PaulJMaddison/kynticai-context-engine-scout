@@ -2,12 +2,36 @@
 
 ## Metadata
 
-- **Status:** Planned
+- **Status:** Implementation complete; live PostgreSQL proof Blocked (waiting on disposable GCP infra)
 - **Priority:** Critical before horizontally scaled webhook/event ingestion
 - **Phase:** F — Production correctness
 - **Depends on:** —
-- **Related issue:** #40
+- **Related issue:** #40 (remains OPEN until executable PostgreSQL proof passes)
 - **Review gate:** xhigh (distributed correctness, persistence, side effects)
+
+## Status note (2026-08-27)
+
+The implementation is already in place and was verified this session:
+
+- `IngestSourceSystemEventAsync` opens a transaction-scoped `pg_advisory_xact_lock` keyed on
+  `(TenantId, SourceSystem, EventId)` and runs the authoritative duplicate check only after
+  acquiring that lock, so concurrent duplicate submissions across instances serialise at the
+  PostgreSQL boundary (not an in-process semaphore).
+- Exact duplicates return an idempotent `SourceSystemEventAcceptedResult(IsDuplicate: true)`;
+  a conflicting payload for the same logical event raises `SourceSystemEventConflictException`
+  (documented conflict policy; historical truth is never silently overwritten).
+- Persistence and all creation-only side effects (audit, usage, user signal, selector
+  executions, recompute job) commit in one atomic transaction; the recompute queue enqueue
+  happens once, after commit.
+- The backing DB unique index on `(TenantId, SourceSystem, EventId)` is present
+  (`SourceSystemEventConfiguration`).
+
+The remaining gap is the executable real-PostgreSQL concurrency proof called for by Tasks 6 and
+10. This session could not run it: local Docker daemon is not running, no local PostgreSQL server
+is installed, and this session is explicitly barred from provisioning GCP. It must be executed on
+disposable GCP infrastructure at the exact pinned SHA (see `docs/testing/gcp-precloud-validation.md`)
+before issue #40 is closed. No unverified Npgsql concurrency test was added to the merge-ready
+branch to avoid shipping code that cannot be executed and verified here.
 
 ## Context
 
