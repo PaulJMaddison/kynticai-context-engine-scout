@@ -7,7 +7,7 @@ public sealed class PlatformOptions
 {
     public const string SectionName = "Platform";
 
-    public string Mode { get; set; } = PlatformModes.BackendOnly;
+    public string Mode { get; set; } = PlatformModes.LocalDemo;
 
     public bool EnableGraphQl { get; set; } = true;
 

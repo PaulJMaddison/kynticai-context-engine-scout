@@ -169,6 +169,29 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
     }
 
     [Fact]
+    public void PlatformOptions_DefaultsToLocalDemo_NotLegacyBackendOnlyAlias()
+    {
+        Assert.Equal(PlatformModes.LocalDemo, new PlatformOptions().Mode);
+    }
+
+    [Fact]
+    public void ProductionShape_BlocksFictionalCustomerOpsReferenceDatabase()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>
+            {
+                ["ReferenceData:CustomerOpsEnabled"] = "true"
+            }),
+            new TestHostEnvironment("Development"));
+
+        Assert.True(report.ProductionShapeRequired);
+        Assert.False(report.ReadyForProductionStyleDeployment);
+        var check = Assert.Single(report.Checks.Where(x => x.Key == "customerops-reference-data"));
+        Assert.Equal("Blocked", check.Status);
+        Assert.True(check.BlocksProduction);
+    }
+
+    [Fact]
     public void Development_self_hosted_mode_still_requires_production_shape()
     {
         var report = ProductionEnvironmentReadinessValidator.GetReport(

@@ -40,9 +40,10 @@ public static class DependencyInjection
         services.AddScoped<IScoutDbContext>(provider => provider.GetRequiredService<ScoutDbContext>());
 
         var referenceDataEnabled =
-            string.Equals(platformOptions.Mode, PlatformModes.LocalDemo, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(platformOptions.Mode, "Demo", StringComparison.OrdinalIgnoreCase)
-            || configuration.GetValue<bool>("ReferenceData:CustomerOpsEnabled");
+            !hostedMode
+            && (string.Equals(platformOptions.Mode, PlatformModes.LocalDemo, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(platformOptions.Mode, "Demo", StringComparison.OrdinalIgnoreCase)
+                || configuration.GetValue<bool>("ReferenceData:CustomerOpsEnabled"));
 
         if (referenceDataEnabled)
         {

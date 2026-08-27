@@ -41,6 +41,7 @@ public static class ProductionEnvironmentReadinessValidator
             DemoFallbackCheck(configuration, productionShapeRequired),
             DemoSeedCheck(bootstrap, productionShapeRequired),
             DemoExperienceCheck(featureFlags, productionShapeRequired),
+            CustomerOpsReferenceDataCheck(configuration, productionShapeRequired),
             WorkspaceIsolationCheck(configuration, productionShapeRequired),
             DataProtectionCheck(dataProtection, productionShapeRequired),
             AuthSigningKeyCheck(auth, productionShapeRequired),
@@ -163,6 +164,34 @@ public static class ProductionEnvironmentReadinessValidator
         return featureFlags.DemoExperience
             ? Check("demo-experience", Blocked, true, "FeatureFlags:DemoExperience must be false for customer/prod-style deployments.", "true")
             : Check("demo-experience", Ready, true, "Demo experience flag is disabled.", "false");
+    }
+
+    private static ProductionReadinessCheck CustomerOpsReferenceDataCheck(IConfiguration configuration, bool required)
+    {
+        var enabled = configuration.GetValue<bool>("ReferenceData:CustomerOpsEnabled");
+        if (!required)
+        {
+            return Check(
+                "customerops-reference-data",
+                Ready,
+                false,
+                "Production shape is not required; fictional CustomerOps reference data may be used for LocalDemo/reference scenarios.",
+                enabled ? "enabled" : "disabled");
+        }
+
+        return enabled
+            ? Check(
+                "customerops-reference-data",
+                Blocked,
+                true,
+                "ReferenceData:CustomerOpsEnabled must be false for production-style deployments. CustomerOps is fictional LocalDemo/reference data, not a production Scout database.",
+                "enabled")
+            : Check(
+                "customerops-reference-data",
+                Ready,
+                true,
+                "Fictional CustomerOps reference data is disabled.",
+                "disabled");
     }
 
     private static ProductionReadinessCheck WorkspaceIsolationCheck(IConfiguration configuration, bool required)
