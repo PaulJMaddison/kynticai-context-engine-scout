@@ -104,7 +104,6 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      CUSTOMER_OPS_DB: ${CUSTOMER_OPS_DB:-customer_ops_db}
       SCOUT_DB: ${SCOUT_DB:-scout_context_db}
     ports:
       - "${SCOUT_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
