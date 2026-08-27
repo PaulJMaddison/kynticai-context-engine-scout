@@ -71,4 +71,4 @@ customer systems -> approved Scout connectors -> Scout state/evidence DB
 
 ## Verification
 
-Include PostgreSQL startup/readiness proof for a single Scout database plus configured test connector path. Run the disposable GCP exact-SHA gate for final persistence/deployment proof.
+Include local PostgreSQL startup/readiness proof for a single Scout database plus a configured test connector path when local PostgreSQL is available. If it is unavailable, record the proof as blocked; do not provision cloud infrastructure.
