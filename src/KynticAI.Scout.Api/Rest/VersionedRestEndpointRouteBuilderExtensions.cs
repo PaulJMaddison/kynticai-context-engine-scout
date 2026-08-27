@@ -875,6 +875,19 @@ public static class VersionedRestEndpointRouteBuilderExtensions
                     ["requestedQuantity"] = [exception.RequestedQuantity.ToString(System.Globalization.CultureInfo.InvariantCulture)]
                 });
         }
+        catch (SourceSystemEventConflictException exception)
+        {
+            return Error(
+                EndpointHttpContext.Current,
+                StatusCodes.Status409Conflict,
+                "source_event.identity_conflict",
+                exception.Message,
+                new Dictionary<string, string[]>
+                {
+                    ["sourceSystem"] = [exception.SourceSystem],
+                    ["eventId"] = [exception.EventId]
+                });
+        }
         catch (InvalidOperationException exception)
         {
             return Error(EndpointHttpContext.Current, StatusCodes.Status400BadRequest, "request.invalid", exception.Message);
