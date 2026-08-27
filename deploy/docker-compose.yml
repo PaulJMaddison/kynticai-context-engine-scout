@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Platform__Mode: ${PLATFORM_MODE:-BackendOnly}
+      Platform__Mode: ${DEMO_PLATFORM_MODE:-LocalDemo}
       Platform__EnableGraphQl: "true"
       Platform__EnableRest: "true"
       Platform__EnableOpenApi: ${ENABLE_OPENAPI:-false}
@@ -28,7 +28,7 @@ services:
       ConnectionStrings__Scout: Data Source=/var/lib/scout/scout_context.db
       ConnectionStrings__CustomerOps: Data Source=/var/lib/scout/customer_ops.db
       Bootstrap__ApplyMigrationsOnStartup: "true"
-      Bootstrap__SeedDemoData: ${SEED_DEMO_DATA:-true}
+      Bootstrap__SeedDemoData: ${DEMO_SEED_DATA:-true}
       Auth__Issuer: Scout
       Auth__Audience: KynticAI.Scout.Console
       Auth__SigningKey: ${AUTH_SIGNING_KEY:-scout-development-only-change-before-production}
@@ -61,13 +61,13 @@ services:
       - postgres
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      Platform__Mode: ${PLATFORM_MODE:-SelfHosted}
+      Platform__Mode: ${PRODUCTION_PLATFORM_MODE:-SelfHosted}
       Platform__EnableGraphQl: "true"
       Platform__EnableRest: "true"
       Platform__EnableOpenApi: ${ENABLE_OPENAPI:-false}
       Database__Provider: Postgres
       Bootstrap__ApplyMigrationsOnStartup: "true"
-      Bootstrap__SeedDemoData: ${SEED_DEMO_DATA:-false}
+      Bootstrap__SeedDemoData: ${PRODUCTION_SEED_DATA:-false}
       Auth__Issuer: Scout
       Auth__Audience: KynticAI.Scout.Console
       Auth__SigningKey: ${AUTH_SIGNING_KEY:-scout-development-only-change-before-production}
