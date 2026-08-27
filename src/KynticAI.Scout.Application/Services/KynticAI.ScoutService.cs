@@ -1240,7 +1240,7 @@ public sealed class ScoutService(
 
         async Task PersistEventAsync()
         {
-            await PersistEventAsync();
+            await dbContext.SaveChangesAsync(cancellationToken);
             if (eventTransaction is not null)
             {
                 await eventTransaction.CommitAsync(cancellationToken);
@@ -1256,6 +1256,17 @@ public sealed class ScoutService(
                 cancellationToken);
         if (duplicate is not null)
         {
+            var sameLogicalEvent =
+                string.Equals(duplicate.EventType, normalizedEventType, StringComparison.Ordinal)
+                && string.Equals(duplicate.ExternalUserId?.Trim(), input.ExternalUserId?.Trim(), StringComparison.Ordinal)
+                && string.Equals(duplicate.ExternalAccountId?.Trim(), input.ExternalAccountId?.Trim(), StringComparison.Ordinal)
+                && duplicate.WorkspaceId == workspace?.Id
+                && JsonPayloadsEquivalent(duplicate.PayloadJson, input.PayloadJson);
+            if (!sameLogicalEvent)
+            {
+                throw new SourceSystemEventConflictException(normalizedSourceSystem, normalizedEventId);
+            }
+
             dbContext.AuditEvents.Add(AuditEvent.Create(
                 tenant.Id,
                 actor.Email,
@@ -2084,6 +2095,20 @@ public sealed class ScoutService(
             JsonSerializer.Serialize(metadata),
             clock.UtcNow));
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static bool JsonPayloadsEquivalent(string left, string right)
+    {
+        try
+        {
+            var leftNode = JsonNode.Parse(left);
+            var rightNode = JsonNode.Parse(right);
+            return JsonNode.DeepEquals(leftNode, rightNode);
+        }
+        catch (JsonException)
+        {
+            return string.Equals(left.Trim(), right.Trim(), StringComparison.Ordinal);
+        }
     }
 
     private static string MaskEmail(string email)
