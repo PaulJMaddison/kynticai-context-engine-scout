@@ -45,10 +45,13 @@ public static class ApplicationBootstrapper
     {
         await using var scope = serviceProvider.CreateAsyncScope();
         var contextDbContext = scope.ServiceProvider.GetRequiredService<ScoutDbContext>();
-        var customerOpsDbContext = scope.ServiceProvider.GetRequiredService<CustomerOpsDbContext>();
+        var customerOpsDbContext = scope.ServiceProvider.GetService<CustomerOpsDbContext>();
 
         await EnsureDatabaseReadyAsync(contextDbContext, cancellationToken);
-        await EnsureDatabaseReadyAsync(customerOpsDbContext, cancellationToken);
+        if (customerOpsDbContext is not null)
+        {
+            await EnsureDatabaseReadyAsync(customerOpsDbContext, cancellationToken);
+        }
     }
 
     private static async Task EnsureDatabaseReadyAsync(DbContext dbContext, CancellationToken cancellationToken)
