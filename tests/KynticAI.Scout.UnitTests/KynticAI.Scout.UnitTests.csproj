@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\examples\KynticAI.Scout.Reference.Sales\KynticAI.Scout.Reference.Sales.csproj" />
     <ProjectReference Include="..\..\src\KynticAI.Scout.Application\KynticAI.Scout.Application.csproj" />
     <ProjectReference Include="..\..\src\KynticAI.Scout.Domain\KynticAI.Scout.Domain.csproj" />
     <ProjectReference Include="..\..\src\KynticAI.Scout.Infrastructure\KynticAI.Scout.Infrastructure.csproj" />
