@@ -250,8 +250,8 @@ export function RelationshipIntelligencePage() {
   return (
     <div className="grid gap-8">
       <PageHeader
-        eyebrow="Synthetic relationship intelligence"
-        title="Relationship intelligence dashboard for grounded next actions."
+        eyebrow="Synthetic sales reference"
+        title="Reference relationship intelligence built outside Scout core."
         description="Resolve a synthetic email, contact, or account into exact linked records, Scout fallback weighted signals, similar won/lost patterns, a cited draft response, governance controls, and handoff JSON."
         actions={
           <>

@@ -49,7 +49,7 @@ only the disabled compatibility implementation for `INextActionIntelligenceServi
 Scout infrastructure registers a neutral compatibility context packager for the legacy
 sales-context contract; it does not contain required-sales-key heuristics, fixed sales
 weights, recommendation construction, prompt orchestration, or model execution.
-Core recompute summaries are attribute-neutral rather than interpreting sales semantic keys. Tests that prove the fictional sales example reference the example project explicitly.
+Core recompute summaries are attribute-neutral rather than interpreting sales semantic keys. Tests that prove the fictional sales example reference the example project explicitly. The web console labels the sales relationship/agent surfaces as reference examples and hides them from production navigation when demo fallback is disabled.
 
 ## Acceptance criteria
 

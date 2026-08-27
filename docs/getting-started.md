@@ -57,7 +57,7 @@ Recommended web walkthrough:
 
 1. Open `/demo` for the executive walkthrough.
 2. Open `/customers/123` for Avery Stone at Larkspur Logistics Group.
-3. Open `/relationship-intelligence` to inspect exact linked records, relationships, citations, masking, and the recommended next action.
+3. In LocalDemo, open `/relationship-intelligence` to inspect the fictional sales reference consumer: exact linked records, relationships, citations, masking, and its example recommended next action. This route is hidden from production navigation when demo fallback is disabled.
 4. Open `/data-sources` to use the connector lab: choose an executable connector, validate the sample configuration, register it, run health, and send a safe source event as a new data item.
 5. Open `/admin/events` to confirm the source event was accepted and stored.
 6. Open `/admin/connectors` to compare executable open-core connectors with private/enterprise catalogue placeholders.

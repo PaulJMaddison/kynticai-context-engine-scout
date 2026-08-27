@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import {
   Activity,
@@ -39,9 +39,9 @@ import { Badge, Button } from '@/components/ui/primitives'
 import { executiveStorySteps } from '@/features/demo/executive-demo-data'
 import { useAuthSession } from '@/lib/auth'
 import { apiModeStore } from '@/lib/api'
+import { env } from '@/lib/env'
 import type { AuthenticatedOperator } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useSyncExternalStore } from 'react'
 
 type OperatorRole = AuthenticatedOperator['role']
 
@@ -51,6 +51,7 @@ interface NavigationItem {
   icon: typeof LayoutDashboard
   roles?: OperatorRole[]
   public?: boolean
+  demoOnly?: boolean
 }
 
 interface NavigationSection {
@@ -116,8 +117,8 @@ const navigationSections: NavigationSection[] = [
     title: 'Product Proof',
     items: [
       { to: '/customers', label: '360 Customer Profile', icon: AppWindow, roles: ['tenant_admin', 'sales_rep'] },
-      { to: '/relationship-intelligence', label: 'Relationship Intelligence', icon: Network, roles: ['tenant_admin', 'sales_rep'] },
-      { to: '/agent-playground', label: 'Example Sales Support', icon: WandSparkles, roles: ['tenant_admin', 'sales_rep'] },
+      { to: '/relationship-intelligence', label: 'Sales Reference Intelligence', icon: Network, roles: ['tenant_admin', 'sales_rep'], demoOnly: true },
+      { to: '/agent-playground', label: 'Sales Reference Agent', icon: WandSparkles, roles: ['tenant_admin', 'sales_rep'], demoOnly: true },
       { to: '/overview', label: 'Operational Overview', icon: LayoutDashboard, roles: ['tenant_admin', 'sales_rep'] },
     ],
   },
@@ -167,9 +168,13 @@ export function AppShell() {
       navigationSections
         .map((section) => ({
           ...section,
-          items: section.items.filter((item) =>
-            item.public ? true : Boolean(item.roles?.includes(currentRole)),
-          ),
+          items: section.items.filter((item) => {
+            if (item.demoOnly && !env.demoFallbackEnabled) {
+              return false
+            }
+
+            return item.public ? true : Boolean(item.roles?.includes(currentRole))
+          }),
         }))
         .filter((section) => section.items.length > 0),
     [currentRole],
