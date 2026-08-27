@@ -179,27 +179,14 @@ public sealed class V1RestApiIntegrationTests
         Assert.Equal("user-123", contextPackage.Payload["externalUserId"]!.GetValue<string>());
         Assert.Equal("Book a discovery call for enterprise rollout.", contextPackage.Payload["salesObjective"]!.GetValue<string>());
 
-        var nextAction = await ReadJsonAsync(client.PostAsJsonAsync(
+        var nextActionResponse = await client.PostAsJsonAsync(
             "/api/v1/intelligence/next-action",
-            new V1NextActionRequest("demo", "email", "avery@example.test", "sale", "customer_outreach", "sales_rep")));
-        Assert.Equal("sale", nextAction.Payload["objective"]!.GetValue<string>());
-        Assert.False(nextAction.Payload["governance"]!["cloudPayloadContainsRawCustomerData"]!.GetValue<bool>());
-        Assert.Contains(nextAction.Payload["exactLinkedRecords"]!["records"]!.AsArray(), item =>
-            item?["recordType"]?.GetValue<string>() == "CustomerContact");
-        Assert.Contains(nextAction.Payload["relationships"]!.AsArray(), item =>
-            item?["relationshipType"]?.GetValue<string>() == "EmailToContact"
-            && item?["linkKind"]?.GetValue<string>() == "deterministic");
-        Assert.Contains(nextAction.Payload["relationships"]!.AsArray(), item =>
-            item?["relationshipType"]?.GetValue<string>() == "AccountToSalesActivity"
-            && item?["linkKind"]?.GetValue<string>() == "deterministic");
-        Assert.Contains(nextAction.Payload["relationships"]!.AsArray(), item =>
-            item?["relationshipType"]?.GetValue<string>() == "AccountToWebConversion"
-            && item?["linkKind"]?.GetValue<string>() == "deterministic");
-        var cloudProjection = JsonNode.Parse(nextAction.Payload["evidencePack"]!["cloudAggregateUsagePayloadJson"]!.GetValue<string>())!.AsObject();
-        Assert.Equal("cloud-aggregate-usage", cloudProjection["payloadKind"]!.GetValue<string>());
-        Assert.NotNull(cloudProjection["featureUsageCounters"]);
-        Assert.Null(cloudProjection["exactRecordCounts"]);
-        Assert.Null(cloudProjection["relationshipTypes"]);
+            new V1NextActionRequest("demo", "email", "avery@example.test", "sale", "customer_outreach", "sales_rep"));
+        Assert.Equal(HttpStatusCode.NotImplemented, nextActionResponse.StatusCode);
+        var nextActionError = JsonNode.Parse(await nextActionResponse.Content.ReadAsStringAsync())!.AsObject();
+        Assert.Equal(
+            "feature.external_consumer_required",
+            nextActionError["error"]!["code"]!.GetValue<string>());
 
         var attributes = await ReadJsonAsync(client.GetAsync("/api/v1/semantic-attributes?q=accountHealth&pageSize=5"));
         Assert.Single(attributes.Payload["items"]!.AsArray());
@@ -323,6 +310,20 @@ public sealed class V1RestApiIntegrationTests
 
         var secondPayload = JsonNode.Parse(await second.Content.ReadAsStringAsync())!.AsObject();
         Assert.True(secondPayload["isDuplicate"]!.GetValue<bool>());
+
+        var conflictingDuplicate = await SignedPostAsJsonAsync(
+            client,
+            "/api/v1/events/source-system",
+            apiKey,
+            payload with
+            {
+                Payload = new { activeDays30 = 99 }
+            });
+        Assert.Equal(HttpStatusCode.Conflict, conflictingDuplicate.StatusCode);
+        var conflictPayload = JsonNode.Parse(await conflictingDuplicate.Content.ReadAsStringAsync())!.AsObject();
+        Assert.Equal(
+            "source_event.identity_conflict",
+            conflictPayload["error"]!["code"]!.GetValue<string>());
         var deadLetterPayload = JsonNode.Parse(await deadLetter.Content.ReadAsStringAsync())!.AsObject();
         Assert.Equal("DeadLettered", deadLetterPayload["status"]!.GetValue<string>());
 
@@ -867,6 +868,7 @@ public sealed class V1RestApiIntegrationTests
                     ["Platform:EnableOpenApi"] = "true",
                     ["Bootstrap:ApplyMigrationsOnStartup"] = "false",
                     ["Bootstrap:SeedDemoData"] = "false",
+                    ["ReferenceData:CustomerOpsEnabled"] = "true",
                     ["Auth:Issuer"] = "KynticAI.Scout.Tests",
                     ["Auth:Audience"] = "KynticAI.Scout.Tests",
                     ["Auth:SigningKey"] = "scout-tests-signing-key-1234567890",
