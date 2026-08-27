@@ -1,9 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using KynticAI.Scout.Application.Abstractions;
-using KynticAI.Scout.Domain.Constants;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.Persistence;
@@ -454,61 +452,17 @@ internal sealed class ContextRecomputeProcessor(
 
     private static string BuildSummary(IReadOnlyCollection<SelectorCandidateFact> facts)
     {
-        var lookup = facts.ToDictionary(x => x.AttributeKey, StringComparer.OrdinalIgnoreCase);
-        var segments = new List<string>();
-
-        if (lookup.TryGetValue(SemanticAttributeKeys.ConversionProbability, out var conversion))
+        if (facts.Count == 0)
         {
-            segments.Add($"{ExtractDisplayValue(conversion.ValueJson)}% conversion probability");
+            return "No context facts resolved.";
         }
 
-        if (lookup.TryGetValue(SemanticAttributeKeys.PreferredChannel, out var channel))
-        {
-            segments.Add($"prefers {ExtractDisplayValue(channel.ValueJson)}");
-        }
+        var attributeKeys = facts
+            .Select(fact => fact.AttributeKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-        if (lookup.TryGetValue(SemanticAttributeKeys.PlanInterest, out var planInterest))
-        {
-            var planValue = ExtractDisplayValue(planInterest.ValueJson);
-            if (!string.IsNullOrWhiteSpace(planValue))
-            {
-                segments.Add($"interested in {char.ToUpperInvariant(planValue[0]) + planValue[1..]} plans");
-            }
-        }
-
-        if (lookup.TryGetValue(SemanticAttributeKeys.ChurnRisk, out var churnRisk))
-        {
-            segments.Add($"{ExtractDisplayValue(churnRisk.ValueJson)}% churn risk");
-        }
-
-        if (lookup.TryGetValue(SemanticAttributeKeys.EngagementLevel, out var engagement))
-        {
-            segments.Add($"recent engagement {ExtractDisplayValue(engagement.ValueJson)}");
-        }
-
-        if (lookup.TryGetValue(SemanticAttributeKeys.ExpansionPotential, out var expansionPotential))
-        {
-            segments.Add($"{ExtractDisplayValue(expansionPotential.ValueJson)}% expansion potential");
-        }
-
-        if (lookup.TryGetValue(SemanticAttributeKeys.SalesUrgency, out var salesUrgency))
-        {
-            segments.Add($"sales urgency {ExtractDisplayValue(salesUrgency.ValueJson)}");
-        }
-
-        return string.Join(", ", segments);
-    }
-
-    private static string ExtractDisplayValue(string valueJson)
-    {
-        using var document = JsonDocument.Parse(valueJson);
-        return document.RootElement.ValueKind switch
-        {
-            JsonValueKind.String => document.RootElement.GetString() ?? string.Empty,
-            JsonValueKind.Number => document.RootElement.GetDecimal().ToString("0.##", CultureInfo.InvariantCulture),
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
-            _ => document.RootElement.GetRawText()
-        };
+        return $"Resolved {facts.Count} context fact{(facts.Count == 1 ? string.Empty : "s")}: {string.Join(", ", attributeKeys)}.";
     }
 }

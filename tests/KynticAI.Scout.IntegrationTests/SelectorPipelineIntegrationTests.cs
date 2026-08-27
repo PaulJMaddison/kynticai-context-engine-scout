@@ -52,6 +52,8 @@ public sealed class SelectorPipelineIntegrationTests
         Assert.Single(snapshot.Facts);
         Assert.Equal("\"email\"", snapshot.Facts.Single().ValueJson);
         Assert.Contains("conflictResolution", snapshot.Facts.Single().ProvenanceJson, StringComparison.Ordinal);
+        Assert.Equal("Resolved 1 context fact: preferredChannel.", snapshot.Summary);
+        Assert.DoesNotContain("prefers", snapshot.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
