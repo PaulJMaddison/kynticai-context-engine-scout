@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- **Status:** Implementation complete; live PostgreSQL proof Blocked (waiting on disposable GCP infra)
+- **Status:** Implementation complete; real local PostgreSQL concurrency proof pending
 - **Priority:** Critical before horizontally scaled webhook/event ingestion
 - **Phase:** F — Production correctness
 - **Depends on:** —
@@ -31,11 +31,11 @@ The implementation is already in place and was verified this session:
   (`SourceSystemEventConfiguration`).
 
 The remaining gap is the executable real-PostgreSQL concurrency proof called for by Tasks 6 and
-10. This session could not run it: local Docker daemon is not running, no local PostgreSQL server
-is installed, and this session is explicitly barred from provisioning GCP. It must be executed on
-disposable GCP infrastructure at the exact pinned SHA (see `docs/testing/gcp-precloud-validation.md`)
-before issue #40 is closed. No unverified Npgsql concurrency test was added to the merge-ready
-branch to avoid shipping code that cannot be executed and verified here.
+10. It has not yet been run because a local PostgreSQL service was unavailable during the previous
+pass. The proof must be run against real local PostgreSQL (for example an existing local Docker
+PostgreSQL service) before issue #40 is closed. If local PostgreSQL is unavailable, keep this
+package Partial and issue #40 open; do not provision cloud infrastructure merely to satisfy this
+proof.
 
 ## Context
 
@@ -90,4 +90,4 @@ Choose based on transactional clarity and EF/Npgsql behaviour. Do not implement 
 
 ## Verification
 
-This package requires real PostgreSQL and must be executed on disposable GCP infrastructure when local constraints apply. Pin the exact SHA and include the concurrency tests in the final GCP validation gate.
+This package requires real PostgreSQL. Run the concurrency tests against a local PostgreSQL instance or an existing local Docker PostgreSQL service. If neither is available, report the provider-specific proof as blocked and leave issue #40 open.
