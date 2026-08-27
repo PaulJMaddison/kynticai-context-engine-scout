@@ -90,6 +90,21 @@ public sealed class BootstrapCommandResolverTests
             explicitSeedDemoCommand: true);
 
         Assert.True(resolved.SeedDemoData);
+        Assert.True(resolved.ApplyMigrationsOnStartup);
+    }
+
+    [Fact]
+    public void SeedDemoCommand_InitialisesDatabaseEvenWhenNormalStartupMigrationsAreDisabled()
+    {
+        var configured = new BootstrapOptions { ApplyMigrationsOnStartup = false, SeedDemoData = false };
+
+        var resolved = BootstrapCommandResolver.Resolve(
+            configured,
+            explicitMigrationCommand: false,
+            explicitSeedDemoCommand: true);
+
+        Assert.True(resolved.ApplyMigrationsOnStartup);
+        Assert.True(resolved.SeedDemoData);
     }
 
     [Fact]
