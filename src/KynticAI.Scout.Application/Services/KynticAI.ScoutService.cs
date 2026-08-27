@@ -15,7 +15,7 @@ namespace KynticAI.Scout.Application.Services;
 
 public sealed class ScoutService(
     IScoutDbContext dbContext,
-    ICustomerOpsDbContext customerOpsDbContext,
+    IOperationalReferenceDataProvider operationalReferenceDataProvider,
     IClock clock,
     IContextRecomputeQueue recomputeQueue,
     IValidator<UpsertDataSourceInput> upsertDataSourceValidator,
@@ -33,10 +33,8 @@ public sealed class ScoutService(
     IValidator<RunScheduledRecomputeInput> runScheduledRecomputeValidator,
     IValidator<SourceSystemEventInput> sourceSystemEventValidator,
     IValidator<UpsertPromptTemplateInput> upsertPromptTemplateValidator,
-    IValidator<CreateAgentRunInput> createAgentRunValidator,
     ISalesSupportAgentService salesSupportAgentService,
     ICurrentActorService currentActorService,
-    IStructuredLlmClientRegistry llmClientRegistry,
     IConnectorRegistry connectorRegistry,
     IConnectorCredentialStore credentialStore,
     ISelectorExecutionEngine selectorExecutionEngine,
@@ -1063,31 +1061,19 @@ public sealed class ScoutService(
         CancellationToken cancellationToken)
     {
         var tenant = await GetTenantAsync(tenantSlug, cancellationToken);
-        var opsTenant = await customerOpsDbContext.CustomerOpsTenants
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Slug == tenant.Slug, cancellationToken);
-        if (opsTenant is null)
-        {
-            return null;
-        }
-
-        var account = await customerOpsDbContext.CustomerAccounts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x => x.CustomerOpsTenantId == opsTenant.Id && x.ExternalAccountId == externalAccountId.Trim(),
-                cancellationToken);
+        var account = await operationalReferenceDataProvider.GetAccountAsync(
+            tenant.Slug,
+            externalAccountId,
+            cancellationToken);
         if (account is null)
         {
             return null;
         }
 
-        var contacts = await customerOpsDbContext.CustomerContacts
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == account.Id)
-            .OrderByDescending(x => x.IsDecisionMaker)
-            .ThenBy(x => x.FullName)
-            .ToListAsync(cancellationToken);
-        var externalUserIds = contacts.Select(x => x.ExternalUserId).Distinct(StringComparer.Ordinal).ToList();
+        var externalUserIds = account.Contacts
+            .Select(x => x.ExternalUserId)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
         var users = await dbContext.UserProfiles
             .AsNoTracking()
             .Where(x => x.TenantId == tenant.Id && externalUserIds.Contains(x.ExternalUserId))
@@ -1101,15 +1087,20 @@ public sealed class ScoutService(
             .ToListAsync(cancellationToken);
         var snapshotsByUserId = snapshots.ToDictionary(x => x.UserProfileId);
         var profilesByExternalId = users.ToDictionary(x => x.ExternalUserId, StringComparer.Ordinal);
+        var actor = currentActorService.GetCurrentActor();
 
-        await billingEnforcementService.EnsureWithinLimitAsync(tenant.Id, BillingLimitMetric.ContextLookups, 1, cancellationToken);
+        await billingEnforcementService.EnsureWithinLimitAsync(
+            tenant.Id,
+            BillingLimitMetric.ContextLookups,
+            1,
+            cancellationToken);
         await WriteReadAuditAsync(
             tenant.Id,
-            currentActorService.GetCurrentActor(),
+            actor,
             "account-context.read",
-            nameof(CustomerAccount),
-            account.Id,
-            new { account.ExternalAccountId, userCount = users.Count },
+            nameof(OperationalAccountReferenceResult),
+            account.ExternalAccountId,
+            new { account.ExternalAccountId, userCount = users.Count, referenceData = operationalReferenceDataProvider.IsEnabled },
             cancellationToken);
         await usageMeteringService.RecordAsync(
             new UsageRecordInput(
@@ -1124,13 +1115,13 @@ public sealed class ScoutService(
         return new AccountContextResult(
             tenant.Slug,
             account.ExternalAccountId,
-            account.Name,
+            account.AccountName,
             account.Domain,
             account.Industry,
             account.Segment,
             account.Region,
             account.LifecycleStage,
-            contacts.Select(contact =>
+            account.Contacts.Select(contact =>
             {
                 profilesByExternalId.TryGetValue(contact.ExternalUserId, out var profile);
                 var snapshot = profile is null || !snapshotsByUserId.TryGetValue(profile.Id, out var foundSnapshot)
@@ -1139,7 +1130,7 @@ public sealed class ScoutService(
                 return new AccountContextUserResult(
                     contact.ExternalUserId,
                     contact.FullName,
-                    currentActorService.GetCurrentActor().CanViewSensitivePii ? contact.Email : MaskEmail(contact.Email),
+                    actor.CanViewSensitivePii ? contact.Email : MaskEmail(contact.Email),
                     contact.JobTitle,
                     snapshot?.Id,
                     snapshot?.Summary,
@@ -1546,132 +1537,14 @@ public sealed class ScoutService(
             clock.UtcNow);
     }
 
-    public async Task<AgentRunResult> CreateAgentRunAsync(CreateAgentRunInput input, CancellationToken cancellationToken)
+    public Task<AgentRunResult> CreateAgentRunAsync(
+        CreateAgentRunInput input,
+        CancellationToken cancellationToken)
     {
-        await createAgentRunValidator.ValidateAndThrowAsync(input, cancellationToken);
-        var tenant = await GetTenantAsync(input.TenantSlug, cancellationToken);
-        var user = await GetUserProfileAsync(tenant.Id, input.ExternalUserId, cancellationToken);
-        var promptTemplate = await dbContext.PromptTemplates
-            .FirstOrDefaultAsync(x => x.Id == input.PromptTemplateId && x.TenantId == tenant.Id, cancellationToken)
-            ?? throw new InvalidOperationException("Prompt template was not found.");
-
-        var snapshot = await GetLatestContextSnapshotAsync(tenant.Id, user.Id, cancellationToken)
-            ?? throw new InvalidOperationException("No context snapshot exists for the user.");
-
-        var utcNow = clock.UtcNow;
-        var contextPackage = salesSupportAgentService.BuildContextPackage(
-            tenant,
-            user,
-            snapshot,
-            input.SalesObjective,
-            utcNow);
-        var selectedProvider = string.IsNullOrWhiteSpace(input.ProviderName)
-            ? llmClientRegistry.DefaultProviderName
-            : input.ProviderName.Trim();
-
-        var promptEnvelope = salesSupportAgentService.BuildPromptEnvelope(
-            promptTemplate,
-            contextPackage,
-            input.ModelName,
-            selectedProvider);
-
-        var run = AgentRun.Create(
-            tenant.Id,
-            user.Id,
-            promptTemplate.Id,
-            snapshot.Id,
-            selectedProvider,
-            input.ModelName,
-            input.SalesObjective,
-            promptEnvelope.InputJson,
-            utcNow);
-        dbContext.AgentRuns.Add(run);
-        dbContext.AuditEvents.Add(CreateAuditEvent(
-            tenant.Id,
-            currentActorService.GetCurrentActor().Email,
-            "agent-run.requested",
-            nameof(AgentRun),
-            run.Id,
-            null,
-            JsonSerializer.Serialize(new
-            {
-                selectedProvider,
-                input.ModelName,
-                input.SalesObjective,
-                snapshotId = snapshot.Id
-            }),
-            utcNow));
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        run.MarkRunning(1, clock.UtcNow);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var generation = await salesSupportAgentService.GenerateAsync(
-            promptTemplate,
-            contextPackage,
-            promptEnvelope,
-            selectedProvider,
-            cancellationToken);
-
-        if (generation.FailureReason is null)
-        {
-            run.MarkCompleted(generation.OutputJson, generation.ProvenanceJson, generation.Confidence, generation.AttemptCount, clock.UtcNow);
-            dbContext.AuditEvents.Add(CreateAuditEvent(
-                tenant.Id,
-                "system",
-                "agent-run.completed",
-                nameof(AgentRun),
-                run.Id,
-                null,
-                JsonSerializer.Serialize(new
-                {
-                    generation.ProviderName,
-                    generation.ModelName,
-                    generation.SalesObjective,
-                    generation.AttemptCount,
-                    generation.HumanReviewRecommended,
-                    contextPackage.SnapshotId
-                }),
-                clock.UtcNow));
-        }
-        else
-        {
-            run.MarkFailed(generation.FailureReason, generation.AttemptCount, clock.UtcNow);
-            dbContext.AuditEvents.Add(CreateAuditEvent(
-                tenant.Id,
-                "system",
-                "agent-run.failed",
-                nameof(AgentRun),
-                run.Id,
-                null,
-                JsonSerializer.Serialize(new
-                {
-                    generation.ProviderName,
-                    generation.ModelName,
-                    generation.SalesObjective,
-                    generation.AttemptCount,
-                    generation.ValidationErrorsJson,
-                    generation.FailureReason
-                }),
-                clock.UtcNow));
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return new AgentRunResult(
-            run.Id,
-            run.Status,
-            generation.ProviderName,
-            generation.ModelName,
-            generation.SalesObjective,
-            run.Confidence,
-            generation.AttemptCount,
-            generation.HumanReviewRecommended,
-            generation.ContextPackageJson,
-            run.OutputJson,
-            run.ProvenanceJson,
-            generation.ValidationErrorsJson,
-            run.FailureReason);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new NotSupportedException(
+            "Scout core does not execute AI models. Use GetSalesContextPackageAsync or the versioned context APIs " +
+            "to obtain governed context, then invoke the model from a customer-owned/reference consumer.");
     }
 
     public async Task<SelectorExecutionPreviewResult> PreviewSelectorAsync(PreviewSelectorInput input, CancellationToken cancellationToken)
@@ -1770,31 +1643,18 @@ public sealed class ScoutService(
             return null;
         }
 
-        var opsTenant = await customerOpsDbContext.CustomerOpsTenants
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Slug == tenant.Slug, cancellationToken);
-        if (opsTenant is null)
-        {
-            return null;
-        }
-
-        var contact = await customerOpsDbContext.CustomerContacts
-            .AsNoTracking()
-            .Include(x => x.Account)
-            .OrderByDescending(x => x.IsDecisionMaker)
-            .ThenBy(x => x.FullName)
-            .FirstOrDefaultAsync(
-                x => x.CustomerOpsTenantId == opsTenant.Id
-                    && x.Account.ExternalAccountId == externalAccountId.Trim(),
-                cancellationToken);
-        if (contact is null)
+        var resolvedExternalUserId = await operationalReferenceDataProvider.ResolveExternalUserIdByAccountAsync(
+            tenant.Slug,
+            externalAccountId,
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(resolvedExternalUserId))
         {
             return null;
         }
 
         return await dbContext.UserProfiles
             .FirstOrDefaultAsync(
-                x => x.TenantId == tenant.Id && x.ExternalUserId == contact.ExternalUserId,
+                x => x.TenantId == tenant.Id && x.ExternalUserId == resolvedExternalUserId,
                 cancellationToken);
     }
 
@@ -1935,179 +1795,15 @@ public sealed class ScoutService(
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.UserProfileId == userProfileId, cancellationToken);
     }
 
-    private async Task<OperationalSourceSummaryResult?> BuildOperationalSourceSummaryAsync(
+    private Task<OperationalSourceSummaryResult?> BuildOperationalSourceSummaryAsync(
         string tenantSlug,
         string externalUserId,
         CancellationToken cancellationToken)
-    {
-        var actor = currentActorService.GetCurrentActor();
-        var opsTenant = await customerOpsDbContext.CustomerOpsTenants
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Slug == tenantSlug, cancellationToken);
-        if (opsTenant is null)
-        {
-            return null;
-        }
-
-        var contact = await customerOpsDbContext.CustomerContacts
-            .AsNoTracking()
-            .Include(x => x.Account)
-            .FirstOrDefaultAsync(
-                x => x.CustomerOpsTenantId == opsTenant.Id && x.ExternalUserId == externalUserId,
-                cancellationToken);
-        if (contact is null)
-        {
-            return null;
-        }
-
-        var accountId = contact.CustomerAccountId;
-        var latestSubscription = await customerOpsDbContext.CustomerSubscriptions
-            .AsNoTracking()
-            .Include(x => x.ProductPlan)
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == accountId)
-            .OrderByDescending(x => x.UpdatedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-        var latestBilling = await customerOpsDbContext.BillingMetrics
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == accountId)
-            .OrderByDescending(x => x.MetricDateUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-        var latestUsage = await customerOpsDbContext.ProductUsageSummaries
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerContactId == contact.Id)
-            .OrderByDescending(x => x.SummaryDateUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-        var openOpportunities = await customerOpsDbContext.SalesOpportunities.CountAsync(
-            x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == accountId && x.IsOpen,
+        => operationalReferenceDataProvider.GetSourceSummaryAsync(
+            tenantSlug,
+            externalUserId,
+            currentActorService.GetCurrentActor().CanViewSensitivePii,
             cancellationToken);
-        var openSupportTickets = await customerOpsDbContext.SupportTickets.CountAsync(
-            x => x.CustomerOpsTenantId == opsTenant.Id
-                && x.CustomerAccountId == accountId
-                && x.Status != "resolved"
-                && x.Status != "closed",
-            cancellationToken);
-        var pricingPageVisits30d = await customerOpsDbContext.WebConversionEvents.CountAsync(
-            x => x.CustomerOpsTenantId == opsTenant.Id
-                && x.CustomerContactId == contact.Id
-                && x.Page == "pricing"
-                && x.OccurredAtUtc >= clock.UtcNow.AddDays(-30),
-            cancellationToken);
-        var emailReplies30d = await customerOpsDbContext.EmailEngagementEvents.CountAsync(
-            x => x.CustomerOpsTenantId == opsTenant.Id
-                && x.CustomerContactId == contact.Id
-                && (x.EventType == "reply" || x.EventType == "meeting_booked")
-                && x.OccurredAtUtc >= clock.UtcNow.AddDays(-30),
-            cancellationToken);
-
-        var recentActivities = await customerOpsDbContext.SalesActivities
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == accountId)
-            .OrderByDescending(x => x.OccurredAtUtc)
-            .Take(3)
-            .Select(x => new OperationalTimelineEventResult("sales-activity", x.Summary, x.OccurredAtUtc))
-            .ToListAsync(cancellationToken);
-        var recentSupport = await customerOpsDbContext.SupportTickets
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerAccountId == accountId)
-            .OrderByDescending(x => x.OpenedAtUtc)
-            .Take(2)
-            .Select(x => new OperationalTimelineEventResult("support-ticket", $"{x.Severity}: {x.Subject}", x.OpenedAtUtc))
-            .ToListAsync(cancellationToken);
-        var recentConversions = await customerOpsDbContext.WebConversionEvents
-            .AsNoTracking()
-            .Where(x => x.CustomerOpsTenantId == opsTenant.Id && x.CustomerContactId == contact.Id)
-            .OrderByDescending(x => x.OccurredAtUtc)
-            .Take(3)
-            .Select(x => new OperationalTimelineEventResult("web-conversion", $"{x.EventType} on {x.Page}", x.OccurredAtUtc))
-            .ToListAsync(cancellationToken);
-
-        var highlights = new List<OperationalHighlightResult>
-        {
-            new("Open opportunities", openOpportunities.ToString(), "Open pipeline attached to the account in customer_ops_db."),
-            new("Pricing visits (30d)", pricingPageVisits30d.ToString(), "Repeated pricing page visits often correlate with commercial intent."),
-            new("Email replies (30d)", emailReplies30d.ToString(), "Recent replies reinforce channel fit and rep timing."),
-            new("Active days (30d)", latestUsage?.ActiveDays30.ToString() ?? "0", "Usage recency helps estimate urgency, fit, and expansion potential."),
-            new("Open support tickets", openSupportTickets.ToString(), "Unresolved tickets can reduce readiness and raise human-review needs.")
-        };
-
-        var contactEmail = actor.CanViewSensitivePii ? contact.Email : MaskEmail(contact.Email);
-
-        var rawSummaryJson = JsonSerializer.Serialize(new
-        {
-            account = new
-            {
-                contact.Account.ExternalAccountId,
-                contact.Account.Name,
-                contact.Account.Domain,
-                contact.Account.Industry,
-                contact.Account.Region,
-                contact.Account.Segment,
-                contact.Account.LifecycleStage,
-                contact.Account.AccountOwner,
-                contact.Account.EmployeeCount,
-                contact.Account.AnnualRevenue
-            },
-            contact = new
-            {
-                contact.ExternalContactId,
-                contact.ExternalUserId,
-                contact.FullName,
-                Email = contactEmail,
-                contact.JobTitle,
-                contact.Seniority,
-                contact.Department,
-                contact.PreferredChannel,
-                contact.IsDecisionMaker
-            },
-            subscription = latestSubscription is null
-                ? null
-                : new
-                {
-                    latestSubscription.ExternalSubscriptionId,
-                    latestSubscription.Status,
-                    latestSubscription.SeatsPurchased,
-                    latestSubscription.MonthlyRecurringRevenue,
-                    latestSubscription.StartedAtUtc,
-                    latestSubscription.TrialEndsAtUtc,
-                    latestSubscription.RenewalAtUtc,
-                    activePlan = latestSubscription.ProductPlan.Name,
-                    latestSubscription.ProductPlan.Tier
-                },
-            billing = latestBilling,
-            latestUsage,
-            counters = new
-            {
-                openOpportunities,
-                openSupportTickets,
-                pricingPageVisits30d,
-                emailReplies30d
-            }
-        });
-
-        return new OperationalSourceSummaryResult(
-            contact.Account.ExternalAccountId,
-            contact.Account.Name,
-            contact.Account.Domain,
-            contact.Account.Industry,
-            contact.Account.Region,
-            contact.Account.LifecycleStage,
-            latestSubscription?.ProductPlan.Name ?? "No active plan",
-            latestSubscription?.Status ?? "none",
-            latestBilling?.MonthlyRecurringRevenue ?? latestSubscription?.MonthlyRecurringRevenue ?? 0m,
-            openOpportunities,
-            openSupportTickets,
-            pricingPageVisits30d,
-            latestUsage?.ActiveDays30 ?? 0,
-            emailReplies30d,
-            highlights,
-            recentActivities
-                .Concat(recentSupport)
-                .Concat(recentConversions)
-                .OrderByDescending(x => x.OccurredAtUtc)
-                .Take(8)
-                .ToList(),
-            rawSummaryJson);
-    }
 
     private async Task<SelectorRuntimeContext> BuildRuntimeContextAsync(Tenant tenant, Guid selectorDefinitionId, CancellationToken cancellationToken)
     {
