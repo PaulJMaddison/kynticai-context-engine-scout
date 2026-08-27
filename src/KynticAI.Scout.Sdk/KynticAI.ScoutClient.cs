@@ -309,32 +309,26 @@ internal sealed class ScoutPackagesClient(ScoutHttpPipeline pipeline) : IScoutPa
 
 internal sealed class ScoutAuditClient(ScoutHttpPipeline pipeline) : IScoutAuditClient
 {
+    private const int AuditPageSize = 200;
+
     public async Task<IReadOnlyList<AuditEvent>> GetEventsAsync(string tenantSlug, CancellationToken cancellationToken = default)
     {
-        var result = await pipeline.SendGraphQlAsync<IReadOnlyList<AuditEvent>>(
-            "GetAuditEvents",
-            """
-            query GetAuditEvents($tenantSlug: String!) {
-              auditEvents(tenantSlug: $tenantSlug) {
-                id
-                tenantId
-                actor
-                action
-                entityType
-                entityId
-                correlationId
-                metadataJson
-                beforeJson
-                afterJson
-                createdAtUtc
-              }
-            }
-            """,
-            new { tenantSlug },
-            "auditEvents",
-            cancellationToken);
+        var events = new List<AuditEvent>();
+        for (var page = 1; ; page++)
+        {
+            var response = await pipeline.SendAsync<V1PagedAuditResponse>(
+                HttpMethod.Get,
+                $"/api/v1/audit-events?tenantSlug={Uri.EscapeDataString(tenantSlug)}&page={page}&pageSize={AuditPageSize}",
+                body: null,
+                cancellationToken);
 
-        return result ?? Array.Empty<AuditEvent>();
+            events.AddRange(response.Items);
+
+            if (!response.HasMore)
+            {
+                return events;
+            }
+        }
     }
 }
 

@@ -7,9 +7,11 @@ using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.AI;
 using KynticAI.Scout.Infrastructure.Auth;
+using KynticAI.Scout.Infrastructure.Configuration;
 using KynticAI.Scout.Infrastructure.Connectors;
 using KynticAI.Scout.Infrastructure.Jobs;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using KynticAI.Scout.Infrastructure.Selectors;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -209,40 +211,25 @@ public sealed class SelectorPipelineIntegrationTests
     }
 
     [Fact]
-    public async Task CreateAgentRunAsync_PersistsGroundedRecommendation_AndWritesAuditEvent()
+    public async Task CreateAgentRunAsync_DoesNotExecuteAIModels_AndPersistsNothing()
     {
         await using var harness = await IntegrationHarness.CreateInMemoryAsync();
         var seed = await harness.SeedSalesSupportScenarioAsync();
 
-        var result = await harness.Service.CreateAgentRunAsync(
-            new CreateAgentRunInput(
-                seed.Tenant.Slug,
-                seed.UserProfile.ExternalUserId,
-                seed.PromptTemplate.Id,
-                "gpt-5.5",
-                "Generate an outreach plan for enterprise upsell.",
-                null),
-            CancellationToken.None);
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(() =>
+            harness.Service.CreateAgentRunAsync(
+                new CreateAgentRunInput(
+                    seed.Tenant.Slug,
+                    seed.UserProfile.ExternalUserId,
+                    seed.PromptTemplate.Id,
+                    "gpt-5.5",
+                    "Generate an outreach plan for enterprise upsell.",
+                    null),
+                CancellationToken.None));
 
-        Assert.Equal(AgentRunStatus.Completed, result.Status);
-        Assert.Equal("mock", result.ProviderName);
-        Assert.Equal("gpt-5.5", result.ModelName);
-        Assert.Equal("Generate an outreach plan for enterprise upsell.", result.SalesObjective);
-        Assert.True(result.AttemptCount >= 1);
-        Assert.Contains("outreachStrategy", result.OutputJson, StringComparison.Ordinal);
-        Assert.Contains("citationId", result.ContextPackageJson, StringComparison.Ordinal);
-
-        var run = await harness.DbContext.AgentRuns.OrderByDescending(x => x.RequestedAtUtc).FirstAsync();
-        Assert.Equal("mock", run.ProviderName);
-        Assert.Equal("Generate an outreach plan for enterprise upsell.", run.SalesObjective);
-        Assert.True(run.AttemptCount >= 1);
-
-        var auditEvent = await harness.DbContext.AuditEvents
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .FirstOrDefaultAsync(x => x.Action == "agent-run.completed");
-
-        Assert.NotNull(auditEvent);
-        Assert.Contains("\"ProviderName\":\"mock\"", auditEvent!.AfterJson ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains("Scout core does not execute AI models", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, await harness.DbContext.AgentRuns.CountAsync());
+        Assert.Equal(0, await harness.DbContext.AuditEvents.CountAsync(x => x.Action == "agent-run.completed"));
     }
 
     private sealed class IntegrationHarness : IAsyncDisposable
@@ -321,6 +308,7 @@ public sealed class SelectorPipelineIntegrationTests
             services.AddHttpClient("scout-connectors");
             services.AddScoped<IScoutDbContext>(provider => provider.GetRequiredService<ScoutDbContext>());
             services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+            services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
             services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
             services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
             services.AddScoped<IStructuredLlmClient, MockStructuredLlmClient>();
@@ -345,6 +333,7 @@ public sealed class SelectorPipelineIntegrationTests
                 LowConfidenceThreshold = 0.75m,
                 MinimumStrongFacts = 3
             }));
+            services.AddSingleton<IOptions<ContextPackageOptions>>(Options.Create(new ContextPackageOptions()));
             services.AddScoutApplication();
 
             var provider = services.BuildServiceProvider();

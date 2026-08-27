@@ -4,7 +4,7 @@ using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Infrastructure.AI;
-using Microsoft.Extensions.Logging.Abstractions;
+using KynticAI.Scout.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace KynticAI.Scout.UnitTests;
@@ -15,11 +15,8 @@ public sealed class SalesSupportAgentServiceTests
     public void BuildContextPackage_FlagsWeakSignals_AndAssignsCitationIds()
     {
         var utcNow = new DateTime(2026, 05, 09, 12, 00, 00, DateTimeKind.Utc);
-        var service = CreateService(new StubStructuredLlmClient("{}"), new LlmOptions
+        var service = CreateService(new ContextPackageOptions
         {
-            DefaultProvider = "mock",
-            DefaultModel = "gpt-5.5",
-            MaxAttempts = 2,
             LowConfidenceThreshold = 0.75m,
             MinimumStrongFacts = 2
         });
@@ -96,7 +93,7 @@ public sealed class SalesSupportAgentServiceTests
     }
 
     [Fact]
-    public async Task GenerateAsync_RetriesAfterInvalidJson_AndSucceedsOnSecondAttempt()
+    public async Task GenerateAsync_ReturnsExternalConsumerRequired_WithoutModelExecution()
     {
         var utcNow = new DateTime(2026, 05, 09, 12, 00, 00, DateTimeKind.Utc);
         var promptTemplate = PromptTemplate.Create(
@@ -111,80 +108,11 @@ public sealed class SalesSupportAgentServiceTests
             utcNow);
 
         var contextPackage = CreateStrongContextPackage(utcNow);
-        var service = CreateService(new SequencedStructuredLlmClient(
-            "mock",
-            "not-json",
-            """
-            {
-              "salesObjective": "Book a discovery call for enterprise rollout.",
-              "outreachStrategy": {
-                "summary": "Lead with enterprise readiness and current product momentum.",
-                "recommendedChannel": "email",
-                "timingRecommendation": "Send within 24 hours.",
-                "keyTalkingPoints": [
-                  {
-                    "text": "Use enterprise intent and recent activity as the opening hook.",
-                    "citations": ["FACT-03", "FACT-04"],
-                    "confidence": 0.91
-                  }
-                ],
-                "risks": [
-                  {
-                    "text": "Keep churn risk in view before escalating the ask.",
-                    "citations": ["FACT-02"],
-                    "confidence": 0.78
-                  }
-                ],
-                "confidence": 0.89,
-                "humanReviewRecommended": false,
-                "humanReviewReason": ""
-              },
-              "personalizedEmailDraft": {
-                "subjectLine": "Northstar: next step for enterprise rollout",
-                "previewText": "Grounded outreach for Avery Stone.",
-                "body": "Hi Avery,\\n\\nYour recent usage and enterprise interest suggest this is a good moment to align on rollout priorities.\\n\\nWould a 20-minute session next week help?\\n\\nBest,\\nScout Sales",
-                "callToAction": "Propose a 20-minute session next week.",
-                "supportingClaims": [
-                  {
-                    "text": "The account prefers email and shows high recent engagement.",
-                    "citations": ["FACT-05", "FACT-04"],
-                    "confidence": 0.9
-                  }
-                ],
-                "confidence": 0.9,
-                "humanReviewRecommended": false,
-                "humanReviewReason": ""
-              },
-              "followUpRecommendations": {
-                "recommendations": [
-                  {
-                    "action": "Send the first email touch.",
-                    "timing": "Within 24 hours.",
-                    "rationale": "Email is the preferred channel and the user is actively engaged.",
-                    "citations": ["FACT-05", "FACT-04"],
-                    "confidence": 0.9
-                  }
-                ],
-                "lowConfidenceSignals": [],
-                "missingInformation": [],
-                "confidence": 0.88,
-                "humanReviewRecommended": false,
-                "humanReviewReason": ""
-              },
-              "missingInformation": [],
-              "humanReviewRecommended": false,
-              "humanReviewReason": "",
-              "overallConfidence": 0.89
-            }
-            """),
-            new LlmOptions
-            {
-                DefaultProvider = "mock",
-                DefaultModel = "gpt-5.5",
-                MaxAttempts = 2,
-                LowConfidenceThreshold = 0.75m,
-                MinimumStrongFacts = 3
-            });
+        var service = CreateService(new ContextPackageOptions
+        {
+            LowConfidenceThreshold = 0.75m,
+            MinimumStrongFacts = 3
+        });
 
         var promptEnvelope = service.BuildPromptEnvelope(promptTemplate, contextPackage, "gpt-5.5", "mock");
         var artifact = await service.GenerateAsync(
@@ -194,19 +122,20 @@ public sealed class SalesSupportAgentServiceTests
             "mock",
             CancellationToken.None);
 
-        Assert.Null(artifact.FailureReason);
-        Assert.Equal("mock", artifact.ProviderName);
-        Assert.Equal("gpt-5.5", artifact.ModelName);
-        Assert.Equal(2, artifact.AttemptCount);
-        Assert.Equal("[]", artifact.ValidationErrorsJson);
-        Assert.Contains("outreachStrategy", artifact.OutputJson, StringComparison.Ordinal);
-        Assert.Contains("\"citationId\":\"FACT-04\"", artifact.ProvenanceJson, StringComparison.Ordinal);
+        // Scout core does not execute an AI model. The generation surface must
+        // return an explicit external-consumer-required signal rather than
+        // silently producing a scored recommendation.
+        Assert.NotNull(artifact.FailureReason);
+        Assert.Contains("Scout core does not execute AI models", artifact.FailureReason, StringComparison.Ordinal);
+        Assert.Contains("Scout core does not execute AI models", artifact.ValidationErrorsJson, StringComparison.Ordinal);
+        Assert.Equal(0, artifact.AttemptCount);
+        Assert.Equal("{}", artifact.OutputJson);
+        Assert.True(artifact.HumanReviewRecommended);
     }
 
-    private static SalesSupportAgentService CreateService(IStructuredLlmClient client, LlmOptions options)
+    private static SalesSupportAgentService CreateService(ContextPackageOptions options)
     {
-        var registry = new StructuredLlmClientRegistry([client], Options.Create(options));
-        return new SalesSupportAgentService(registry, Options.Create(options), NullLogger<SalesSupportAgentService>.Instance);
+        return new SalesSupportAgentService(Options.Create(options));
     }
 
     private static SalesContextPackageResult CreateStrongContextPackage(DateTime utcNow)
@@ -283,27 +212,5 @@ public sealed class SalesSupportAgentServiceTests
             [],
             facts,
             JsonSerializer.Serialize(contextPackagePayload));
-    }
-
-    private sealed class StubStructuredLlmClient(string outputJson) : IStructuredLlmClient
-    {
-        public string ProviderName => "mock";
-
-        public Task<StructuredLlmResponse> GenerateStructuredJsonAsync(StructuredLlmRequest request, CancellationToken cancellationToken)
-            => Task.FromResult(new StructuredLlmResponse(ProviderName, outputJson));
-    }
-
-    private sealed class SequencedStructuredLlmClient(string providerName, params string[] outputs) : IStructuredLlmClient
-    {
-        private readonly Queue<string> outputs = new(outputs);
-
-        public string ProviderName { get; } = providerName;
-
-        public Task<StructuredLlmResponse> GenerateStructuredJsonAsync(StructuredLlmRequest request, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var output = outputs.Count > 0 ? outputs.Dequeue() : "{}";
-            return Task.FromResult(new StructuredLlmResponse(ProviderName, output));
-        }
     }
 }

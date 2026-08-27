@@ -4,9 +4,11 @@ using KynticAI.Scout.Application.Services;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Infrastructure.AI;
 using KynticAI.Scout.Infrastructure.Auth;
+using KynticAI.Scout.Infrastructure.Configuration;
 using KynticAI.Scout.Infrastructure.Connectors;
 using KynticAI.Scout.Infrastructure.Jobs;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using KynticAI.Scout.Infrastructure.Selectors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +57,7 @@ internal sealed class ScoutServiceTestHarness : IAsyncDisposable
         services.AddHttpClient("scout-connectors");
         services.AddScoped<IScoutDbContext>(provider => provider.GetRequiredService<ScoutDbContext>());
         services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
+        services.AddScoped<IOperationalReferenceDataProvider, CustomerOpsOperationalReferenceDataProvider>();
         services.AddScoped<IPlatformRuntimeOptions>(_ => new TestPlatformRuntimeOptions(mode, featureFlags));
         services.AddScoped<ISelectorExecutionEngine, SelectorExecutionEngine>();
         services.AddScoped<IScheduledRecomputeDispatcher, ScheduledRecomputeDispatcher>();
@@ -79,6 +82,7 @@ internal sealed class ScoutServiceTestHarness : IAsyncDisposable
             LowConfidenceThreshold = 0.75m,
             MinimumStrongFacts = 3
         }));
+        services.AddSingleton<IOptions<ContextPackageOptions>>(Options.Create(new ContextPackageOptions()));
         services.AddScoutApplication();
 
         var provider = services.BuildServiceProvider();

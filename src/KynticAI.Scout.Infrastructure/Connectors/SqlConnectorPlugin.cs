@@ -13,7 +13,7 @@ namespace KynticAI.Scout.Infrastructure.Connectors;
 
 internal sealed class SqlConnectorPlugin(
     ScoutDbContext scoutDbContext,
-    CustomerOpsDbContext customerOpsDbContext) : ConnectorPluginBase
+    ICustomerOpsDbContext? customerOpsDbContext) : ConnectorPluginBase
 {
     public override string ConnectorType => "sqlDatabase";
 
@@ -187,7 +187,7 @@ internal sealed class SqlConnectorPlugin(
         finally
         {
             if (connection != scoutDbContext.Database.GetDbConnection()
-                && connection != customerOpsDbContext.Database.GetDbConnection())
+                && (customerOpsDbContext is null || connection != customerOpsDbContext.Database.GetDbConnection()))
             {
                 await connection.DisposeAsync();
             }
@@ -209,7 +209,7 @@ internal sealed class SqlConnectorPlugin(
             .ToArray() ?? throw new InvalidOperationException("SQL connector requires a columns array.");
         var connection = await OpenConnectionAsync(configuration, request.Credentials, cancellationToken);
         var disposeConnection = connection != scoutDbContext.Database.GetDbConnection()
-            && connection != customerOpsDbContext.Database.GetDbConnection();
+            && (customerOpsDbContext is null || connection != customerOpsDbContext.Database.GetDbConnection());
 
         try
         {
@@ -310,7 +310,9 @@ internal sealed class SqlConnectorPlugin(
         return mode.Trim().ToLowerInvariant() switch
         {
             "currentdatabase" => await OpenSharedConnectionAsync(scoutDbContext.Database.GetDbConnection(), cancellationToken),
-            "customeropsdatabase" => await OpenSharedConnectionAsync(customerOpsDbContext.Database.GetDbConnection(), cancellationToken),
+            "customeropsdatabase" => customerOpsDbContext is null
+                ? throw new InvalidOperationException("The 'customerOpsDatabase' SQL connector mode is only available when the optional CustomerOps reference data store is enabled.")
+                : await OpenSharedConnectionAsync(customerOpsDbContext.Database.GetDbConnection(), cancellationToken),
             "connectionstring" => await OpenExternalConnectionAsync(configuration["connectionString"]?.GetValue<string>() ?? requestCredential(configuration, credentials), cancellationToken),
             _ => throw new InvalidOperationException($"SQL connector mode '{mode}' is not supported.")
         };

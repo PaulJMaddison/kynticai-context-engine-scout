@@ -53,6 +53,10 @@ public static class DependencyInjection
         }
         else
         {
+            // Production has no fictional CustomerOps reference store. Register the optional
+            // reference-database dependency as null so connectors that support the demo-only
+            // 'customerOpsDatabase' mode can still construct without a second database.
+            services.AddScoped<ICustomerOpsDbContext>(_ => null!);
             services.AddScoped<IOperationalReferenceDataProvider, NullOperationalReferenceDataProvider>();
         }
         services.AddScoped<IPlatformRuntimeOptions, PlatformRuntimeOptions>();

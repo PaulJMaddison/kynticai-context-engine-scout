@@ -52,7 +52,7 @@ public sealed class CommercialReadinessDeliverablesTests
         var productionCheck = File.ReadAllText(Path.Combine(root, "scripts", "check-production-env.ps1"));
         Assert.Contains("VITE_DEMO_FALLBACK must be false", productionCheck, StringComparison.Ordinal);
         Assert.Contains("SQLite/local database connection strings are not acceptable", productionCheck, StringComparison.Ordinal);
-        Assert.Contains("PostgreSQL connection strings must be supplied", productionCheck, StringComparison.Ordinal);
+        Assert.Contains("must look like a PostgreSQL connection string", productionCheck, StringComparison.Ordinal);
 
         var rehearsalCheck = File.ReadAllText(Path.Combine(root, "scripts", "paid-pilot-rehearsal-check.ps1"));
         Assert.Contains("real SQL/PostgreSQL connector preview requires customer-approved endpoint", rehearsalCheck, StringComparison.Ordinal);

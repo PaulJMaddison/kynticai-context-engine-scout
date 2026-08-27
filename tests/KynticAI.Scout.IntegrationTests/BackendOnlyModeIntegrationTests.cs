@@ -5,8 +5,10 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Nodes;
+using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Infrastructure.Auth;
 using KynticAI.Scout.Infrastructure.Persistence;
+using KynticAI.Scout.Infrastructure.ReferenceData;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -228,6 +230,19 @@ public sealed class BackendOnlyModeIntegrationTests
                         options.UseInMemoryDatabase($"{databaseName}-ops", databaseRoot));
                     services.AddScoped<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>(provider =>
                         provider.GetRequiredService<CustomerOpsDbContext>());
+                }
+                else
+                {
+                    // Production config overrides set in ConfigureAppConfiguration are observed by
+                    // lazily-resolved IOptions<T>, but the WebApplicationFactory host reads
+                    // builder.Configuration during Program startup with the Development defaults
+                    // (Platform.Mode=LocalDemo, ReferenceData:CustomerOpsEnabled=true). Force the
+                    // CustomerOps-absent BackendOnly shape here so the production data plane proves
+                    // it can run without a CustomerOps reference store.
+                    services.RemoveAll<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>();
+                    services.RemoveAll<IOperationalReferenceDataProvider>();
+                    services.AddScoped<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>(_ => null!);
+                    services.AddScoped<IOperationalReferenceDataProvider, NullOperationalReferenceDataProvider>();
                 }
 
                 if (seedDemoData)

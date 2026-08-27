@@ -399,6 +399,7 @@ public sealed class SelectorExecutionEngineTests
             services.AddLogging();
             services.AddDbContext<ScoutDbContext>(options => options.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
             services.AddDbContext<CustomerOpsDbContext>(options => options.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
+            services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
 
             var clock = new TestClock(new DateTime(2026, 05, 09, 12, 00, 00, DateTimeKind.Utc));
             services.AddSingleton<IClock>(clock);

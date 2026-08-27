@@ -308,6 +308,13 @@ public sealed record AuditEvent(
     string? AfterJson,
     DateTime CreatedAtUtc);
 
+internal sealed record V1PagedAuditResponse(
+    IReadOnlyList<AuditEvent> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    bool HasMore);
+
 public sealed record ContextSnapshotSummary(
     Guid SnapshotId,
     int SnapshotVersion,

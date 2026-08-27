@@ -396,6 +396,7 @@ public sealed class ConnectorAuthoringTests
         services.AddHttpClient("scout-connectors");
         services.AddDbContext<ScoutDbContext>(options => options.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
         services.AddDbContext<CustomerOpsDbContext>(options => options.UseInMemoryDatabase(Guid.NewGuid().ToString("N")));
+        services.AddScoped<ICustomerOpsDbContext>(provider => provider.GetRequiredService<CustomerOpsDbContext>());
         services.AddSingleton<IClock>(new TestClock());
         services.AddScoped<IConnectorPlugin, MockConnectorPlugin>();
         services.AddScoped<IConnectorPlugin, RestApiConnectorPlugin>();

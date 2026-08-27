@@ -6,6 +6,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Nodes;
 using KynticAI.Scout.Api.Rest;
+using KynticAI.Scout.Application.Abstractions;
+using KynticAI.Scout.Application.Services;
 using KynticAI.Scout.Domain.Entities;
 using KynticAI.Scout.Domain.Enums;
 using KynticAI.Scout.Domain.Saas;
@@ -1118,6 +1120,12 @@ public sealed class RelationshipIntelligenceProofIntegrationTests
                 services.AddScoped<KynticAI.Scout.Application.Abstractions.ICustomerOpsDbContext>(provider =>
                     provider.GetRequiredService<CustomerOpsDbContext>());
                 services.AddSingleton<KynticAI.Scout.Application.Abstractions.IClock>(new TestClock(ProofNow));
+
+                // Production registers the disabled NextAction service (Scout core does not own
+                // sales next-action heuristics). These Proof tests exercise the reference
+                // implementation against the public API, so swap in the real reference service.
+                services.RemoveAll<INextActionIntelligenceService>();
+                services.AddScoped<INextActionIntelligenceService, NextActionIntelligenceService>();
 
                 TestSeedHelper.UseFastPasswordHashing(services);
             });

@@ -1099,7 +1099,9 @@ public sealed class ScoutService(
             actor,
             "account-context.read",
             nameof(OperationalAccountReferenceResult),
-            account.ExternalAccountId,
+            // Reference/demo data has no durable Scout-owned entity id; the
+            // external account id is recorded in the audit metadata below.
+            Guid.Empty,
             new { account.ExternalAccountId, userCount = users.Count, referenceData = operationalReferenceDataProvider.IsEnabled },
             cancellationToken);
         await usageMeteringService.RecordAsync(

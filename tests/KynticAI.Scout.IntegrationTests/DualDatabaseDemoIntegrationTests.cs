@@ -191,7 +191,7 @@ public sealed class DualDatabaseDemoIntegrationTests
     }
 
     [Fact]
-    public async Task GraphQl_CreateAgentRun_ReturnsStructuredRecommendation()
+    public async Task GraphQl_CreateAgentRun_DoesNotExecuteAIModels()
     {
         await using var factory = new DemoWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -236,10 +236,13 @@ public sealed class DualDatabaseDemoIntegrationTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
-        Assert.Equal("COMPLETED", payload["data"]?["createAgentRun"]?["status"]?.GetValue<string>());
-        Assert.Equal("mock", payload["data"]?["createAgentRun"]?["providerName"]?.GetValue<string>());
-        Assert.Contains("outreachStrategy", payload["data"]?["createAgentRun"]?["outputJson"]?.GetValue<string>(), StringComparison.Ordinal);
-        Assert.Equal("[]", payload["data"]?["createAgentRun"]?["validationErrorsJson"]?.GetValue<string>());
+        var errors = payload["errors"]?.AsArray();
+        Assert.NotNull(errors);
+        var errorMessage = errors![0]?["extensions"]?["exception"]?["message"]?.GetValue<string>()
+            ?? errors[0]!["message"]?.GetValue<string>()
+            ?? string.Empty;
+        Assert.Contains("Scout core does not execute AI models", errorMessage, StringComparison.Ordinal);
+        Assert.Null(payload["data"]);
     }
 
     private static void AuthenticateAs(HttpClient client, string role, string email, string displayName)
