@@ -15,6 +15,12 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
 }))
 
+vi.mock('@/lib/env', () => ({
+  env: {
+    demoFallbackEnabled: true,
+  },
+}))
+
 vi.mock('@/lib/auth', () => ({
   useAuthSession: () => ({
     session: {
