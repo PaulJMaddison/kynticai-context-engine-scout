@@ -65,4 +65,4 @@ Whichever option is chosen must be explicit and tested.
 
 ## Verification
 
-Use PostgreSQL migration proof and multi-actor/multi-workspace integration tests. Final sign-off must use the full disposable GCP gate.
+Use local PostgreSQL migration proof and multi-actor/multi-workspace integration tests where local PostgreSQL is available. Otherwise record the provider-specific proof as blocked rather than using cloud infrastructure.
