@@ -104,7 +104,7 @@ public static class DependencyInjection
         services.Configure<RateLimitOptions>(configuration.GetSection(RateLimitOptions.SectionName));
         services.Configure<ConnectorBootstrapOptions>(configuration.GetSection(ConnectorBootstrapOptions.SectionName));
         services.Configure<StorageAdapterOptions>(configuration.GetSection(StorageAdapterOptions.SectionName));
-        services.Configure<LlmOptions>(configuration.GetSection(LlmOptions.SectionName));
+        services.Configure<ContextPackageOptions>(configuration.GetSection(ContextPackageOptions.SectionName));
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<PasswordHashingService>();
         services.AddSingleton<JwtTokenService>();
