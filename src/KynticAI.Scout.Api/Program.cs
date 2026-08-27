@@ -46,13 +46,11 @@ var rateLimitOptions = builder.Configuration.GetSection(RateLimitOptions.Section
 var graphQlOptions = builder.Configuration.GetSection(GraphQlOptions.SectionName).Get<GraphQlOptions>() ?? new GraphQlOptions();
 var securityHeadersOptions = builder.Configuration.GetSection(SecurityHeadersOptions.SectionName).Get<SecurityHeadersOptions>() ?? new SecurityHeadersOptions();
 var hostedMode = builder.Environment.IsProduction()
-    || string.Equals(platformOptions.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
+    || PlatformModes.IsProductionDataPlane(platformOptions.Mode);
 
-if (string.Equals(platformOptions.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase))
-{
-    featureFlagOptions.SaaSControlPlane = true;
-    featureFlagOptions.HostedBillingUsage = true;
-}
+// Runtime/deployment mode and optional commercial features are deliberately
+// independent. Enabling a production data plane must never silently enable
+// control-plane contact or usage/billing reporting.
 
 var productionReadinessReport = ProductionEnvironmentReadinessValidator.GetReport(builder.Configuration, builder.Environment);
 ProductionEnvironmentReadinessValidator.ThrowIfBlocked(productionReadinessReport);
@@ -65,7 +63,7 @@ if (hostedMode
         || configuredAuthOptions.SigningKey.Contains("replace", StringComparison.OrdinalIgnoreCase)
         || configuredAuthOptions.SigningKey.Length < configuredAuthOptions.MinimumSigningKeyLength))
 {
-    throw new InvalidOperationException("Auth:SigningKey must be set to a high-entropy production secret before running in Production or SaaS mode.");
+    throw new InvalidOperationException("Auth:SigningKey must be set to a high-entropy production secret before running a production data plane.");
 }
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -289,7 +287,7 @@ if ((seedDemoOnly || bootstrapOptions.SeedDemoData)
     && !string.Equals(platformOptions.Mode, PlatformModes.LocalDemo, StringComparison.OrdinalIgnoreCase)
     && !string.Equals(platformOptions.Mode, "Demo", StringComparison.OrdinalIgnoreCase))
 {
-    throw new InvalidOperationException("Demo seeding is only available in LocalDemo/Demo mode. Hosted SaaS deployments must run migrations without seed data.");
+    throw new InvalidOperationException("Demo seeding is only available in LocalDemo/Demo mode. Production data-plane deployments must run without demo seed data.");
 }
 
 var resolvedBootstrapOptions = new BootstrapOptions
@@ -678,19 +676,17 @@ app.MapGet("/", () =>
         graphql = platformOptions.EnableGraphQl
     });
 });
-app.MapGet("/health", async (ScoutDbContext scoutDbContext, CustomerOpsDbContext customerOpsDbContext, CancellationToken cancellationToken) =>
+app.MapGet("/health", async (ScoutDbContext scoutDbContext, CancellationToken cancellationToken) =>
 {
     var scoutReady = await scoutDbContext.Database.CanConnectAsync(cancellationToken);
-    var customerOpsReady = await customerOpsDbContext.Database.CanConnectAsync(cancellationToken);
     return Results.Ok(new
     {
-        status = scoutReady && customerOpsReady ? "ok" : "degraded",
+        status = scoutReady ? "ok" : "degraded",
         service = "KynticAI.Scout.Api",
         checks = new[]
         {
             new { name = "self", status = "ok" },
-            new { name = "scout-db", status = scoutReady ? "ok" : "error" },
-            new { name = "customer-ops-db", status = customerOpsReady ? "ok" : "error" }
+            new { name = "scout-db", status = scoutReady ? "ok" : "error" }
         }
     });
 });
@@ -733,24 +729,22 @@ if (hostedMode)
 {
     platformConfigEndpoint.RequireAuthorization();
 }
-app.MapGet("/health/ready", async (ScoutDbContext scoutDbContext, CustomerOpsDbContext customerOpsDbContext, CancellationToken cancellationToken) =>
+app.MapGet("/health/ready", async (ScoutDbContext scoutDbContext, CancellationToken cancellationToken) =>
 {
     var scoutReady = await scoutDbContext.Database.CanConnectAsync(cancellationToken);
-    var customerOpsReady = await customerOpsDbContext.Database.CanConnectAsync(cancellationToken);
-    return scoutReady && customerOpsReady
+    return scoutReady
         ? Results.Ok(new
         {
             status = "ok",
             service = "KynticAI.Scout.Api",
             checks = new[]
             {
-                new { name = "scout-db", status = "ok" },
-                new { name = "customer-ops-db", status = "ok" }
+                new { name = "scout-db", status = "ok" }
             }
         })
         : Results.Problem(
             title: "Database unavailable",
-            detail: "The API cannot reach one or more configured PostgreSQL databases.",
+            detail: "The API cannot reach the configured Scout database.",
             statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 if (platformOptions.EnableGraphQl)
@@ -808,7 +802,7 @@ static void ValidateAllowedOrigins(string[] origins, bool hostedMode)
 {
     if (hostedMode && origins.Length == 0)
     {
-        throw new InvalidOperationException("Cors:AllowedOrigins must list the production frontend origin before running in Production or SaaS mode.");
+        throw new InvalidOperationException("Cors:AllowedOrigins must list the production frontend origin before running a production data plane.");
     }
 
     foreach (var origin in origins)
