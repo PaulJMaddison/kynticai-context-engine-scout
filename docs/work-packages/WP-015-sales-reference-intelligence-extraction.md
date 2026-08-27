@@ -40,6 +40,14 @@ Move sales-specific next-action scoring, sales weights and recommendation constr
 - Do not silently change numeric semantics on an existing v1 API.
 - Do not remove useful reference behaviour without leaving a runnable example.
 
+## Implementation note (2026-08-27)
+
+The sales-specific `BasicRelationshipEngine`, `NextActionIntelligenceService` and
+`EnterpriseRelationshipEngineHandoff` implementations now live in
+`examples/KynticAI.Scout.Reference.Sales`. The normal Scout application DI registers
+only the disabled compatibility implementation for `INextActionIntelligenceService`.
+Tests that prove the fictional sales example reference the example project explicitly.
+
 ## Acceptance criteria
 
 - [ ] Scout core does not hard-code sales/RevOps business weights as platform truth.
