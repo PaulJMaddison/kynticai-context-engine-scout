@@ -1,82 +1,66 @@
-# Roadmap
+# Scout Roadmap
 
-This roadmap describes the current direction of KynticAI Scout at a high level. It is intended to help contributors understand the shape of the public open source core and the likely boundary to future commercial offerings.
+This roadmap covers the public KynticAI Scout product.
 
-## Shipped
+Canonical product names are defined in [source-of-truth-naming-map.md](source-of-truth-naming-map.md).
 
-These capabilities are part of the public open-core deliverable in this repository today. Each links to its primary documentation and the release that introduced or formalised it.
+## Product boundary
 
-| Capability | Documentation | Introduced |
-| --- | --- | --- |
-| Semantic/selector engine | [docs/saas-architecture.md](saas-architecture.md) | v2.0.0 |
-| Context facts and snapshots | [docs/public-api-contract.md](public-api-contract.md) | v2.0.0 |
-| GraphQL and REST APIs | [docs/public-api-contract.md](public-api-contract.md) | v2.0.0 |
-| SQLite and PostgreSQL data access | [docs/getting-started.md](getting-started.md), [docs/hosted-deployment.md](hosted-deployment.md) | v1.0.0 |
-| Connector plugin model and catalogue | [docs/connector-plugin-model.md](connector-plugin-model.md), [docs/connector-marketplace.md](connector-marketplace.md) | v2.0.0 |
-| Blueprint Import | [docs/context-consumers.md](context-consumers.md) | v2.0.0 |
-| Webhook signing secrets | [docs/webhook-events.md](webhook-events.md) | v2.3.0 |
-| M2M identity and API clients | [docs/machine-to-machine-identity.md](machine-to-machine-identity.md), [docs/api-scopes.md](api-scopes.md) | v2.0.0 |
-| Score API | [docs/score-api.md](score-api.md) | v2.9.0 |
-| Discovery MCP/agent | [docs/discovery-agent-mcp.md](discovery-agent-mcp.md) | v2.9.0 |
-| n8n node | [docs/n8n-node.md](n8n-node.md) | v2.9.0 |
-| docs site | [docs-site/README.md](../docs-site/README.md) | v2.9.0 |
-| Scout pilot setup wizard | [docs/paid-pilot-setup.md](paid-pilot-setup.md) | v2.9.0 |
+- **Scout — Explore:** this open-source repository.
+- **Fortress — Prove:** private product outside this repository.
+- **Elite — Scale:** enterprise scale product outside this repository.
+- Optional Cloud/control-plane services are supporting infrastructure, not the third product.
 
-The [root CHANGELOG](../CHANGELOG.md) is the canonical record of releases.
+## Shipped public foundations
+
+Scout currently includes:
+
+- source connectors and connector extension contracts;
+- retained source evidence/continuity foundations;
+- mappings/selectors;
+- context facts and snapshots;
+- relationship/evidence foundations;
+- REST and GraphQL APIs;
+- TypeScript and .NET SDKs;
+- local/demo and PostgreSQL deployment paths;
+- authentication, API clients, audit and webhook/event ingestion;
+- admin/demo web application;
+- generic Discovery Agent;
+- metadata-only Scout Discovery MCP;
+- public connector authoring/validation tooling;
+- Scout-to-Fortress customer-local continuity tooling.
+
+KynticAI Score is a separate companion product. A public Score contract/client may live alongside Scout temporarily, but it is not a Scout scoring engine capability.
+
+## Current architecture programme
+
+The 2026-08-27 architecture review is tracked in [work-packages/README.md](work-packages/README.md).
+
+Priorities are:
+
+1. make Scout/Fortress/Elite and Discovery ownership consistent everywhere;
+2. make the Scout core inference-free in runtime behaviour;
+3. remove the fictional CustomerOps database and sales heuristics from mandatory production architecture;
+4. separate deployment mode from optional control-plane/commercial flags;
+5. make workspace semantics truthful;
+6. prove hosted key persistence and atomic cross-instance event idempotency;
+7. simplify repository/API boundaries after those architectural changes.
 
 ## Directional priorities
 
-These are directions for the open core, not committed delivery dates or scope. Priorities may change as the work-package backlog evolves:
+After the architecture programme:
 
-- strengthen the semantic context model
-- improve selector execution, provenance, confidence, and freshness handling
-- improve the GraphQL and REST developer experience
-- improve SDK usability
-- keep local self-hosting and demo flows simple
-- provide stable extension contracts for future enterprise modules
-- improve documentation, tests, and examples
+- improve connector quality and authoring experience;
+- strengthen source-evidence and replay guarantees;
+- improve API/SDK consistency;
+- keep self-hosting simple;
+- improve documentation and executable examples;
+- preserve stable public extension contracts without leaking private implementation.
 
-## Public/private boundary
+## Principles
 
-The intended repository split is:
-
-- this public repository for the open source core
-- private enterprise repositories for paid extension implementations
-- private control-plane repositories for hosted commercial operations
-
-### Likely future private enterprise areas
-
-These are likely to be developed outside the public repo:
-
-- real enterprise connectors across CRM, warehouse, email, chat, calendar, analytics, work management, and knowledge systems
-- SSO/SAML implementations
-- Stripe, Paddle, or other billing-provider integrations
-- customer-specific deployment templates
-- private cloud automation
-- credential vault integrations
-- enterprise policy engines
-- compliance report exporters
-- support-backed observability and operational tooling
-
-This list is here to clarify boundary expectations, not to imply that those implementations already exist in the public repository. Capabilities beyond the open-core deliverable remain outside this repository.
-
-## Scout Cloud and managed control plane
-
-KynticAI Scout Cloud is an optional, support-only offering today. It can manage accounts, licences, downloads, update channels, support access, and optional aggregate usage metadata; it is not required to run the data plane and must not receive raw customer operational data or derived context by default. A managed control-plane offering is a next candidate step for Scout Cloud; if it proceeds, it will likely focus on:
-
-- hosted operations
-- tenant administration
-- managed upgrades
-- usage metering and operational packaging
-- hosted control-plane concerns that do not belong in the open source core
-
-## How we track
-
-Shipped and planned work is tracked as public work packages in [docs/work-packages/README.md](work-packages/README.md). The roadmap above summarises the shipped features and the directional priorities; the work-package backlog carries the concrete planned slices and their status, so the two should be read together.
-
-## Roadmap principles
-
-- The open source core should remain useful without paid features.
-- Public interfaces are welcome when they make the core cleaner and more extensible.
-- Paid implementation code should not be mixed into the public repo by accident.
-- Fictional demo data, safe defaults, and honest documentation matter as much as runtime code.
+- Scout must remain useful without paid/private products.
+- Customer operational data stays customer-controlled by default.
+- Examples must not masquerade as platform truth.
+- Public interfaces may expose extension seams; private implementations stay private.
+- Current documentation must describe shipped reality rather than aspirational state.
