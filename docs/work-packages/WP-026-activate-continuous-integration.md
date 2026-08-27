@@ -14,7 +14,7 @@ WP-007 hardened reference CI/release workflows but deliberately kept them as `.y
 
 The repository therefore has a strong validation design but no automatic pull-request/main enforcement.
 
-Manual/disposable GCP validation remains valuable for production/provider proof, but ordinary deterministic checks should execute automatically on every change once the external restriction is resolved.
+Local deterministic validation remains the current proof path. Ordinary deterministic checks should execute automatically on every change once the external GitHub Actions restriction is resolved.
 
 ## Objective
 
@@ -49,4 +49,4 @@ Activate safe CI without weakening the existing opt-in rules for expensive/brows
 
 ## Verification
 
-The verification is the live GitHub Actions run itself plus comparison with the local/GCP validation matrix. Do not mark complete based only on YAML inspection.
+The verification is the live GitHub Actions run itself plus comparison with the local validation matrix. Do not mark complete based only on YAML inspection.
