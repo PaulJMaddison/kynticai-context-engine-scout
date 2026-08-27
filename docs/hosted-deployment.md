@@ -169,6 +169,14 @@ Connector secrets are stored through `IConnectorCredentialStore` as protected re
 
 Use a mounted directory such as `/var/lib/scout/data-protection-keys` and keep it backed up with the application database. Do not copy the key ring into source control or support bundles.
 
+**Path configuration is not the same as persistence.** Setting `DataProtection__KeyRingPath` only tells Scout where to write keys; it cannot guarantee that the hosting platform keeps that path across restarts and redeploys. You must also confirm the platform actually mounts durable storage at that path:
+
+- Render: the `kynticai-scout-api` service provisions a named `scout-data-protection` disk mounted at `/var/lib/scout/data-protection-keys` (see `render.yaml`).
+- Docker Compose: use a named volume mounted at the key-ring path, not an anonymous or ephemeral container layer.
+- Kubernetes/native: use a `PersistentVolumeClaim` (or equivalent durable volume) at the key-ring path.
+
+Verify persistence with a restart/redeploy proof: store a connector credential, restart or redeploy the API, then resolve the same credential. If it fails or the key ring is absent after redeploy, persistence is not actually guaranteed and connector credentials would be unreadable.
+
 ## Logging And OpenTelemetry
 
 Production logs are written to stdout/stderr for the hosting platform to collect. OpenTelemetry tracing and metrics are enabled for ASP.NET Core, outbound HTTP calls, runtime metrics, and background job metrics. Set `Telemetry__OtlpEndpoint` or `OTEL_EXPORTER_OTLP_ENDPOINT` to export to an OTLP collector.
