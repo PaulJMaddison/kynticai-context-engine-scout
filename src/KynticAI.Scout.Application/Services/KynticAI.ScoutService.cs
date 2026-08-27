@@ -1218,6 +1218,35 @@ public sealed class ScoutService(
         var normalizedEventId = input.EventId.Trim();
         var workspace = await ResolveWorkspaceForEventAsync(tenant.Id, input.WorkspaceSlug, cancellationToken);
 
+        // Cross-instance idempotency is enforced at the PostgreSQL boundary.
+        // A transaction-scoped advisory lock serialises only requests for the
+        // same logical event across every Scout instance. Once the lock is
+        // held the duplicate check is authoritative for this transaction.
+        var usesPostgres = string.Equals(
+            dbContext.Database.ProviderName,
+            "Npgsql.EntityFrameworkCore.PostgreSQL",
+            StringComparison.Ordinal);
+        await using var eventTransaction = usesPostgres
+            ? await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, cancellationToken)
+            : null;
+
+        if (eventTransaction is not null)
+        {
+            var eventLockKey = $"{tenant.Id:D}|{normalizedSourceSystem}|{normalizedEventId}";
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({eventLockKey}, 0));",
+                cancellationToken);
+        }
+
+        async Task PersistEventAsync()
+        {
+            await PersistEventAsync();
+            if (eventTransaction is not null)
+            {
+                await eventTransaction.CommitAsync(cancellationToken);
+            }
+        }
+
         var duplicate = await dbContext.SourceSystemEvents
             .AsNoTracking()
             .FirstOrDefaultAsync(
@@ -1238,7 +1267,7 @@ public sealed class ScoutService(
                 null,
                 null,
                 utcNow));
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await PersistEventAsync();
 
             return new SourceSystemEventAcceptedResult(
                 duplicate.EventId,
@@ -1326,7 +1355,7 @@ public sealed class ScoutService(
                 null,
                 null,
                 utcNow));
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await PersistEventAsync();
             return MapEventAccepted(sourceEvent, tenant, storedSignalCount: 0, isDuplicate: false, utcNow);
         }
 
@@ -1346,7 +1375,7 @@ public sealed class ScoutService(
                 null,
                 null,
                 utcNow));
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await PersistEventAsync();
             return MapEventAccepted(sourceEvent, tenant, storedSignalCount: 0, isDuplicate: false, utcNow);
         }
 
@@ -1383,7 +1412,7 @@ public sealed class ScoutService(
                 null,
                 null,
                 utcNow));
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await PersistEventAsync();
             return MapEventAccepted(sourceEvent, tenant, storedSignalCount: 1, isDuplicate: false, utcNow);
         }
 
@@ -1420,7 +1449,7 @@ public sealed class ScoutService(
             null,
             null,
             utcNow));
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await PersistEventAsync();
         await recomputeQueue.EnqueueAsync(new ContextRecomputeRequest(tenant.Id, user.Id, correlationId, executions.Select(x => x.Id).ToList()), cancellationToken);
 
         return MapEventAccepted(sourceEvent, tenant, storedSignalCount: 1, isDuplicate: false, utcNow);
