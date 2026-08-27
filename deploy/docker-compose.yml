@@ -36,7 +36,9 @@ services:
       DataProtection__ApplicationName: KynticAIScout
       DataProtection__KeyRingPath: /var/lib/scout/data-protection-keys
       DataProtection__RequirePersistentKeys: "false"
-      Llm__DefaultProvider: mock
+      ReferenceData__CustomerOpsEnabled: "true"
+      ContextPackages__LowConfidenceThreshold: "0.75"
+      ContextPackages__MinimumStrongFacts: "3"
     ports:
       - "${SCOUT_BIND_ADDRESS:-127.0.0.1}:${SCOUT_PORT:-8080}:8080"
     volumes:
@@ -59,7 +61,7 @@ services:
       - postgres
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      Platform__Mode: ${PLATFORM_MODE:-BackendOnly}
+      Platform__Mode: ${PLATFORM_MODE:-SelfHosted}
       Platform__EnableGraphQl: "true"
       Platform__EnableRest: "true"
       Platform__EnableOpenApi: ${ENABLE_OPENAPI:-false}
@@ -75,8 +77,9 @@ services:
       DataProtection__KeyRingPath: /var/lib/scout/data-protection-keys
       DataProtection__RequirePersistentKeys: "true"
       ConnectionStrings__Scout: Host=postgres;Port=5432;Database=${SCOUT_DB:-scout_context_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-      ConnectionStrings__CustomerOps: Host=postgres;Port=5432;Database=${CUSTOMER_OPS_DB:-customer_ops_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-      Llm__DefaultProvider: mock
+      ReferenceData__CustomerOpsEnabled: "false"
+      ContextPackages__LowConfidenceThreshold: "0.75"
+      ContextPackages__MinimumStrongFacts: "3"
     ports:
       - "${SCOUT_BIND_ADDRESS:-127.0.0.1}:${SCOUT_PORT:-8080}:8080"
     volumes:
