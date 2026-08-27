@@ -1,8 +1,10 @@
-# GCP pre-cloud validation
+# Legacy optional GCP pre-cloud validation
 
-Last updated: 2026-08-17
+Last updated: 2026-08-27
 
-This is the required disposable-cloud validation for Scout before a production Scout -> Fortress cutover or a final engineering sign-off is considered proven.
+> **Current validation policy:** this is a legacy, explicitly opt-in cloud harness. It is **not required** for the current Scout engineering programme or branch sign-off. Follow [LOCAL_VALIDATION.md](../../LOCAL_VALIDATION.md) for the authoritative local validation path. If real PostgreSQL or another required local dependency is unavailable, record the provider-specific proof as blocked rather than provisioning GCP, Azure, AWS, or other cloud infrastructure.
+
+This document is retained only for teams that separately choose and authorise disposable Google Cloud capacity for synthetic scale testing. Nothing here overrides the local-only policy in `LOCAL_VALIDATION.md`, and this harness must not be invoked without separate explicit approval.
 
 The runner is intentionally repo-wide. It validates the .NET data plane, PostgreSQL migration/startup path, React application, public TypeScript packages, n8n integrations, the public Scout metadata Discovery MCP, and the generic local Discovery Agent. The commercial KynticAI Discovery MCP buyer workflow is private Fortress software and is not part of this public Scout gate.
 
@@ -127,7 +129,7 @@ The VM has no Scout/API firewall rule. The runner uses `gcloud compute ssh` and 
 
 The default branch is `main`.
 
-For a final sign-off, pin the exact revision so the runner refuses to validate a moving or mistaken branch:
+If this optional harness is separately authorised, pin the exact revision so the runner refuses to validate a moving or mistaken branch:
 
 ```bash
 GCP_PROJECT_ID="your-disposable-project" \
@@ -151,13 +153,13 @@ A successful automated run ends with:
 REPO_WIDE_PRECLOUD_VALIDATION=PASS
 ```
 
-Do not accept a partial run as a pass. In particular, the .NET and Node test/build gates, model/migration check, PostgreSQL startup/migration and focused safety tests are mandatory.
+Do not call this optional harness a pass after a partial run. Its own .NET, Node, migration, PostgreSQL and focused safety stages must all pass if the harness is used.
 
 The generic Discovery Agent currently installs with `--package-lock=false` because its previous lockfile described the commercial buyer-facing Discovery MCP wrapper that was removed from Scout. A clean replacement lockfile should be generated and committed from a successful dependency resolution before publishing that package. This is a reproducibility concern, not permission to restore the private buyer workflow to Scout.
 
 ## 4. Synthetic capture and cutover acceptance matrix
 
-The following tests are required before production cutover. They intentionally use generated records and test-only connector credentials.
+The following acceptance matrix describes the historical synthetic cutover proof. Equivalent proof may be executed on an approved local PostgreSQL/container environment. It intentionally uses generated records and test-only connector credentials.
 
 ### A. FULL_SOURCE exact evidence
 
@@ -308,9 +310,9 @@ Retain only non-customer proof material:
 
 Do not copy exact customer payloads, credentials, cutover tokens or production database dumps into build artifacts or cloud logs.
 
-## Release gate
+## Optional harness completeness gate
 
-A release is not pre-cloud validated until all of the following are true:
+If a team elects to use this legacy harness and wants to claim **pre-cloud validated**, all of the following must be true:
 
 - final static/review diff is clean;
 - exact SHA is recorded;
@@ -332,4 +334,4 @@ A release is not pre-cloud validated until all of the following are true:
 - teardown is confirmed;
 - actual cloud spend is reviewed and remains inside the approved envelope.
 
-If any item is missing, record it as unvalidated rather than inferring a pass from the other checks.
+Missing items mean only that this optional cloud harness is incomplete. They do not create a requirement to provision cloud infrastructure; use the current local validation policy instead.

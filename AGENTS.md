@@ -15,7 +15,7 @@ Scout is the public face of KynticAI. Keep it useful, auditable, and safe for pu
 - `packages/typescript/` - public TypeScript SDK, connector tooling, metadata Discovery MCP, contract parity and n8n integrations.
 - `docs/` - public documentation, API notes, diagrams, and brand assets.
 - `deploy/` - Docker and deployment configuration.
-- `scripts/` - local setup, demo, cloud validation, and automation scripts.
+- `scripts/` - local setup, demo, validation, automation, and legacy opt-in cloud-harness scripts.
 - `samples/` and `examples/` - public examples/reference consumers and fixtures. Example business logic is not Scout core behaviour.
 
 ## Build/Test Commands
@@ -30,7 +30,6 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - Local demo (Windows): `.\scripts\setup-demo.ps1`, then `.\scripts\start-demo.ps1`.
 - Browser proof: `cd apps\web`, set `KYNTIC_RUN_BROWSER_TESTS=1`, then `npm run test:e2e`.
 - Docker/PostgreSQL and enterprise connector proof paths require explicit opt-in; see `LOCAL_VALIDATION.md`.
-- Disposable GCP full-repo sign-off: see `docs/testing/gcp-precloud-validation.md`; pin `SCOUT_EXPECTED_SHA` for final proof.
 - Laptop local-folder rule: before running tests on this machine, check the local laptop test-command notes kept outside this repo and use the nearest safe command for the folder touched; docs-only changes can use `git diff --check`.
 
 ## Do-Not-Do List
@@ -65,7 +64,7 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - When Scout work depends on private engine contracts, do not treat the integration as complete until the relevant engine change has passed the review policy in the private engine review notes kept outside this repo.
 - Prefer slower, meaningful verification over quick unchecked completion. Log tests run, skipped tests, and residual risk.
 - Routine .NET integration/E2E tests must stay deterministic: use EF InMemory or in-memory SQLite when no real provider behaviour is under test. Live PostgreSQL/provider proof must be explicit, isolated and logged.
-- For a final release/sign-off, the disposable GCP gate must validate the exact SHA when local disk or external-provider constraints prevent a complete workstation run.
+- For final release/sign-off, validate the exact SHA using `LOCAL_VALIDATION.md`. Provider-specific PostgreSQL behaviour must be proven against a real local PostgreSQL instance when available; if the required local provider is unavailable, record that proof as blocked rather than provisioning cloud infrastructure.
 
 ## Brand Rules
 
