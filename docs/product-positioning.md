@@ -1,28 +1,59 @@
 # Product Positioning
 
-Workspace naming source of truth: [`source-of-truth-naming-map.md`](source-of-truth-naming-map.md).
+Canonical names and boundaries are defined in [source-of-truth-naming-map.md](source-of-truth-naming-map.md).
 
-Context Engine · Scout turns authorised company data items into relationship sets, attribution paths, comparable examples, outcomes, and governed JSON for approved customer-owned consumers. Use UCL for repo history, architecture lineage, and stable implementation contract names.
+## In one sentence
 
-Scout is the free/open-source local proof path for the Context Engine. It ingests exact data items through connectors or one-off assisted imports, stores them in the customer-owned data plane, and gives customer systems a governed way to read those items, relationships, provenance, audit, and basic fallback intelligence.
+**KynticAI Scout connects authorised business data, keeps the evidence in the customer's environment, links related information and makes the result easy for other software to use.**
 
-The flagship Context Engine · Scout workflow is: source systems -> UCL/Scout customer-owned data plane -> exact data items, relationships, attribution paths, comparable relationship sets, and outcomes -> governed JSON with evidence, matches, ranked options, confidence, and caveats -> customer-owned apps, workflows, local LLMs, or agents.
+## The product progression
 
-The buyer message is simple:
+- **Scout — Explore:** open source. Connect data, prove the basic context flow and build against normal APIs.
+- **Fortress — Prove:** private production product for advanced governed analysis and enterprise extensions.
+- **Elite — Scale:** the organisation-wide scale product for programmes spanning systems, divisions and security boundaries.
 
-- customers keep CRM, ERP, support desk, billing, warehouse, product databases, spreadsheets, and legacy systems
-- Scout sits beside those systems and maps authorised signals into exact data items, local relationships, attribution paths, outcomes, provenance, governance, and basic fallback intelligence
-- data items can include customers, email addresses, browser cookies, web events, email enquiries, product views, support events, registrations, purchases, accounts, opportunities, invoices, or abstract events such as "generic web search" and "email enquiry"
-- Fortress/private extensions can compare relationship sets and return governed JSON with comparable examples, attribution-path evidence, ranked action options, confidence, and caveats
-- customers can bring their own LLM, workflow engine, report, or app for the text explanation
-- the customer-owned data plane keeps operational data customer-controlled by default
-- the public repo contains the open core, local demo, admin console, APIs, SDKs, extension seams, generic connectors, and mock/demo connectors
-- Fortress/private modules can provide advanced relationship-set analysis, attribution-path analysis, scoped private connector modules, SSO/SAML, SCIM, vault integrations, advanced governance, compliance exports, deployment packs, and support tooling
-- paid/private Cloud modules provide optional hosted account management, billing, commercial licence portal, download portal, update channels, support portal, health/status, aggregate usage reporting backend, and cloud operations only
-- metadata-only remains a safe discovery mode for mapping systems and governance; private exact-data mode is the core product promise for production relationship-set analysis
-- KynticAI Discovery MCP is the buyer-facing metadata-only wrapper for IT-manager discovery: local codebase audit, public connector catalogue inspection, manifest validation, metadata quality report, Discovery Signature review, and optional signature-only handoff for a KynticAI-built synthetic demo
-- Clarity and Importance are separate KynticAI products, not required UCL dependencies
+Cloud/control-plane services are optional supporting infrastructure, not the third product.
 
-Avoid overclaiming. The public repo is a credible open-core product foundation, not a self-serve hosted SaaS product, not a paid enterprise connector pack, not vendor-certified connector proof, and not customer traction by itself.
+## What Scout does
 
-Do not describe Context Engine · Scout as the complete advanced relationship-set engine. Scout owns ingestion, exact data items, assisted imports, customer-owned data-plane mechanics, governance/audit, local APIs, and basic fallback intelligence. Fortress owns production/private scale, advanced relationship sets, attribution paths, comparable-example analysis, outcome matching, canonical scoring, and governed JSON handoff where required. Cloud is commercial/control-plane only.
+Customers keep their existing CRM, ERP, support, billing, warehouse, product, spreadsheet and legacy systems.
+
+Scout sits beside those systems. It:
+
+1. reads or receives only authorised data;
+2. keeps approved source evidence locally;
+3. maps fields into reusable business facts;
+4. links related records;
+5. records where each item came from and when it was observed;
+6. returns the result through REST, GraphQL and SDKs.
+
+Scout core does not call an AI model. A customer can pass Scout output into an app, workflow, report, agent or model runtime of their choice.
+
+## What is public
+
+This repository contains the open-source Scout core, generic connectors, APIs, SDKs, admin/demo UI, local deployment path, public tooling and extension contracts.
+
+It also contains public metadata tools:
+
+- the generic Discovery Agent for local codebase audit/handover;
+- the metadata-only Scout Discovery MCP for connector/catalogue inspection.
+
+## What is private
+
+Fortress/Elite implementation, private enterprise connectors, advanced private analysis, commercial Discovery MCP workflow/Discovery Signature generation, private deployment packs and customer-specific material stay outside this repo.
+
+## Control plane
+
+An optional control plane may manage commercial metadata such as licences, downloads, update channels, support access and approved aggregate usage counters.
+
+It is not a raw customer-data store and is not required for Scout open-source use.
+
+## Companion products
+
+KynticAI Score is a separate product. Scout may publish a compatibility contract/client, but Scout does not calculate Score results.
+
+Clarity and Importance are separate KynticAI products.
+
+## Public claim discipline
+
+Do not describe Scout as the full Fortress/Elite engine. Do not present examples or fallback heuristics as calibrated production intelligence. Do not describe optional control-plane services as a hosted Scout data plane.
