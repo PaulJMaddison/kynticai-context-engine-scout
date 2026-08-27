@@ -1,76 +1,49 @@
-# Cloud Commercial Control Contract
+# Optional Commercial Control Plane Contract
 
-KynticAI Scout is the public/open-core UCL data plane. KynticAI Cloud is the optional commercial/control-plane layer that manages account, licence, entitlement, download, support, update, registration, and aggregate usage metadata for paid/private deployments.
+This document describes the public Scout-side contract for an optional hosted commercial control plane.
 
-This document records the public Scout-side boundary for optional commercial/control-plane integration. Private Cloud planning artefacts and implementation details are deliberately not referenced from this public repo.
+It is an architectural component, **not a fourth product and not the third product instead of Elite**. The current product progression is **Scout → Fortress → Elite**.
 
-## Boundary Summary
+## Purpose
 
-Scout remains useful without Cloud. The Docker quick start and customer-owned deployments run the data plane locally or inside the customer's infrastructure. PostgreSQL, SQLite demo data, Data Protection keys, connector configuration, selectors, exact data items, relationships, attribution paths, context snapshots, governed JSON packages, local audit, and customer API access stay in that customer-controlled data plane by default.
+The control plane may manage:
 
-Cloud is commercial control. It may manage:
+- commercial account metadata;
+- licence and entitlement state;
+- private download/update metadata;
+- support access and support-case metadata;
+- deployment registration, version and safe health status;
+- explicitly approved aggregate usage counters.
 
-- account and user metadata for the commercial relationship;
-- subscription, licence, entitlement, and update-channel metadata;
-- private download/package metadata and signed object references where configured;
-- data-plane registration tokens, installation IDs, safe health status, and deployment version metadata;
-- support case metadata and approved support text;
-- aggregate usage counters from an explicit allowlist;
-- audit events for licence, entitlement, download, update, support, and account operations.
+Scout remains usable without it.
 
-Cloud is not the Scout runtime, not the customer data plane, and not a raw operational data store.
+## Strict data boundary
 
-## Scout Local Docker And Customer-Owned Data Plane
+The control plane must not receive by default:
 
-The Scout Docker path starts the API, web console, PostgreSQL, telemetry, Prometheus, Grafana, and Tempo for local evaluation. Demo/customer data and Data Protection keys live in Docker volumes unless an operator deliberately configures a different customer-controlled storage path.
+- raw customer operational data;
+- source credentials;
+- retained exact source evidence;
+- context facts/snapshots;
+- relationship sets, weights or per-customer derived intelligence;
+- prompts or generated customer content;
+- customer-specific connector mappings;
+- private deployment secrets.
 
-In customer environments, the same data-plane rule applies:
+If future support activity requires customer data, that is a separate explicit customer-approved support process, not normal control-plane telemetry.
 
-- source connectors run beside customer systems;
-- connector credentials stay in the customer secret path;
-- source events, exact linked records, context facts, snapshots, relationships, attribution paths, outcomes, governed JSON packages, and local audit remain local by default;
-- downstream AI tools, workflows, reports, apps, and local model runtimes consume Scout outputs inside the customer's approved environment;
-- Cloud contact is optional and limited to commercial/control-plane metadata.
+## Upgrade and product boundary
 
-## Cloud Licence And Entitlement Role
+- **Scout — Explore:** public open-source product.
+- **Fortress — Prove:** private production product.
+- **Elite — Scale:** enterprise scale product.
 
-Cloud can issue, validate, revoke, suspend, or reactivate commercial licences when those endpoints exist in the Cloud control plane. It can also expose entitlement summaries, private download metadata, update-channel metadata, and safe data-plane heartbeat/config metadata.
+The control plane may support commercial/licensing/update workflows around these products, but it is not itself the customer data plane.
 
-The current Cloud compatibility model keeps legacy plan values while exposing public tier categories:
+## Scout configuration
 
-| Public category | Legacy compatibility values | Role |
-| --- | --- | --- |
-| Scout | `Free`; deprecated `Pro` | Public/open-core data-plane tier. |
-| Private runtime | `Business`; `Enterprise` | Paid private extension tier. |
-| Assisted private tier | `PrivateCloud` as highest-rank compatibility alias pending contract review | Operator-assisted strategic tier above the private runtime. |
+Public Scout may expose provider-neutral control-plane settings for optional licence/update/support integration. Enabling a runtime deployment mode must not silently enable commercial-control features; those settings are explicit.
 
-Scout open-core use must not require a Cloud licence. Cloud licences gate private paid artefacts, paid support paths, update metadata, and private runtime entitlements.
+## Aggregate usage
 
-## Data That Must Never Go To Cloud By Default
-
-Cloud must not receive these by default:
-
-- source credentials, connector credentials, private keys, tokens, or connection strings;
-- raw CRM, ERP, support, billing, product, warehouse, email, chat, calendar, document, or analytics records;
-- exact data items, exact linked records, local source payloads, context facts, or context snapshots;
-- relationship sets, relationship types, attribution paths, outcome records, evidence packs, prompt context packages, prompts, generated customer content, recommendations, caveats, confidence, weighted signals, citation IDs, or per-entity relationship metadata;
-- local databases, raw logs, local audit trails, or support bundles outside an approved secure support process;
-- customer-specific connector mappings, customer schemas, paid connector code, private deployment secrets, or enterprise implementation details.
-
-Allowed Cloud payloads are commercial/control-plane metadata and aggregate counters only, for example package version, deployment version, safe health status, active user count, workspace count, API client count, context lookup count, selector execution count, connector health-check count, storage estimates, update/download/licence/support counts, and anomaly count.
-
-## Upgrade Path
-
-| Path | Scout-side behaviour | Cloud-side role |
-| --- | --- | --- |
-| Scout to private runtime | Keep the data plane customer-owned; add private connector/runtime packages, private deployment support, and advanced analysis outside the public repo. | Record subscription/licence entitlement, expose private download/update metadata, register deployment metadata, and accept aggregate-only usage/health. |
-| Private runtime to assisted private tier | Keep private runtime and raw outcome data in the customer environment; add approved operator packs and outcome-review governance. | Record operator/support metadata without ingesting raw outcome records or derived relationship intelligence by default. |
-| Paid tier to Scout/open-core | Remove or expire private runtime entitlements and private artefact access while preserving open-core Scout use and customer-owned data. | Keep commercial audit/account history and deny private downloads/update checks where entitlement no longer applies. |
-
-Upgrades and downgrades should be auditable, additive where possible, and never require moving customer operational data into Cloud.
-
-## Documentation Contract
-
-Scout docs should describe Cloud as optional commercial control. They should not describe Cloud as a hosted Scout data plane, a required runtime dependency, a raw customer-data store, a complete self-serve SaaS, or a store for derived customer intelligence.
-
-When in doubt, keep public Scout wording limited to the open-core data plane, optional commercial-control metadata, and customer-owned data boundaries documented in this repository.
+Where customers opt in, only allowlisted aggregate counters and deployment metadata may be sent. Do not include entity identifiers, relationship types, citations, prompts, recommendations or raw/derived customer intelligence.
