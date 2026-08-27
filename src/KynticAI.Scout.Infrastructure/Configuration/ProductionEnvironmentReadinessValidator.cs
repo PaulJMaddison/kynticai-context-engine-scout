@@ -42,6 +42,7 @@ public static class ProductionEnvironmentReadinessValidator
             DemoFallbackCheck(configuration, productionShapeRequired),
             DemoSeedCheck(bootstrap, productionShapeRequired),
             DemoExperienceCheck(featureFlags, productionShapeRequired),
+            WorkspaceIsolationCheck(configuration, productionShapeRequired),
             DataProtectionCheck(dataProtection, productionShapeRequired),
             AuthSigningKeyCheck(auth, productionShapeRequired),
             ControlPlaneTransportCheck(controlPlane, productionShapeRequired),
@@ -163,6 +164,27 @@ public static class ProductionEnvironmentReadinessValidator
         return featureFlags.DemoExperience
             ? Check("demo-experience", Blocked, true, "FeatureFlags:DemoExperience must be false for customer/prod-style deployments.", "true")
             : Check("demo-experience", Ready, true, "Demo experience flag is disabled.", "false");
+    }
+
+    private static ProductionReadinessCheck WorkspaceIsolationCheck(IConfiguration configuration, bool required)
+    {
+        var requireWorkspaceScope = configuration.GetValue<bool>("SaaS:RequireWorkspaceScope");
+        if (!requireWorkspaceScope)
+        {
+            return Check(
+                "workspace-isolation",
+                Ready,
+                false,
+                "Tenant is the supported security boundary; workspaces are organisational groupings.",
+                "tenant-boundary");
+        }
+
+        return Check(
+            "workspace-isolation",
+            required ? Blocked : Warning,
+            required,
+            "End-to-end workspace security isolation is not implemented. Use separate tenants for hard isolation instead of SaaS:RequireWorkspaceScope=true.",
+            "unsupported-workspace-security-boundary");
     }
 
     private static ProductionReadinessCheck DataProtectionCheck(DataProtectionKeyOptions dataProtection, bool required)
