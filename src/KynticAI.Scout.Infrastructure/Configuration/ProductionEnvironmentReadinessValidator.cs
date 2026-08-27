@@ -31,7 +31,7 @@ public static class ProductionEnvironmentReadinessValidator
         var auth = configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
         var controlPlane = configuration.GetSection(ControlPlaneOptions.SectionName).Get<ControlPlaneOptions>() ?? new ControlPlaneOptions();
         var productionShapeRequired = environment.IsProduction()
-            || string.Equals(platform.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase);
+            || PlatformModes.IsProductionDataPlane(platform.Mode);
 
         var checks = new List<ProductionReadinessCheck>
         {
@@ -71,16 +71,15 @@ public static class ProductionEnvironmentReadinessValidator
 
     private static ProductionReadinessCheck PlatformModeCheck(PlatformOptions platform, bool required)
     {
-        var validMode = string.Equals(platform.Mode, PlatformModes.SaaS, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(platform.Mode, PlatformModes.BackendOnly, StringComparison.OrdinalIgnoreCase);
+        var validMode = PlatformModes.IsProductionDataPlane(platform.Mode);
         if (!required)
         {
             return Check("platform-mode", Ready, false, "Production shape is not required in this environment.", platform.Mode);
         }
 
         return validMode
-            ? Check("platform-mode", Ready, true, "Platform mode is valid for production-style deployment.", platform.Mode)
-            : Check("platform-mode", Blocked, true, "Platform mode must be SaaS or BackendOnly for production-style deployment.", platform.Mode);
+            ? Check("platform-mode", Ready, true, "Platform mode is valid for a production data-plane deployment.", platform.Mode)
+            : Check("platform-mode", Blocked, true, "Platform mode must be SelfHosted or ManagedDataPlane (legacy BackendOnly/SaaS remain compatibility aliases) for production-style deployment.", platform.Mode);
     }
 
     private static ProductionReadinessCheck DatabaseProviderCheck(IConfiguration configuration, bool required)
@@ -103,19 +102,24 @@ public static class ProductionEnvironmentReadinessValidator
         var scoutConnection = configuration.GetConnectionString("Scout")
             ?? configuration["SCOUT_CONNECTION_STRING"]
             ?? string.Empty;
-        var customerOps = configuration.GetConnectionString("CustomerOps")
-            ?? configuration["CUSTOMER_OPS_CONNECTION_STRING"]
-            ?? string.Empty;
-        var configured = !string.IsNullOrWhiteSpace(scoutConnection) && !string.IsNullOrWhiteSpace(customerOps);
-        var safe = configured && !IsSqliteLike(scoutConnection) && !IsSqliteLike(customerOps) && !IsPlaceholder(scoutConnection) && !IsPlaceholder(customerOps);
+        var configured = !string.IsNullOrWhiteSpace(scoutConnection);
+        var safe = configured
+            && !IsSqliteLike(scoutConnection)
+            && !IsPlaceholder(scoutConnection);
+
         if (!required)
         {
-            return Check("connection-strings", configured ? Ready : Warning, false, "Production shape is not required in this environment.", configured ? "configured" : "missing");
+            return Check(
+                "connection-strings",
+                configured ? Ready : Warning,
+                false,
+                "Production shape is not required in this environment.",
+                configured ? "scout-configured" : "missing");
         }
 
         return safe
-            ? Check("connection-strings", Ready, true, "PostgreSQL connection strings are configured for both stores.", "configured")
-            : Check("connection-strings", Blocked, true, "ConnectionStrings:Scout and ConnectionStrings:CustomerOps must be non-placeholder PostgreSQL connection strings.", configured ? "unsafe-or-sqlite" : "missing");
+            ? Check("connection-strings", Ready, true, "A PostgreSQL Scout connection string is configured.", "scout-configured")
+            : Check("connection-strings", Blocked, true, "ConnectionStrings:Scout must be a non-placeholder PostgreSQL connection string.", configured ? "unsafe-or-sqlite" : "missing");
     }
 
     private static ProductionReadinessCheck DemoFallbackCheck(IConfiguration configuration, bool required)
