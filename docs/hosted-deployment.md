@@ -1,14 +1,16 @@
 # Hosted PostgreSQL Deployment
 
-This guide describes the first production-like deployment shape for the public KynticAI Scout repo: React as a static docs/demo/admin app, ASP.NET Core as a Docker web service, PostgreSQL as managed databases, and SQLite only for local demo mode.
+This guide describes the first production-like deployment shape for the public KynticAI Scout repo: React as a static docs/demo/admin app, ASP.NET Core as a Docker web service, and a single PostgreSQL database for the Scout data plane. SQLite is used only for local demo mode.
 
 It is not the full future managed control plane. The open-core backend still operates as the customer data plane: connectors, selectors, context facts, provenance, audit logs, and credentials stay in the customer-controlled environment unless the customer explicitly exports them.
 
 ## Target Architecture
 
+Scout's production data plane uses a **single PostgreSQL store** (`ScoutDbContext`) holding tenants, users, workspaces, selectors, context facts, provenance, source-event log, audit log, API clients, and the connector catalogue. There is no separately provisioned CustomerOps database: Scout does not require a CustomerOps data source to bootstrap, migrate, or serve context. Upstream CRM/ERP/source systems are reached through connectors with their own credentials and are not Scout-owned stores.
+
 - `apps/web` builds to static docs/demo/admin files with `npm run build` and can be hosted by Render Static Sites, Netlify, Cloudflare Pages, S3/CloudFront, or the bundled nginx image.
 - `src/KynticAI.Scout.Api` builds with `src/KynticAI.Scout.Api/Dockerfile` and listens on port `8080`.
-- Hosted mode uses PostgreSQL for both `ScoutDbContext` and `CustomerOpsDbContext`.
+- Hosted production mode uses PostgreSQL for the single Scout store.
 - Local demo mode remains SQLite-backed and does not require Docker.
 
 ## Render Deployment
@@ -17,27 +19,29 @@ The repository includes a root `render.yaml` blueprint with:
 
 - `kynticai-scout-web`: static React site built from `apps/web`.
 - `kynticai-scout-api`: Docker web service with `/health/ready` as the readiness check.
-- `scout-db`: managed PostgreSQL database for tenants, users, workspaces, selectors, audit, billing, onboarding, API clients, and context snapshots.
-- `scout-customer-ops-db`: managed PostgreSQL database for source/demo operational data.
+- `scout-db`: the single managed PostgreSQL database for the Scout data plane.
 
 After creating the Render Blueprint, set these secrets and verify generated service URLs:
 
 ```text
+Platform__Mode=SelfHosted
+Database__Provider=Postgres
+Bootstrap__ApplyMigrationsOnStartup=false
+Bootstrap__SeedDemoData=false
+ConnectionStrings__Scout=<managed Scout PostgreSQL connection string>
+ReferenceData__CustomerOpsEnabled=false
 Auth__SigningKey=<48+ byte random secret>
 Cors__AllowedOrigins__0=https://<frontend-domain>
 SaaS__PublicBaseUrl=https://<api-domain>
-ControlPlane__Enabled=false
-Licence__Mode=Community
-Licence__FilePath=/var/lib/scout/licence.json
 DataProtection__KeyRingPath=/var/lib/scout/data-protection-keys
 DataProtection__RequirePersistentKeys=true
 VITE_API_BASE_URL=https://<api-domain>
 VITE_GRAPHQL_ENDPOINT=https://<api-domain>/graphql
-VITE_PILOT_LEAD_ENDPOINT=https://<cloud-api-domain>/api/v1/crm/leads
-VITE_TURNSTILE_SITE_KEY=<optional-turnstile-site-key>
 VITE_DEMO_FALLBACK=false
 Telemetry__OtlpEndpoint=<optional OTLP endpoint>
 ```
+
+`Platform__Mode=SelfHosted` is the production mode. `BackendOnly` and `SaaS` remain recognised as compatibility aliases for existing definitions; new deployments should use `SelfHosted` (on-prem data plane) or `ManagedDataPlane` where a private managed control-plane deployment is used.
 
 Render supports Blueprint fields such as `runtime: docker`, `runtime: static`, `preDeployCommand`, `healthCheckPath`, `rootDir`, and managed Postgres `fromDatabase` environment variables. If you rename services, update the frontend API URL and backend CORS origin at the same time.
 
@@ -54,12 +58,12 @@ Run in hosted-style mode:
 ```powershell
 docker run --rm -p 8080:8080 `
   -e ASPNETCORE_ENVIRONMENT=Production `
-  -e Platform__Mode=SaaS `
+  -e Platform__Mode=SelfHosted `
   -e Database__Provider=Postgres `
   -e Bootstrap__ApplyMigrationsOnStartup=false `
   -e Bootstrap__SeedDemoData=false `
-  -e ConnectionStrings__Scout="<managed PostgreSQL connection string>" `
-  -e ConnectionStrings__CustomerOps="<managed PostgreSQL connection string>" `
+  -e ConnectionStrings__Scout="<managed Scout PostgreSQL connection string>" `
+  -e ReferenceData__CustomerOpsEnabled=false `
   -e Auth__Issuer=Scout `
   -e Auth__Audience=KynticAI.Scout.Api `
   -e Auth__SigningKey="<48+ byte random secret>" `
@@ -72,17 +76,17 @@ docker run --rm -p 8080:8080 `
 
 ## Database Migration Command
 
-Hosted environments should migrate before starting a new application version:
+Hosted environments should migrate the single Scout store before starting a new application version. The `migrate` argument forces schema migration even when the production `Bootstrap__ApplyMigrationsOnStartup=false` setting would otherwise skip it, so the connector catalogue can be seeded against a ready schema.
 
 ```powershell
 docker run --rm `
   -e ASPNETCORE_ENVIRONMENT=Production `
-  -e Platform__Mode=SaaS `
+  -e Platform__Mode=SelfHosted `
   -e Database__Provider=Postgres `
-  -e Bootstrap__ApplyMigrationsOnStartup=true `
+  -e Bootstrap__ApplyMigrationsOnStartup=false `
   -e Bootstrap__SeedDemoData=false `
-  -e ConnectionStrings__Scout="<managed PostgreSQL connection string>" `
-  -e ConnectionStrings__CustomerOps="<managed PostgreSQL connection string>" `
+  -e ConnectionStrings__Scout="<managed Scout PostgreSQL connection string>" `
+  -e ReferenceData__CustomerOpsEnabled=false `
   -e Auth__SigningKey="<48+ byte random secret>" `
   -e DataProtection__KeyRingPath="/var/lib/scout/data-protection-keys" `
   -e DataProtection__RequirePersistentKeys=true `
@@ -90,7 +94,7 @@ docker run --rm `
   scout-api migrate
 ```
 
-The `migrate` command applies EF Core migrations and seeds safe connector catalogue metadata only. It does not seed demo accounts or fictional customer records.
+The `migrate` command applies EF Core migrations and seeds safe connector catalogue metadata only. It does not seed demo accounts or fictional customer records. Do not set `Bootstrap__ApplyMigrationsOnStartup=true` for regular production boots; rely on the deploy-time `migrate` command instead.
 
 ## Demo Seed Command
 
@@ -128,24 +132,24 @@ npm run build
 
 If the frontend and API are served from the same origin, set `VITE_API_BASE_URL=` and `VITE_GRAPHQL_ENDPOINT=/graphql`.
 
-For paid-ad traffic, set `VITE_PILOT_LEAD_ENDPOINT` to the private cloud/control-plane mini CRM endpoint and, if using Cloudflare Turnstile, set `VITE_TURNSTILE_SITE_KEY` at build time. The cloud API must hold the matching Turnstile secret in secure configuration.
-
 ## Health Checks
 
 - `/health/live`: process liveness, no database dependency.
-- `/health/ready`: readiness check with both database connections.
+- `/health/ready`: readiness check on the single Scout database.
 - `/health`: diagnostic summary with database status.
 - `/api/v1/health`: versioned REST health endpoint.
 
-Use `/health/ready` for Render and other rolling deployment platforms.
+Use `/health/ready` for Render and other rolling deployment platforms. It reports a single `scout-db` check; there is no second CustomerOps database to verify.
 
 ## Production Settings
 
 - `ASPNETCORE_ENVIRONMENT=Production`
-- `Platform__Mode=SaaS`
+- `Platform__Mode=SelfHosted` (or `ManagedDataPlane` for a private managed deployment; `BackendOnly`/`SaaS` are compatibility aliases)
 - `Database__Provider=Postgres`
+- `ConnectionStrings__Scout`: the single Scout PostgreSQL connection string
 - `Bootstrap__ApplyMigrationsOnStartup=false`
 - `Bootstrap__SeedDemoData=false`
+- `ReferenceData__CustomerOpsEnabled=false`
 - `Auth__SigningKey`: high-entropy secret, at least 48 bytes recommended.
 - `DataProtection__KeyRingPath`: persistent file-system path or mounted volume for ASP.NET Data Protection keys.
 - `DataProtection__RequirePersistentKeys=true`: required for Production/SaaS mode so protected connector credentials remain readable after restarts.
@@ -171,20 +175,20 @@ Production logs are written to stdout/stderr for the hosting platform to collect
 
 ## Backup And Restore
 
-For managed PostgreSQL, prefer the provider's scheduled backups and point-in-time recovery. Keep both databases on the same backup schedule because context snapshots reference source-system records by tenant and external identifiers.
+Scout's data plane is a single store, so backup ownership is straightforward: the Scout PostgreSQL database, the Data Protection key ring, and Scout-owned connector/credentials configuration are all backed up together. Upstream CRM/ERP and other source systems remain under the customer's ownership and are not Scout-owned backup responsibilities; their data enters Scout as ingested source events and context facts recorded in the Scout store.
+
+For managed PostgreSQL, prefer the provider's scheduled backups and point-in-time recovery for the Scout database.
 
 Manual backup:
 
 ```bash
 pg_dump "$SCOUT_DATABASE_URL" --format=custom --file=scout-context.dump
-pg_dump "$CUSTOMER_OPS_DATABASE_URL" --format=custom --file=customer-ops.dump
 ```
 
-Manual restore into empty databases:
+Manual restore into an empty database (recreate the database first):
 
 ```bash
 pg_restore --clean --if-exists --dbname "$SCOUT_DATABASE_URL" scout-context.dump
-pg_restore --clean --if-exists --dbname "$CUSTOMER_OPS_DATABASE_URL" customer-ops.dump
 ```
 
 After restore, run the hosted migration command once, then check `/health/ready` and perform a tenant-scoped smoke test through REST or GraphQL.

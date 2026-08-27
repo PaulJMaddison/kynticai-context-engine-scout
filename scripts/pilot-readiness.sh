@@ -54,10 +54,10 @@ dotnet test ./tests/KynticAI.Scout.IntegrationTests/KynticAI.Scout.IntegrationTe
 dotnet test ./tests/KynticAI.Scout.UnitTests/KynticAI.Scout.UnitTests.csproj --filter "FullyQualifiedName~ConnectorPluginModelTests|FullyQualifiedName~SelectorExecutionEngineTests"
 
 step "Optional PostgreSQL smoke"
-if [[ -n "${ConnectionStrings__Scout:-}" && -n "${ConnectionStrings__CustomerOps:-}" ]]; then
+if [[ -n "${ConnectionStrings__Scout:-}" ]]; then
   dotnet test ./tests/KynticAI.Scout.IntegrationTests/KynticAI.Scout.IntegrationTests.csproj --filter "FullyQualifiedName~BackendOnlyModeIntegrationTests"
 else
-  echo "Skipped: PostgreSQL connection strings are not set."
+  echo "Skipped: the Scout PostgreSQL connection string is not set."
 fi
 
 step "Public forbidden-code scan"

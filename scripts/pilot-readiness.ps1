@@ -69,8 +69,8 @@ Step "Production example toggles" {
 
 Step "Production PostgreSQL configuration" {
     if ($ProductionMode) {
-        if (-not $env:ConnectionStrings__Scout -or -not $env:ConnectionStrings__CustomerOps) {
-            Fail "Production mode requires ConnectionStrings__Scout and ConnectionStrings__CustomerOps."
+        if (-not $env:ConnectionStrings__Scout) {
+            Fail "Production mode requires ConnectionStrings__Scout for the single Scout PostgreSQL store."
         }
     }
 }
@@ -87,10 +87,10 @@ if (-not $SkipTests) {
 }
 
 Step "Optional PostgreSQL smoke" {
-    if ($env:ConnectionStrings__Scout -and $env:ConnectionStrings__CustomerOps) {
+    if ($env:ConnectionStrings__Scout) {
         dotnet test .\tests\KynticAI.Scout.IntegrationTests\KynticAI.Scout.IntegrationTests.csproj --filter "FullyQualifiedName~BackendOnlyModeIntegrationTests"
     } else {
-        Write-Host "Skipped: PostgreSQL connection strings are not set."
+        Write-Host "Skipped: the Scout PostgreSQL connection string is not set."
     }
 }
 

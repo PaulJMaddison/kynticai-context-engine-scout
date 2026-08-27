@@ -17,14 +17,13 @@ Required production-style values:
 
 ```text
 ASPNETCORE_ENVIRONMENT=Production
-Platform__Mode=BackendOnly
+Platform__Mode=SelfHosted
 Database__Provider=Postgres
 Bootstrap__ApplyMigrationsOnStartup=false
 Bootstrap__SeedDemoData=false
 FeatureFlags__DemoExperience=false
 VITE_DEMO_FALLBACK=false
 ConnectionStrings__Scout=<secret reference>
-ConnectionStrings__CustomerOps=<secret reference or approved source DB reference>
 Auth__SigningKey=<secret reference>
 DataProtection__KeyRingPath=<persistent mounted path>
 DataProtection__RequirePersistentKeys=true

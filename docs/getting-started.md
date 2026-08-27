@@ -307,7 +307,6 @@ docker build -t scout-api -f src/KynticAI.Scout.Api/Dockerfile .
 docker run --rm -p 8080:8080 \
   -e Database__Provider=Sqlite \
   -e "ConnectionStrings__Scout=Data Source=/var/lib/scout/scout_context.db" \
-  -e "ConnectionStrings__CustomerOps=Data Source=/var/lib/scout/customer_ops.db" \
   -e Bootstrap__ApplyMigrationsOnStartup=true \
   -e Bootstrap__SeedDemoData=true \
   -e "Auth__SigningKey=change-me-to-at-least-32-bytes-random" \

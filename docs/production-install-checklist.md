@@ -6,8 +6,10 @@ The safest default is that customer operational data stays in the customer's env
 
 ## Deployment Mode
 
-- Use `Platform__Mode=SaaS` or `Platform__Mode=BackendOnly` for production-style deployments.
+- Use `Platform__Mode=SelfHosted` for production-style deployments; use `ManagedDataPlane` where a private managed control-plane deployment is in place.
+- `BackendOnly` and `SaaS` remain recognised compatibility aliases for existing definitions; prefer `SelfHosted`/`ManagedDataPlane` for new deployments.
 - Use PostgreSQL for production-style deployments.
+- Scout uses a single Scout PostgreSQL store; no separate CustomerOps database is required or provisioned.
 - Keep SQLite for local evaluation and laptop demos only.
 - Set `Bootstrap__SeedDemoData=false` outside demo environments.
 - Set `VITE_DEMO_FALLBACK=false` for any customer-facing environment.
@@ -51,10 +53,11 @@ The preflight refuses demo fallback, placeholder signing keys, SQLite/local demo
 
 ## Databases
 
-- Use separate PostgreSQL databases or schemas for operational source data and scout data where possible.
-- Back up both the customer operations source database and the scout database.
+- Use the single Scout PostgreSQL database as the data plane store; no CustomerOps database is required.
+- Back up the Scout database and the Data Protection key ring together.
+- Upstream CRM/ERP and other source systems are customer-owned; document their backup ownership with the customer rather than treating them as Scout-owned backups.
 - Test restore before calling the deployment production ready.
-- Run EF Core migrations before starting a new application version.
+- Run EF Core migrations before starting a new application version (use the `migrate` command; it forces migration even with `Bootstrap__ApplyMigrationsOnStartup=false`).
 - Do not enable demo seeding in hosted or customer environments.
 
 ## Data Protection Keys
@@ -106,7 +109,7 @@ The preflight refuses demo fallback, placeholder signing keys, SQLite/local demo
 
 ## Backups And Support
 
-- Document backup ownership with the customer.
+- Document backup ownership with the customer: Scout owns the Scout database, Data Protection key ring, and Scout-side connector/credentials configuration; upstream CRM/ERP and other source systems remain under customer ownership.
 - Document restore steps and expected recovery time.
 - Generate support bundles with redaction enabled.
 - Exclude raw customer data, secrets, keys, and connector credentials from support bundles unless explicitly approved.

@@ -52,15 +52,15 @@ assert_not_placeholder() {
 
 step "Production-style configuration checks"
 ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
-Platform__Mode="${Platform__Mode:-BackendOnly}"
+Platform__Mode="${Platform__Mode:-SelfHosted}"
 Database__Provider="${Database__Provider:-Postgres}"
 Bootstrap__SeedDemoData="${Bootstrap__SeedDemoData:-false}"
 VITE_DEMO_FALLBACK="${VITE_DEMO_FALLBACK:-false}"
 DataProtection__RequirePersistentKeys="${DataProtection__RequirePersistentKeys:-true}"
 
 assert_setting "ASPNETCORE_ENVIRONMENT" "Production" "$ASPNETCORE_ENVIRONMENT"
-if [[ "$Platform__Mode" != "SaaS" && "$Platform__Mode" != "BackendOnly" ]]; then
-  echo "Platform__Mode must be SaaS or BackendOnly. Current value: '$Platform__Mode'." >&2
+if [[ "$Platform__Mode" != "SelfHosted" && "$Platform__Mode" != "ManagedDataPlane" && "$Platform__Mode" != "SaaS" && "$Platform__Mode" != "BackendOnly" ]]; then
+  echo "Platform__Mode must be SelfHosted or ManagedDataPlane (BackendOnly/SaaS remain compatibility aliases). Current value: '$Platform__Mode'." >&2
   exit 1
 fi
 assert_setting "Database__Provider" "Postgres" "$Database__Provider"
@@ -68,8 +68,8 @@ assert_setting "Bootstrap__SeedDemoData" "false" "$Bootstrap__SeedDemoData"
 assert_setting "VITE_DEMO_FALLBACK" "false" "$VITE_DEMO_FALLBACK"
 assert_setting "DataProtection__RequirePersistentKeys" "true" "$DataProtection__RequirePersistentKeys"
 assert_not_placeholder "Auth__SigningKey" "${Auth__SigningKey:-}" 48
-if [[ -z "${ConnectionStrings__Scout:-}" || -z "${ConnectionStrings__CustomerOps:-}" ]]; then
-  echo "ConnectionStrings__Scout and ConnectionStrings__CustomerOps must both be set." >&2
+if [[ -z "${ConnectionStrings__Scout:-}" ]]; then
+  echo "ConnectionStrings__Scout must be set to the single Scout PostgreSQL connection string." >&2
   exit 1
 fi
 echo "Configuration checks passed."
@@ -103,11 +103,8 @@ fi
 
 step "Backup and restore commands"
 echo "pg_dump --format=custom --file ./backup/scout_context_db.dump scout_context_db"
-echo "pg_dump --format=custom --file ./backup/customer_ops_db.dump customer_ops_db"
 echo "createdb scout_context_restore_check"
-echo "createdb customer_ops_restore_check"
 echo "pg_restore --clean --if-exists --dbname scout_context_restore_check ./backup/scout_context_db.dump"
-echo "pg_restore --clean --if-exists --dbname customer_ops_restore_check ./backup/customer_ops_db.dump"
 
 step "Docker/PostgreSQL rehearsal"
 if [[ "$RUN_DOCKER" == "true" ]]; then

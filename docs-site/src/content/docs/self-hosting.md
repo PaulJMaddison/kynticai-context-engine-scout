@@ -35,8 +35,8 @@ Before running a customer or production-style environment:
 
 | Area | Required baseline |
 |---|---|
-| Mode | Use `Platform__Mode=SaaS` or `Platform__Mode=BackendOnly`. |
-| Database | Use PostgreSQL and apply EF Core migrations. |
+| Mode | Use `Platform__Mode=SelfHosted` (or `ManagedDataPlane` for a private managed deployment; `BackendOnly`/`SaaS` remain compatibility aliases). |
+| Database | Use PostgreSQL and apply EF Core migrations to the single Scout store. |
 | Demo data | Set `Bootstrap__SeedDemoData=false`. |
 | Frontend fallback | Set `VITE_DEMO_FALLBACK=false`. |
 | Signing key | Set `Auth__SigningKey` to a high-entropy secret of at least 48 bytes. |

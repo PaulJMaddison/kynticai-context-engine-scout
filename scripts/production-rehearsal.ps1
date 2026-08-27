@@ -68,15 +68,15 @@ function Assert-NotPlaceholder([string]$Name, [string]$Value, [int]$MinLength) {
 
 Write-Step "Production-style configuration checks"
 $environment = if ($env:ASPNETCORE_ENVIRONMENT) { $env:ASPNETCORE_ENVIRONMENT } else { "Production" }
-$platformMode = if ($env:Platform__Mode) { $env:Platform__Mode } else { "BackendOnly" }
+$platformMode = if ($env:Platform__Mode) { $env:Platform__Mode } else { "SelfHosted" }
 $databaseProvider = if ($env:Database__Provider) { $env:Database__Provider } else { "Postgres" }
 $seedDemo = if ($env:Bootstrap__SeedDemoData) { $env:Bootstrap__SeedDemoData } else { "false" }
 $demoFallback = if ($env:VITE_DEMO_FALLBACK) { $env:VITE_DEMO_FALLBACK } else { "false" }
 $dataProtectionRequired = if ($env:DataProtection__RequirePersistentKeys) { $env:DataProtection__RequirePersistentKeys } else { "true" }
 
 Assert-Setting "ASPNETCORE_ENVIRONMENT" "Production" $environment
-if ($platformMode -notin @("SaaS", "BackendOnly")) {
-    throw "Platform__Mode must be SaaS or BackendOnly for a production-style pilot rehearsal. Current value: '$platformMode'."
+if ($platformMode -notin @("SelfHosted", "ManagedDataPlane", "SaaS", "BackendOnly")) {
+    throw "Platform__Mode must be SelfHosted or ManagedDataPlane for a production-style pilot rehearsal (BackendOnly/SaaS remain compatibility aliases). Current value: '$platformMode'."
 }
 Assert-Setting "Database__Provider" "Postgres" $databaseProvider
 Assert-Setting "Bootstrap__SeedDemoData" "false" $seedDemo
@@ -86,8 +86,8 @@ if ([string]::IsNullOrWhiteSpace($env:DataProtection__KeyRingPath)) {
     Write-Warning "DataProtection__KeyRingPath is not set in this shell. Use /var/lib/scout/data-protection-keys or another mounted, backed-up path."
 }
 Assert-NotPlaceholder "Auth__SigningKey" $env:Auth__SigningKey 48
-if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__Scout) -or [string]::IsNullOrWhiteSpace($env:ConnectionStrings__CustomerOps)) {
-    throw "ConnectionStrings__Scout and ConnectionStrings__CustomerOps must both be set to PostgreSQL connection strings."
+if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__Scout)) {
+    throw "ConnectionStrings__Scout must be set to the single Scout PostgreSQL connection string."
 }
 
 Write-Host "Configuration checks passed."
@@ -109,14 +109,11 @@ if ($RunMigrations) {
 }
 
 Write-Step "Backup and restore commands"
-Write-Host "Backup:"
+Write-Host "Backup (single Scout store):"
 Write-Host "pg_dump --format=custom --file .\backup\scout_context_db.dump scout_context_db"
-Write-Host "pg_dump --format=custom --file .\backup\customer_ops_db.dump customer_ops_db"
-Write-Host "Restore into disposable databases:"
+Write-Host "Restore into a disposable database:"
 Write-Host "createdb scout_context_restore_check"
-Write-Host "createdb customer_ops_restore_check"
 Write-Host "pg_restore --clean --if-exists --dbname scout_context_restore_check .\backup\scout_context_db.dump"
-Write-Host "pg_restore --clean --if-exists --dbname customer_ops_restore_check .\backup\customer_ops_db.dump"
 
 Write-Step "Docker/PostgreSQL rehearsal"
 if ($RunDocker) {

@@ -22,14 +22,14 @@ Add `-RunDocker` on PowerShell or `--run-docker` on Bash only when Docker is ava
 
 ## What The Rehearsal Checks
 
-- production mode settings: `ASPNETCORE_ENVIRONMENT=Production` and `Platform__Mode=SaaS` or `BackendOnly`
+- production mode settings: `ASPNETCORE_ENVIRONMENT=Production` and `Platform__Mode=SelfHosted` (or `ManagedDataPlane` for a private managed deployment; `BackendOnly`/`SaaS` remain compatibility aliases)
 - demo fallback disabled: `VITE_DEMO_FALLBACK=false`
 - PostgreSQL configuration: `Database__Provider=Postgres`
 - strong JWT signing key: `Auth__SigningKey` at least 48 characters and not a development placeholder
 - persistent ASP.NET Data Protection keys: `DataProtection__RequirePersistentKeys=true` and a non-empty key ring path
 - database migration path: `dotnet run --project src/KynticAI.Scout.Api/KynticAI.Scout.Api.csproj -- migrate`
 - seed data disabled unless explicitly requested: `Bootstrap__SeedDemoData=false`
-- backup command for both scout and customer-ops databases
+- backup command for the single Scout database
 - restore command for disposable restore validation
 - health check endpoints: `/health/live`, `/health/ready`, `/health`, `/api/v1/health`
 - GraphQL endpoint: `/graphql`
