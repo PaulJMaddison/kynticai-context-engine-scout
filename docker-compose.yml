@@ -99,7 +99,11 @@ services:
       DataProtection__KeyRingPath: ${DataProtection__KeyRingPath:-/var/lib/scout/data-protection-keys}
       DataProtection__RequirePersistentKeys: ${DataProtection__RequirePersistentKeys:-true}
       ConnectionStrings__Scout: Host=postgres;Port=5432;Database=${SCOUT_DB:-scout_context_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      # Fictional reference data is enabled only for this LocalDemo composition.
+      ReferenceData__CustomerOpsEnabled: "true"
       ConnectionStrings__CustomerOps: Host=postgres;Port=5432;Database=${CUSTOMER_OPS_DB:-customer_ops_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ContextPackages__LowConfidenceThreshold: "0.75"
+      ContextPackages__MinimumStrongFacts: "3"
       Telemetry__OtlpEndpoint: ${Telemetry__OtlpEndpoint:-http://otel-collector:4317}
       Cors__AllowedOrigins__0: http://localhost:5173
       Cors__AllowedOrigins__1: http://127.0.0.1:5173
@@ -109,11 +113,6 @@ services:
       Auth__Audience: ${Auth__Audience:-KynticAI.Scout.Console}
       Auth__SigningKey: ${Auth__SigningKey:-scout-development-only-change-before-production}
       Auth__AccessTokenMinutes: ${Auth__AccessTokenMinutes:-120}
-      Llm__DefaultProvider: ${Llm__DefaultProvider:-mock}
-      Llm__DefaultModel: ${Llm__DefaultModel:-gpt-5.5}
-      Llm__MaxAttempts: ${Llm__MaxAttempts:-2}
-      Llm__LowConfidenceThreshold: ${Llm__LowConfidenceThreshold:-0.75}
-      Llm__MinimumStrongFacts: ${Llm__MinimumStrongFacts:-3}
     ports:
       - "${SCOUT_BIND_ADDRESS:-127.0.0.1}:5198:8080"
     volumes:
