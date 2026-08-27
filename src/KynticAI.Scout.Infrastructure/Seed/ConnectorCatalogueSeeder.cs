@@ -144,7 +144,7 @@ public static class ConnectorCatalogueSeeder
     private static object SqlConfiguration() => new
     {
         type = "object",
-        required = new[] { "tableName", "userIdColumn", "columns" },
+        required = new[] { "mode", "tableName", "userIdColumn", "columns" },
         properties = new Dictionary<string, object>
         {
             ["mode"] = new { type = "string", @enum = new[] { "currentDatabase", "customerOpsDatabase", "connectionString" } },

@@ -221,7 +221,12 @@ internal sealed class SqlFullSourceCaptureConnector(
 
     private async Task<DbConnection> OpenConnectionAsync(JsonObject configuration, JsonObject credentials, CancellationToken cancellationToken)
     {
-        var mode = configuration["mode"]?.GetValue<string>() ?? "customerOpsDatabase";
+        var mode = configuration["mode"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            throw new InvalidOperationException("SQL full capture requires an explicit connector mode; Scout does not default production capture to the LocalDemo CustomerOps reference database.");
+        }
+
         return mode.Trim().ToLowerInvariant() switch
         {
             "currentdatabase" => await OpenSharedAsync(scoutDbContext.Database.GetDbConnection(), cancellationToken),

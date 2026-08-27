@@ -29,7 +29,7 @@ internal sealed class SqlConnectorPlugin(
         => new()
         {
             ["type"] = "object",
-            ["required"] = new JsonArray("tableName", "userIdColumn", "columns"),
+            ["required"] = new JsonArray("mode", "tableName", "userIdColumn", "columns"),
             ["properties"] = new JsonObject
             {
                 ["mode"] = new JsonObject { ["type"] = "string" },
@@ -150,8 +150,12 @@ internal sealed class SqlConnectorPlugin(
             }
         }
 
-        var mode = request.Configuration["mode"]?.GetValue<string>() ?? "customerOpsDatabase";
-        if (!IsSupportedMode(mode))
+        var mode = request.Configuration["mode"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            errors.Add("SQL connector mode is required. Choose currentDatabase, customerOpsDatabase (LocalDemo/reference only), or connectionString.");
+        }
+        else if (!IsSupportedMode(mode))
         {
             errors.Add($"SQL connector mode '{mode}' is not supported.");
         }
@@ -306,7 +310,12 @@ internal sealed class SqlConnectorPlugin(
 
     private async Task<DbConnection> OpenConnectionAsync(JsonObject configuration, JsonObject credentials, CancellationToken cancellationToken)
     {
-        var mode = configuration["mode"]?.GetValue<string>() ?? "customerOpsDatabase";
+        var mode = configuration["mode"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            throw new InvalidOperationException("SQL connector mode is required; Scout does not default production connectors to the LocalDemo CustomerOps reference database.");
+        }
+
         return mode.Trim().ToLowerInvariant() switch
         {
             "currentdatabase" => await OpenSharedConnectionAsync(scoutDbContext.Database.GetDbConnection(), cancellationToken),

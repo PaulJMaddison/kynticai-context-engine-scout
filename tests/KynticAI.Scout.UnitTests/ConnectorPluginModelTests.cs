@@ -213,6 +213,29 @@ public sealed class ConnectorPluginModelTests
         Assert.Equal("proposal", result.NormalizedPayload["crm"]!["stage"]!.GetValue<string>());
     }
 
+    [Fact]
+    public async Task SqlConnector_RequiresExplicitMode_InsteadOfDefaultingToCustomerOpsReference()
+    {
+        using var provider = CreateServices().BuildServiceProvider();
+        var plugin = provider.GetRequiredService<IConnectorRegistry>().GetRequiredPlugin("sqlDatabase");
+
+        var result = await plugin.ValidateConfigurationAsync(
+            new ConnectorConfigurationValidationRequest(
+                "sqlDatabase",
+                DataSourceKind.SqlMetric,
+                new JsonObject
+                {
+                    ["tableName"] = "context_metrics",
+                    ["userIdColumn"] = "external_user_id",
+                    ["columns"] = new JsonArray("health_score")
+                },
+                new JsonObject()),
+            CancellationToken.None);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("mode is required", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static ServiceCollection CreateServices()
     {
         var services = new ServiceCollection();
