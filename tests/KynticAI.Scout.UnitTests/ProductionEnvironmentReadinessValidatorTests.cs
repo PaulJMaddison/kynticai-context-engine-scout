@@ -169,6 +169,32 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
     }
 
     [Fact]
+    public void Development_self_hosted_mode_still_requires_production_shape()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            SafeProductionSettings(new Dictionary<string, string?>()),
+            new TestHostEnvironment("Development"));
+
+        Assert.True(report.ProductionShapeRequired);
+        Assert.True(report.ReadyForProductionStyleDeployment);
+    }
+
+    [Fact]
+    public void Development_backend_only_compatibility_mode_does_not_force_production_shape()
+    {
+        var report = ProductionEnvironmentReadinessValidator.GetReport(
+            Configuration(new Dictionary<string, string?>
+            {
+                ["Platform:Mode"] = PlatformModes.BackendOnly,
+                ["Database:Provider"] = "Sqlite"
+            }),
+            new TestHostEnvironment("Development"));
+
+        Assert.False(report.ProductionShapeRequired);
+        Assert.True(report.ReadyForProductionStyleDeployment);
+    }
+
+    [Fact]
     public void Development_local_demo_does_not_block_startup()
     {
         var report = ProductionEnvironmentReadinessValidator.GetReport(
@@ -193,7 +219,6 @@ public sealed class ProductionEnvironmentReadinessValidatorTests
             ["Platform:Mode"] = PlatformModes.SelfHosted,
             ["Database:Provider"] = "Postgres",
             ["ConnectionStrings:Scout"] = "Host=postgres.internal;Port=5432;Database=scout_context;Username=scout;Password=not-real",
-            ["ConnectionStrings:CustomerOps"] = "Host=postgres.internal;Port=5432;Database=customer_ops;Username=scout;Password=not-real",
             ["Bootstrap:SeedDemoData"] = "false",
             ["FeatureFlags:DemoExperience"] = "false",
             ["DataProtection:RequirePersistentKeys"] = "true",
