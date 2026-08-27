@@ -1,7 +1,7 @@
 using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Services;
 using KynticAI.Scout.Infrastructure.Auth;
-using KynticAI.Scout.Infrastructure.AI;
+using KynticAI.Scout.Infrastructure.ContextPackages;
 using KynticAI.Scout.Infrastructure.Connectors;
 using KynticAI.Scout.Infrastructure.Extensions;
 using KynticAI.Scout.Infrastructure.Jobs;
@@ -125,7 +125,7 @@ public static class DependencyInjection
         services.AddSingleton<BackgroundJobMetrics>();
         services.AddSingleton<IHostedService>(provider => provider.GetRequiredService<BackgroundJobMetrics>());
         services.AddScoped<ContextRecomputeProcessor>();
-        services.AddScoped<ISalesSupportAgentService, SalesSupportAgentService>();
+        services.AddScoped<ISalesSupportAgentService, CompatibilityContextPackageService>();
 
         // Keep the existing selector implementation as the derivation engine, but make source
         // capture a separate decorator so source truth is durably retained before Scout's

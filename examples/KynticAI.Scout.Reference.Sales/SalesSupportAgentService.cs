@@ -4,13 +4,11 @@ using KynticAI.Scout.Application.Abstractions;
 using KynticAI.Scout.Application.Contracts;
 using KynticAI.Scout.Domain.Constants;
 using KynticAI.Scout.Domain.Entities;
-using KynticAI.Scout.Infrastructure.Configuration;
-using Microsoft.Extensions.Options;
 
-namespace KynticAI.Scout.Infrastructure.AI;
+namespace KynticAI.Scout.Reference.Sales;
 
 public sealed class SalesSupportAgentService(
-    IOptions<ContextPackageOptions> options)
+    SalesReferenceContextOptions options)
     : ISalesSupportAgentService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -35,7 +33,7 @@ public sealed class SalesSupportAgentService(
         string salesObjective,
         DateTime utcNow)
     {
-        var contextOptions = options.Value;
+        var contextOptions = options;
         var strongFacts = 0;
         var factResults = contextSnapshot.Facts
             .OrderBy(fact => fact.AttributeKey, StringComparer.Ordinal)
@@ -233,7 +231,7 @@ public sealed class SalesSupportAgentService(
             ? "external"
             : providerName.Trim();
         const string reason =
-            "Scout core does not execute AI models. Send the governed context package and prompt envelope " +
+            "The Scout sales reference project does not execute AI models. Send the governed context package and prompt envelope " +
             "to a customer-owned or reference consumer and perform inference there.";
 
         return Task.FromResult(new SalesSupportGenerationArtifact(
