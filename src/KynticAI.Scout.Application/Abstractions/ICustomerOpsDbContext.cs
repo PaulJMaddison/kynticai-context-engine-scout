@@ -1,18 +1,10 @@
 using KynticAI.Scout.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace KynticAI.Scout.Application.Abstractions;
 
 public interface ICustomerOpsDbContext
 {
-    /// <summary>
-    /// The underlying <see cref="DbContext.Database"/> facade, exposed so SQL connectors can
-    /// route to a shared <c>customerOpsDatabase</c> connection without coupling to the concrete
-    /// reference-store type. Only meaningful when a CustomerOps reference store is configured.
-    /// </summary>
-    DatabaseFacade Database { get; }
-
     DbSet<CustomerOpsTenant> CustomerOpsTenants { get; }
 
     DbSet<CustomerAccount> CustomerAccounts { get; }
