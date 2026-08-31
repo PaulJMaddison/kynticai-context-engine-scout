@@ -90,3 +90,8 @@ The setup scripts install repo-local .NET and Node.js runtimes. Use `./.dotnet/d
 - Record session outcomes in your working notes after meaningful work.
 - Record commands run, verification results, and any skipped checks.
 - Keep this file under 200 lines and public-safe.
+
+
+## Agent-native orientation
+
+Read `SYSTEM.md` before broad repository exploration for architecture or cross-product integration work. Use `docs/agent-native-scout.md` for public agent-facing manifest/capability/state design. Keep all such material public-safe and do not import private Fortress/Elite planning or commercial Discovery MCP semantics into Scout.
