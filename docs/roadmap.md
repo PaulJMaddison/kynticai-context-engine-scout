@@ -64,3 +64,8 @@ After the architecture programme:
 - Examples must not masquerade as platform truth.
 - Public interfaces may expose extension seams; private implementations stay private.
 - Current documentation must describe shipped reality rather than aspirational state.
+
+
+## Agent-native operability
+
+Scout should become increasingly self-describing for software and AI agents without adding an LLM dependency to Scout core. Planned public work includes a small versioned system manifest, public capability descriptors, a bounded runtime state/readiness snapshot, alignment of the public Discovery MCP with those authoritative descriptors, and operation receipts where they improve migration/import/admin reliability. See [`agent-native-scout.md`](agent-native-scout.md). Private Fortress/Elite control contracts remain outside the open-source repository.
