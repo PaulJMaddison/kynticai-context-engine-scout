@@ -455,3 +455,8 @@ Please read:
 ## License
 
 KynticAI Scout is released under the [MIT License](LICENSE).
+
+
+## Agent-native Scout
+
+Scout is designed to be easy for software and AI agents to inspect without relying on an LLM inside Scout itself. Start with [`SYSTEM.md`](SYSTEM.md) and [`docs/agent-native-scout.md`](docs/agent-native-scout.md) for the public-safe system manifest, capability, state and Discovery-surface direction.
