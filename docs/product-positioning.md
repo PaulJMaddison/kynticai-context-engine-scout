@@ -1,59 +1,43 @@
-# Product Positioning
+# Product Positioning — Historical
 
-Canonical names and boundaries are defined in [source-of-truth-naming-map.md](source-of-truth-naming-map.md).
+> **Retired:** Scout is no longer an active KynticAI product. This document replaces the former public product-tier positioning and should be read together with [`../RETIRED.md`](../RETIRED.md).
 
-## In one sentence
+## Historical role
 
-**KynticAI Scout connects authorised business data, keeps the evidence in the customer's environment, links related information and makes the result easy for other software to use.**
+Scout was the public/open-source KynticAI exploration layer for connecting authorised business data, retaining source evidence, linking related information and exposing the resulting context through APIs and SDKs.
 
-## The product progression
+It was originally positioned as the first stage in a `Scout -> Fortress -> Elite` progression.
 
-- **Scout — Explore:** open source. Connect data, prove the basic context flow and build against normal APIs.
-- **Fortress — Prove:** private production product for advanced governed analysis and enterprise extensions.
-- **Elite — Scale:** the organisation-wide scale product for programmes spanning systems, divisions and security boundaries.
+That product progression is now retired.
 
-Cloud/control-plane services are optional supporting infrastructure, not the third product.
+## Current status
 
-## What Scout does
+Scout is now preserved as a historical proof of concept and reference implementation.
 
-Customers keep their existing CRM, ERP, support, billing, warehouse, product, spreadsheet and legacy systems.
+It should **not** be positioned as:
 
-Scout sits beside those systems. It:
+- a current KynticAI product tier;
+- an entry point into Fortress or Elite;
+- a supported commercial pilot platform;
+- a representation of the current KynticAI production architecture;
+- a migration-compatible subset of the current commercial system.
 
-1. reads or receives only authorised data;
-2. keeps approved source evidence locally;
-3. maps fields into reusable business facts;
-4. links related records;
-5. records where each item came from and when it was observed;
-6. returns the result through REST, GraphQL and SDKs.
+## What remains useful
 
-Scout core does not call an AI model. A customer can pass Scout output into an app, workflow, report, agent or model runtime of their choice.
+The repository still demonstrates public engineering ideas around:
 
-## What is public
+- authorised ingestion;
+- customer-controlled data planes;
+- semantic/context construction;
+- relationship linking;
+- source provenance;
+- REST/GraphQL/SDK exposure;
+- connector and local deployment patterns.
 
-This repository contains the open-source Scout core, generic connectors, APIs, SDKs, admin/demo UI, local deployment path, public tooling and extension contracts.
+These concepts are historical antecedents of later KynticAI work, not a specification for the current platform.
 
-It also contains public metadata tools:
+## Private/current KynticAI
 
-- the generic Discovery Agent for local codebase audit/handover;
-- the metadata-only Scout Discovery MCP for connector/catalogue inspection.
+Current KynticAI products and production architecture are developed separately. This repository does not contain or define the current private reasoning, governed evidence construction, attention, outcome modelling, intervention/execution, outcome memory, compounding intelligence, Fortress internals or Elite integration.
 
-## What is private
-
-Fortress/Elite implementation, private enterprise connectors, advanced private analysis, commercial Discovery MCP workflow/Discovery Signature generation, private deployment packs and customer-specific material stay outside this repo.
-
-## Control plane
-
-An optional control plane may manage commercial metadata such as licences, downloads, update channels, support access and approved aggregate usage counters.
-
-It is not a raw customer-data store and is not required for Scout open-source use.
-
-## Companion products
-
-KynticAI Score is a separate product. Scout may publish a compatibility contract/client, but Scout does not calculate Score results.
-
-Clarity and Importance are separate KynticAI products.
-
-## Public claim discipline
-
-Do not describe Scout as the full Fortress/Elite engine. Do not present examples or fallback heuristics as calibrated production intelligence. Do not describe optional control-plane services as a hosted Scout data plane.
+For current product information, use the KynticAI website rather than this repository.

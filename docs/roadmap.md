@@ -1,66 +1,23 @@
-# Scout Roadmap
+# Scout Roadmap — Frozen
 
-This roadmap covers the public KynticAI Scout product.
+> **Project retired:** Scout is no longer an active KynticAI product. The former roadmap has been frozen and is superseded by [`../RETIRED.md`](../RETIRED.md).
 
-Canonical product names are defined in [source-of-truth-naming-map.md](source-of-truth-naming-map.md).
+Scout is retained as a historical/open-source proof of concept. There is no active product roadmap for this repository.
 
-## Product boundary
+## Status
 
-- **Scout — Explore:** this open-source repository.
-- **Fortress — Prove:** private product outside this repository.
-- **Elite — Scale:** enterprise scale product outside this repository.
-- Optional Cloud/control-plane services are supporting infrastructure, not the third product.
+- No new Scout product features are planned.
+- No new commercial product tiers or paid-pilot capabilities should be added here.
+- No work should be undertaken to keep Scout aligned with the current private KynticAI production architecture.
+- Existing implementation and documentation may remain as historical reference material.
+- Maintenance, security updates and compatibility work are not guaranteed.
 
-## Shipped public foundations
+## Historical scope
 
-Scout currently includes:
+At the point Scout was retired, the repository contained public foundations for connectors, retained source evidence, mappings/selectors, context facts, relationships, provenance, REST/GraphQL APIs, TypeScript/.NET SDKs, authentication, audit, event ingestion, local deployment, web tooling and public discovery/connector tooling.
 
-- source connectors and connector extension contracts;
-- retained source evidence/continuity foundations;
-- mappings/selectors;
-- context facts and snapshots;
-- relationship/evidence foundations;
-- REST and GraphQL APIs;
-- TypeScript and .NET SDKs;
-- local/demo and PostgreSQL deployment paths;
-- authentication, API clients, audit and webhook/event ingestion;
-- admin/demo web application;
-- generic Discovery Agent;
-- metadata-only Scout Discovery MCP;
-- public connector authoring/validation tooling;
-- Scout-to-Fortress customer-local continuity tooling.
+Those capabilities document what Scout became before retirement. They should not be interpreted as a description of current KynticAI products.
 
-KynticAI Score is a separate companion product. A public Score contract/client may live alongside Scout temporarily, but it is not a Scout scoring engine capability.
+## Archival principle
 
-## Current architecture programme
-
-The 2026-08-27 architecture review is tracked in [work-packages/README.md](work-packages/README.md).
-
-The taxonomy, inference boundary, single-production-database shape, runtime-mode
-semantics, tenant/workspace security wording, Score boundary and canonical
-`/api/v1` direction are implemented on the review branch. Sales/reference
-logic and repository-topology extraction are implementation-complete pending
-branch validation. Data Protection persistence has deterministic local proof
-implemented but still needs the branch test pass. Cross-instance source-event
-idempotency remains **Partial** until real local PostgreSQL concurrency proof
-passes, and CI activation remains **Blocked** by the external GitHub Actions
-restriction.
-
-## Directional priorities
-
-After the architecture programme:
-
-- improve connector quality and authoring experience;
-- strengthen source-evidence and replay guarantees;
-- improve API/SDK consistency;
-- keep self-hosting simple;
-- improve documentation and executable examples;
-- preserve stable public extension contracts without leaking private implementation.
-
-## Principles
-
-- Scout must remain useful without paid/private products.
-- Customer operational data stays customer-controlled by default.
-- Examples must not masquerade as platform truth.
-- Public interfaces may expose extension seams; private implementations stay private.
-- Current documentation must describe shipped reality rather than aspirational state.
+The value of this repository is now historical and educational: preserve the code, tests, documentation and architectural record without continuing to evolve Scout as a commercial product.
